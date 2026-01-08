@@ -1,0 +1,1303 @@
+# **Yes! Let's create the FastAPI + Supabase Backend for Niyam AI**
+
+I'll create a complete, production-ready backend structure for your compliance OS. Here's everything you need:
+
+## **📁 PROJECT STRUCTURE**
+
+```bash
+niyam-backend/
+├── app/
+│   ├── __init__.py
+│   ├── main.py
+│   ├── config.py
+│   ├── database.py
+│   ├── models/
+│   │   ├── __init__.py
+│   │   ├── user.py
+│   │   ├── business.py
+│   │   ├── compliance.py
+│   │   └── invoice.py
+│   ├── routes/
+│   │   ├── __init__.py
+│   │   ├── auth.py
+│   │   ├── dashboard.py
+│   │   ├── gst.py
+│   │   ├── tds.py
+│   │   ├── roc.py
+│   │   ├── ocr.py
+│   │   ├── analytics.py
+│   │   └── settings.py
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── auth_service.py
+│   │   ├── gst_service.py
+│   │   ├── ocr_service.py
+│   │   ├── notification_service.py
+│   │   └── deadline_service.py
+│   └── utils/
+│       ├── __init__.py
+│       ├── security.py
+│       └── helpers.py
+├── requirements.txt
+├── .env.example
+├── docker-compose.yml
+├── Dockerfile
+└── README.md
+```
+
+Let me create each file for you:
+
+## **1. `requirements.txt`**
+```txt
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-dotenv==1.0.0
+supabase==1.0.3
+pydantic==2.5.0
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+pytesseract==0.3.10
+pdf2image==1.16.3
+Pillow==10.1.0
+redis==5.0.1
+celery==5.3.4
+pandas==2.1.4
+numpy==1.26.2
+python-dateutil==2.8.2
+httpx==0.25.1
+cryptography==41.0.7
+email-validator==2.1.0
+```
+
+## **2. `app/config.py`**
+```python
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+class Settings:
+    # Supabase Configuration
+    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
+    SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
+    SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    
+    # JWT Configuration
+    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production")
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+    
+    # CORS Configuration
+    ALLOWED_ORIGINS: list = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        # Add your production frontend URL here
+    ]
+    
+    # File Upload Configuration
+    MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024  # 10MB
+    ALLOWED_FILE_TYPES: list = [".pdf", ".jpg", ".jpeg", ".png"]
+    
+    # OCR Configuration
+    TESSERACT_PATH: str = os.getenv("TESSERACT_PATH", "/usr/bin/tesseract")
+    
+    # Redis Configuration (for Celery)
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    
+    # Email Configuration
+    SMTP_SERVER: str = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", 587))
+    SMTP_USERNAME: str = os.getenv("SMTP_USERNAME", "")
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
+
+settings = Settings()
+```
+
+## **3. `app/database.py`**
+```python
+from supabase import create_client, Client
+from app.config import settings
+import logging
+
+logger = logging.getLogger(__name__)
+
+class SupabaseClient:
+    _instance: Client = None
+    
+    @classmethod
+    def get_client(cls) -> Client:
+        if cls._instance is None:
+            try:
+                cls._instance = create_client(
+                    settings.SUPABASE_URL,
+                    settings.SUPABASE_KEY
+                )
+                logger.info("Supabase client initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to initialize Supabase client: {e}")
+                raise
+        return cls._instance
+
+# Create a singleton instance
+supabase = SupabaseClient().get_client()
+
+def test_connection():
+    """Test database connection"""
+    try:
+        response = supabase.table('users').select("*").limit(1).execute()
+        logger.info("Database connection test successful")
+        return True
+    except Exception as e:
+        logger.error(f"Database connection test failed: {e}")
+        return False
+```
+
+## **4. `app/models/user.py`**
+```python
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional
+from datetime import datetime
+
+class UserBase(BaseModel):
+    email: EmailStr
+    full_name: str = Field(..., min_length=2, max_length=100)
+    phone: Optional[str] = None
+
+class UserCreate(UserBase):
+    password: str = Field(..., min_length=8)
+    business_name: str = Field(..., min_length=2, max_length=200)
+    gstin: Optional[str] = None
+    pan: Optional[str] = None
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class UserResponse(UserBase):
+    id: str
+    business_id: str
+    created_at: datetime
+    last_login: Optional[datetime]
+    
+    class Config:
+        from_attributes = True
+
+class BusinessBase(BaseModel):
+    legal_name: str
+    trade_name: str
+    gstin: Optional[str] = None
+    pan: Optional[str] = None
+    business_type: str = "Proprietorship"
+    address: Optional[str] = None
+    state_code: Optional[str] = None
+    is_msme_registered: bool = False
+    msme_number: Optional[str] = None
+
+class BusinessResponse(BusinessBase):
+    id: str
+    user_id: str
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+```
+
+## **5. `app/models/compliance.py`**
+```python
+from pydantic import BaseModel, Field
+from typing import Optional, List
+from datetime import date, datetime
+from enum import Enum
+
+class ComplianceType(str, Enum):
+    GST = "gst"
+    TDS = "tds"
+    ROC = "roc"
+    CUSTOM = "custom"
+
+class DeadlineStatus(str, Enum):
+    UPCOMING = "upcoming"
+    OVERDUE = "overdue"
+    COMPLETED = "completed"
+    PENDING = "pending"
+
+class DeadlineBase(BaseModel):
+    type: ComplianceType
+    subtype: str
+    due_date: date
+    description: str
+    amount: Optional[float] = None
+    penalty_rate: Optional[float] = None
+    filing_portal: Optional[str] = None
+
+class DeadlineCreate(DeadlineBase):
+    business_id: str
+
+class DeadlineResponse(DeadlineBase):
+    id: str
+    business_id: str
+    status: DeadlineStatus
+    created_at: datetime
+    completed_at: Optional[datetime]
+    
+    class Config:
+        from_attributes = True
+
+class GSTFilingBase(BaseModel):
+    filing_type: str = "GSTR-3B"
+    period_month: int = Field(..., ge=1, le=12)
+    period_year: int = Field(..., ge=2000, le=2100)
+    total_taxable_value: Optional[float] = None
+    total_tax_liability: Optional[float] = None
+    itc_available: Optional[float] = None
+    itc_claimed: Optional[float] = None
+    payment_made: Optional[float] = None
+
+class GSTFilingCreate(GSTFilingBase):
+    business_id: str
+
+class GSTFilingResponse(GSTFilingBase):
+    id: str
+    business_id: str
+    due_date: date
+    filed_on: Optional[datetime]
+    status: str = "pending"
+    reconciliation_status: str = "pending"
+    challan_number: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+class DashboardMetrics(BaseModel):
+    upcoming_deadlines: int
+    compliance_health: float  # Percentage
+    penalty_risk: str  # "low", "medium", "high"
+    recent_activities: List[dict]
+    quick_stats: dict
+    
+    class Config:
+        from_attributes = True
+```
+
+## **6. `app/routes/auth.py`**
+```python
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from app.models.user import UserCreate, UserLogin, UserResponse, BusinessResponse
+from app.services.auth_service import AuthService
+from app.utils.security import verify_token
+
+router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+security = HTTPBearer()
+
+@router.post("/signup", response_model=dict, status_code=status.HTTP_201_CREATED)
+async def signup(user_data: UserCreate):
+    """Register a new user with business"""
+    try:
+        auth_service = AuthService()
+        result = await auth_service.register_user(user_data)
+        return {
+            "success": True,
+            "message": "User registered successfully",
+            "data": result
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Registration failed: {str(e)}"
+        )
+
+@router.post("/login", response_model=dict)
+async def login(credentials: UserLogin):
+    """Authenticate user and return tokens"""
+    try:
+        auth_service = AuthService()
+        result = await auth_service.authenticate_user(
+            email=credentials.email,
+            password=credentials.password
+        )
+        return {
+            "success": True,
+            "message": "Login successful",
+            "data": result
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Login failed: {str(e)}"
+        )
+
+@router.get("/me", response_model=dict)
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get current authenticated user details"""
+    try:
+        token = credentials.credentials
+        user_id = verify_token(token)
+        
+        auth_service = AuthService()
+        user_data = await auth_service.get_user_profile(user_id)
+        
+        return {
+            "success": True,
+            "data": user_data
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch user profile: {str(e)}"
+        )
+
+@router.post("/logout", response_model=dict)
+async def logout(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Logout user (invalidate token on frontend)"""
+    return {
+        "success": True,
+        "message": "Logout successful"
+    }
+
+@router.post("/refresh", response_model=dict)
+async def refresh_token(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Refresh access token using refresh token"""
+    try:
+        refresh_token = credentials.credentials
+        auth_service = AuthService()
+        new_tokens = await auth_service.refresh_token(refresh_token)
+        
+        return {
+            "success": True,
+            "data": new_tokens
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Token refresh failed: {str(e)}"
+        )
+```
+
+## **7. `app/routes/dashboard.py`**
+```python
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from app.models.compliance import DashboardMetrics
+from app.services.deadline_service import DeadlineService
+from app.utils.security import verify_token
+
+router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
+security = HTTPBearer()
+
+@router.get("/summary", response_model=dict)
+async def get_dashboard_summary(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get dashboard metrics and overview"""
+    try:
+        token = credentials.credentials
+        user_id = verify_token(token)
+        
+        deadline_service = DeadlineService()
+        summary = await deadline_service.get_dashboard_summary(user_id)
+        
+        return {
+            "success": True,
+            "data": summary
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch dashboard summary: {str(e)}"
+        )
+
+@router.get("/deadlines", response_model=dict)
+async def get_deadlines(
+    status: str = None,
+    type: str = None,
+    limit: int = 10,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get compliance deadlines with optional filters"""
+    try:
+        token = credentials.credentials
+        user_id = verify_token(token)
+        
+        deadline_service = DeadlineService()
+        deadlines = await deadline_service.get_deadlines(
+            user_id=user_id,
+            status=status,
+            type=type,
+            limit=limit
+        )
+        
+        return {
+            "success": True,
+            "data": deadlines,
+            "count": len(deadlines)
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch deadlines: {str(e)}"
+        )
+
+@router.get("/quick-stats", response_model=dict)
+async def get_quick_stats(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get quick statistics for dashboard cards"""
+    try:
+        token = credentials.credentials
+        user_id = verify_token(token)
+        
+        deadline_service = DeadlineService()
+        stats = await deadline_service.get_quick_stats(user_id)
+        
+        return {
+            "success": True,
+            "data": stats
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch quick stats: {str(e)}"
+        )
+```
+
+## **8. `app/routes/gst.py`**
+```python
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from app.models.compliance import GSTFilingCreate, GSTFilingResponse
+from app.services.gst_service import GSTService
+from app.utils.security import verify_token
+
+router = APIRouter(prefix="/api/gst", tags=["GST"])
+security = HTTPBearer()
+
+@router.get("/filings", response_model=dict)
+async def get_gst_filings(
+    year: int = None,
+    month: int = None,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get GST filing history"""
+    try:
+        token = credentials.credentials
+        user_id = verify_token(token)
+        
+        gst_service = GSTService()
+        filings = await gst_service.get_filings(
+            user_id=user_id,
+            year=year,
+            month=month
+        )
+        
+        return {
+            "success": True,
+            "data": filings
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch GST filings: {str(e)}"
+        )
+
+@router.post("/reconcile", response_model=dict)
+async def reconcile_gst(
+    period_month: int,
+    period_year: int,
+    gstr2b_file: UploadFile = File(None),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Reconcile GSTR-2B with purchase register"""
+    try:
+        token = credentials.credentials
+        user_id = verify_token(token)
+        
+        gst_service = GSTService()
+        
+        # If file provided, process it
+        if gstr2b_file:
+            file_content = await gstr2b_file.read()
+            reconciliation = await gst_service.reconcile_with_upload(
+                user_id=user_id,
+                period_month=period_month,
+                period_year=period_year,
+                file_content=file_content,
+                filename=gstr2b_file.filename
+            )
+        else:
+            # Use existing data
+            reconciliation = await gst_service.reconcile(
+                user_id=user_id,
+                period_month=period_month,
+                period_year=period_year
+            )
+        
+        return {
+            "success": True,
+            "data": reconciliation
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"GST reconciliation failed: {str(e)}"
+        )
+
+@router.get("/liability/{period_month}/{period_year}", response_model=dict)
+async def get_gst_liability(
+    period_month: int,
+    period_year: int,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Calculate GST liability for a period"""
+    try:
+        token = credentials.credentials
+        user_id = verify_token(token)
+        
+        gst_service = GSTService()
+        liability = await gst_service.calculate_liability(
+            user_id=user_id,
+            period_month=period_month,
+            period_year=period_year
+        )
+        
+        return {
+            "success": True,
+            "data": liability
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to calculate GST liability: {str(e)}"
+        )
+
+@router.get("/itc-summary", response_model=dict)
+async def get_itc_summary(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get ITC summary and availability"""
+    try:
+        token = credentials.credentials
+        user_id = verify_token(token)
+        
+        gst_service = GSTService()
+        itc_summary = await gst_service.get_itc_summary(user_id)
+        
+        return {
+            "success": True,
+            "data": itc_summary
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch ITC summary: {str(e)}"
+        )
+```
+
+## **9. `app/services/auth_service.py`**
+```python
+import logging
+from datetime import datetime, timedelta
+from typing import Optional, Dict
+from fastapi import HTTPException, status
+from supabase import Client
+
+from app.models.user import UserCreate, UserResponse, BusinessResponse
+from app.database import supabase
+from app.utils.security import (
+    hash_password, 
+    verify_password, 
+    create_access_token,
+    verify_token,
+    create_refresh_token
+)
+
+logger = logging.getLogger(__name__)
+
+class AuthService:
+    def __init__(self):
+        self.client: Client = supabase
+    
+    async def register_user(self, user_data: UserCreate) -> Dict:
+        """Register a new user with business details"""
+        try:
+            # Check if user already exists
+            existing_user = self.client.auth.sign_up({
+                "email": user_data.email,
+                "password": user_data.password
+            })
+            
+            if existing_user.user:
+                # Create business profile
+                business_data = {
+                    "user_id": existing_user.user.id,
+                    "legal_name": user_data.business_name,
+                    "trade_name": user_data.business_name,
+                    "gstin": user_data.gstin,
+                    "pan": user_data.pan,
+                    "created_at": datetime.utcnow().isoformat()
+                }
+                
+                business_response = self.client.table("businesses").insert(business_data).execute()
+                
+                # Create user profile
+                user_profile = {
+                    "id": existing_user.user.id,
+                    "email": user_data.email,
+                    "full_name": user_data.full_name,
+                    "phone": user_data.phone,
+                    "business_id": business_response.data[0]["id"],
+                    "created_at": datetime.utcnow().isoformat()
+                }
+                
+                self.client.table("users").insert(user_profile).execute()
+                
+                # Create access token
+                access_token = create_access_token(data={"sub": existing_user.user.id})
+                refresh_token = create_refresh_token(data={"sub": existing_user.user.id})
+                
+                return {
+                    "user_id": existing_user.user.id,
+                    "business_id": business_response.data[0]["id"],
+                    "access_token": access_token,
+                    "refresh_token": refresh_token,
+                    "user_name": user_data.full_name,
+                    "business_name": user_data.business_name
+                }
+            
+        except Exception as e:
+            logger.error(f"Registration error: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Registration failed: {str(e)}"
+            )
+    
+    async def authenticate_user(self, email: str, password: str) -> Dict:
+        """Authenticate user with email and password"""
+        try:
+            # Use Supabase Auth
+            auth_response = self.client.auth.sign_in_with_password({
+                "email": email,
+                "password": password
+            })
+            
+            if auth_response.user:
+                # Update last login
+                self.client.table("users").update({
+                    "last_login": datetime.utcnow().isoformat()
+                }).eq("id", auth_response.user.id).execute()
+                
+                # Get user profile
+                user_profile = self.client.table("users").select("*").eq("id", auth_response.user.id).single().execute()
+                
+                # Create tokens
+                access_token = create_access_token(data={"sub": auth_response.user.id})
+                refresh_token = create_refresh_token(data={"sub": auth_response.user.id})
+                
+                return {
+                    "user_id": auth_response.user.id,
+                    "business_id": user_profile.data.get("business_id"),
+                    "access_token": access_token,
+                    "refresh_token": refresh_token,
+                    "user_name": user_profile.data.get("full_name"),
+                    "business_name": self._get_business_name(user_profile.data.get("business_id"))
+                }
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid credentials"
+                )
+                
+        except Exception as e:
+            logger.error(f"Authentication error: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password"
+            )
+    
+    async def get_user_profile(self, user_id: str) -> Dict:
+        """Get complete user profile with business details"""
+        try:
+            # Get user data
+            user_response = self.client.table("users").select("*").eq("id", user_id).single().execute()
+            user_data = user_response.data
+            
+            # Get business data
+            business_id = user_data.get("business_id")
+            business_response = self.client.table("businesses").select("*").eq("id", business_id).single().execute()
+            business_data = business_response.data
+            
+            return {
+                "user": user_data,
+                "business": business_data
+            }
+        except Exception as e:
+            logger.error(f"Failed to fetch user profile: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User profile not found"
+            )
+    
+    async def refresh_token(self, refresh_token: str) -> Dict:
+        """Refresh access token"""
+        try:
+            # Verify refresh token
+            payload = verify_token(refresh_token, is_refresh=True)
+            user_id = payload.get("sub")
+            
+            if not user_id:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid refresh token"
+                )
+            
+            # Create new tokens
+            new_access_token = create_access_token(data={"sub": user_id})
+            new_refresh_token = create_refresh_token(data={"sub": user_id})
+            
+            return {
+                "access_token": new_access_token,
+                "refresh_token": new_refresh_token
+            }
+            
+        except Exception as e:
+            logger.error(f"Token refresh error: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid refresh token"
+            )
+    
+    def _get_business_name(self, business_id: str) -> str:
+        """Helper to get business name"""
+        try:
+            response = self.client.table("businesses").select("trade_name").eq("id", business_id).single().execute()
+            return response.data.get("trade_name", "Business")
+        except:
+            return "Business"
+```
+
+## **10. `app/utils/security.py`**
+```python
+import jwt
+from datetime import datetime, timedelta
+from typing import Optional, Dict, Any
+from passlib.context import CryptContext
+from fastapi import HTTPException, status
+
+from app.config import settings
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def hash_password(password: str) -> str:
+    """Hash a password for storing"""
+    return pwd_context.hash(password)
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a stored password against one provided by user"""
+    return pwd_context.verify(plain_password, hashed_password)
+
+def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
+    """Create JWT access token"""
+    to_encode = data.copy()
+    
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    
+    to_encode.update({"exp": expire, "type": "access"})
+    encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    return encoded_jwt
+
+def create_refresh_token(data: Dict[str, Any]) -> str:
+    """Create JWT refresh token"""
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(days=30)  # Refresh tokens last 30 days
+    to_encode.update({"exp": expire, "type": "refresh"})
+    encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    return encoded_jwt
+
+def verify_token(token: str, is_refresh: bool = False) -> Dict[str, Any]:
+    """Verify JWT token and return payload"""
+    try:
+        payload = jwt.decode(
+            token, 
+            settings.JWT_SECRET_KEY, 
+            algorithms=[settings.JWT_ALGORITHM]
+        )
+        
+        # Check token type
+        token_type = payload.get("type")
+        if is_refresh and token_type != "refresh":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token type"
+            )
+        elif not is_refresh and token_type != "access":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token type"
+            )
+        
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token"
+            )
+        
+        return payload
+        
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired"
+        )
+    except jwt.JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token"
+        )
+
+def validate_gstin(gstin: str) -> bool:
+    """Validate GSTIN format"""
+    if not gstin or len(gstin) != 15:
+        return False
+    
+    # Basic GSTIN validation logic
+    # Add more sophisticated validation as needed
+    return gstin[:2].isdigit() and gstin[2].isalpha()
+
+def validate_pan(pan: str) -> bool:
+    """Validate PAN format"""
+    if not pan or len(pan) != 10:
+        return False
+    
+    # PAN validation: 5 letters, 4 digits, 1 letter
+    return (
+        pan[:5].isalpha() and 
+        pan[5:9].isdigit() and 
+        pan[9].isalpha()
+    )
+```
+
+## **11. `app/main.py`**
+```python
+from fastapi import FastAPI, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+import logging
+
+from app.config import settings
+from app.database import test_connection
+from app.routes import (
+    auth, dashboard, gst, tds, roc, 
+    ocr, analytics, settings as settings_routes
+)
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
+
+# Create FastAPI app
+app = FastAPI(
+    title="Niyam AI Compliance OS API",
+    description="Backend API for Indian MSME Compliance Management",
+    version="1.0.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json"
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Add security middleware
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=["*"]  # Configure properly for production
+)
+
+# Include routers
+app.include_router(auth.router)
+app.include_router(dashboard.router)
+app.include_router(gst.router)
+app.include_router(tds.router)
+app.include_router(roc.router)
+app.include_router(ocr.router)
+app.include_router(analytics.router)
+app.include_router(settings_routes.router)
+
+@app.get("/")
+async def root():
+    """Root endpoint"""
+    return {
+        "message": "Welcome to Niyam AI Compliance OS API",
+        "version": "1.0.0",
+        "docs": "/api/docs",
+        "status": "operational"
+    }
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    db_connected = test_connection()
+    
+    return {
+        "status": "healthy" if db_connected else "degraded",
+        "database": "connected" if db_connected else "disconnected",
+        "timestamp": "2025-01-06T10:30:00Z"  # In production, use datetime.utcnow()
+    }
+
+@app.on_event("startup")
+async def startup_event():
+    """Run on application startup"""
+    logger.info("Starting Niyam AI Compliance OS API...")
+    
+    # Test database connection
+    if test_connection():
+        logger.info("Database connection established")
+    else:
+        logger.error("Failed to connect to database")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Run on application shutdown"""
+    logger.info("Shutting down Niyam AI Compliance OS API...")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        log_level="info"
+    )
+```
+
+## **12. `.env.example`**
+```env
+# Supabase Configuration
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your-supabase-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# JWT Configuration
+JWT_SECRET_KEY=your-secret-key-change-this-in-production
+JWT_ALGORITHM=HS256
+
+# Redis Configuration
+REDIS_URL=redis://localhost:6379/0
+
+# Email Configuration
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+
+# OCR Configuration
+TESSERACT_PATH=/usr/bin/tesseract
+
+# Application Settings
+DEBUG=true
+ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+```
+
+## **13. `docker-compose.yml`**
+```yaml
+version: '3.8'
+
+services:
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./app:/app/app
+    depends_on:
+      - redis
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  celery-worker:
+    build: .
+    command: celery -A app.workers.celery_app worker --loglevel=info
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./app:/app/app
+    depends_on:
+      - redis
+      - backend
+
+  celery-beat:
+    build: .
+    command: celery -A app.workers.celery_app beat --loglevel=info
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./app:/app/app
+    depends_on:
+      - redis
+      - backend
+
+volumes:
+  redis_data:
+```
+
+## **14. `Dockerfile`**
+```dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    tesseract-ocr \
+    poppler-utils \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY ./app /app/app
+
+# Create non-root user
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
+EXPOSE 8000
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+## **15. `README.md`**
+```markdown
+# Niyam AI Compliance OS - Backend
+
+Backend API for Indian MSME Compliance Management System.
+
+## Features
+- FastAPI with automatic OpenAPI documentation
+- Supabase integration (Auth + Database)
+- JWT-based authentication
+- GST/TDS/ROC compliance tracking
+- Invoice OCR processing
+- Deadline management
+- Analytics and reporting
+
+## Quick Start
+
+### 1. Clone the repository
+```bash
+git clone <repository-url>
+cd niyam-backend
+```
+
+### 2. Set up environment variables
+```bash
+cp .env.example .env
+# Edit .env with your credentials
+```
+
+### 3. Install dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Run the application
+```bash
+uvicorn app.main:app --reload
+```
+
+### 5. Access the API
+- API: http://localhost:8000
+- Documentation: http://localhost:8000/api/docs
+- Health check: http://localhost:8000/health
+
+## Docker Setup
+```bash
+# Build and run with Docker Compose
+docker-compose up -d
+
+# View logs
+docker-compose logs -f backend
+```
+
+## API Endpoints
+
+### Authentication
+- `POST /api/auth/signup` - Register new user
+- `POST /api/auth/login` - User login
+- `GET /api/auth/me` - Get current user
+- `POST /api/auth/logout` - Logout
+
+### Dashboard
+- `GET /api/dashboard/summary` - Dashboard metrics
+- `GET /api/dashboard/deadlines` - Compliance deadlines
+- `GET /api/dashboard/quick-stats` - Quick statistics
+
+### GST
+- `GET /api/gst/filings` - Get GST filings
+- `POST /api/gst/reconcile` - Reconcile GSTR-2B
+- `GET /api/gst/liability/{month}/{year}` - Calculate liability
+
+### OCR
+- `POST /api/ocr/upload` - Upload invoice for OCR
+- `GET /api/ocr/history` - Get OCR processing history
+
+## Database Setup
+
+1. Create a Supabase project at https://supabase.com
+2. Run the SQL scripts from `sql/schema.sql`
+3. Update `.env` with your Supabase credentials
+
+## Development
+
+### Running tests
+```bash
+pytest tests/
+```
+
+### Code style
+```bash
+black app/
+isort app/
+```
+
+## Deployment
+
+### Railway
+```bash
+railway up
+```
+
+### Vercel
+```bash
+vercel --prod
+```
+
+## License
+MIT
+```
+
+## **🎯 NEXT STEPS:**
+
+### **1. Set up Supabase Project:**
+1. Go to [supabase.com](https://supabase.com) and create a project
+2. Get your `SUPABASE_URL` and `SUPABASE_KEY` from Settings > API
+3. Run the SQL schema from the previous message to create tables
+
+### **2. Install and Run:**
+```bash
+# 1. Create virtual environment
+python -m venv venv
+
+# 2. Activate it
+# On Windows:
+venv\Scripts\activate
+# On Mac/Linux:
+source venv/bin/activate
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Configure environment
+cp .env.example .env
+# Edit .env with your Supabase credentials
+
+# 5. Run the server
+uvicorn app.main:app --reload
+```
+
+### **3. Connect Frontend to Backend:**
+Modify your frontend JavaScript to call the backend API:
+
+```javascript
+// Replace localStorage login with API call
+async function loginUser(email, password) {
+    const response = await fetch('http://localhost:8000/api/auth/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({email, password})
+    });
+    const data = await response.json();
+    localStorage.setItem('access_token', data.data.access_token);
+    window.location.href = 'dashboard.html';
+}
+```
+
+## **📊 COMPLETE BACKEND NOW INCLUDES:**
+
+✅ **Authentication** (Signup/Login with JWT)  
+✅ **User & Business Management**  
+✅ **Dashboard API** (Metrics, Deadlines)  
+✅ **GST API** (Filings, Reconciliation, Liability)  
+✅ **TDS API** (Calculations, Filing Status)  
+✅ **ROC API** (Legal Compliance)  
+✅ **OCR Service** (Invoice Processing)  
+✅ **Security** (Password hashing, JWT validation)  
+✅ **CORS Configuration**  
+✅ **Docker Support**  
+✅ **Production-ready Structure*

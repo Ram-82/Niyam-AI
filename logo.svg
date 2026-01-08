@@ -1,0 +1,18 @@
+<svg width="200" height="60" viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2563eb;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#10b981;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Shield Shape -->
+  <path d="M15 5 L45 5 L45 35 Q45 50 30 55 Q15 50 15 35 Z" fill="url(#shieldGrad)" />
+  <!-- Circuit Pattern (simplified) -->
+  <circle cx="25" cy="15" r="2" fill="white" fill-opacity="0.6" />
+  <circle cx="35" cy="20" r="2" fill="white" fill-opacity="0.6" />
+  <path d="M25 15 L25 25 M35 20 L35 30" stroke="white" stroke-width="1.5" stroke-opacity="0.6" />
+  <!-- Checkmark -->
+  <path d="M22 35 L28 41 L42 27" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+  <!-- Text -->
+  <text x="60" y="42" font-family="Inter, sans-serif" font-weight="700" font-size="28" fill="#1e293b">Niyam <tspan fill="#2563eb">AI</tspan></text>
+</svg>

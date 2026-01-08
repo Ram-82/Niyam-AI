@@ -1,0 +1,29 @@
+[
+  {
+    "id": "5714f63e-9ab8-4167-be52-21bb08347c3c",
+    "user_id": "67159892-3cf2-46f9-a7fc-12269ab2ea2b",
+    "legal_name": "Test Biz",
+    "trade_name": "Test Biz",
+    "gstin": null,
+    "pan": null,
+    "created_at": "2026-01-07T07:37:36.593876"
+  },
+  {
+    "id": "f8e3f6d8-0fa0-4a5b-813e-f83e3a6441c1",
+    "user_id": "15798178-0e4a-4b06-bc9d-30ed178c4628",
+    "legal_name": "Test Biz 2",
+    "trade_name": "Test Biz 2",
+    "gstin": null,
+    "pan": null,
+    "created_at": "2026-01-07T07:38:25.496894"
+  },
+  {
+    "id": "bfa91e71-6f31-4647-858e-3ee14efa1608",
+    "user_id": "eedd6d44-ba50-4c49-9721-e9de0a9a8353",
+    "legal_name": "acme business pvt ltd ",
+    "trade_name": "acme business pvt ltd ",
+    "gstin": null,
+    "pan": null,
+    "created_at": "2026-01-07T07:50:07.952005"
+  }
+]

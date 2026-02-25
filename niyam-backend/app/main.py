@@ -42,6 +42,9 @@ app.add_middleware(
     allowed_hosts=["*"]  # Configure properly for production
 )
 
+from fastapi.staticfiles import StaticFiles
+import os
+
 # Include routers
 app.include_router(auth.router)
 app.include_router(dashboard.router)
@@ -51,6 +54,11 @@ app.include_router(roc.router)
 app.include_router(ocr.router)
 app.include_router(analytics.router)
 app.include_router(settings_routes.router)
+
+# Serve static files (HTML, CSS, JS, etc.) from the project root
+# The project root is one level up from the niyam-backend directory
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+app.mount("/", StaticFiles(directory=project_root, html=True), name="static")
 
 @app.get("/")
 async def root():

@@ -86,8 +86,7 @@
     <script>
         feather.replace();
 
-        // Use a relative path for the API now that we are serving from the same host/port
-        const API_URL = '/api';
+        const API_URL = 'http://localhost:8001/api';
 
         document.getElementById('signup-form').addEventListener('submit', async (e) => {
             e.preventDefault();

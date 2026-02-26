@@ -25,32 +25,5 @@
     "gstin": null,
     "pan": null,
     "created_at": "2026-01-07T07:50:07.952005"
-  },
-  {
-    "id": "4a474f88-e1bc-45de-bff7-61f44804df07",
-    "user_id": "55a95e20-e6f8-4aa0-9cac-42b46b71f673",
-    "legal_name": "bjhbjhjhg",
-    "trade_name": "bjhbjhjhg",
-    "gstin": null,
-    "pan": null,
-    "created_at": "2026-02-25T18:43:25.353678"
-  },
-  {
-    "id": "72efef1a-0e2d-4cdb-87c7-72da78c12353",
-    "user_id": "0b8b3be3-6d6b-4ccd-bb9e-9b078ec1142d",
-    "legal_name": "bjhbjhjhg",
-    "trade_name": "bjhbjhjhg",
-    "gstin": null,
-    "pan": null,
-    "created_at": "2026-02-25T18:44:25.112949"
-  },
-  {
-    "id": "3018f800-7c53-4b10-a31a-1fdc23de3192",
-    "user_id": "cf459fee-cb01-46dc-8c9a-f4dde69fde97",
-    "legal_name": "bjhbjhjhg",
-    "trade_name": "bjhbjhjhg",
-    "gstin": null,
-    "pan": null,
-    "created_at": "2026-02-25T18:45:40.036488"
   }
 ]

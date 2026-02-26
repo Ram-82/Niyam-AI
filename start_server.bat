@@ -49,7 +49,7 @@ if %errorlevel% neq 0 (
 
 :: Start Server
 echo [INFO] Starting Server...
-echo [INFO] API will be available at http://localhost:8001
+echo [INFO] API will be available at https://niyam-ai-beryl.vercel.app/
 echo [INFO] Press Ctrl+C to stop.
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 

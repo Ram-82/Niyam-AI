@@ -38,3 +38,17 @@ ENV/
 
 # VS Code
 .vscode/
+
+# Niyam AI / GSD specific
+.agent/
+.gemini/
+.gsd/
+GSD-STYLE.md
+PROJECT_RULES.md
+SETUP_GUIDE_PRO.md
+model_capabilities.yaml
+adapters/
+docs/
+scripts/
+niyam-backend/main_new.py
+```

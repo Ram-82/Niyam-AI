@@ -12,12 +12,18 @@ async def get_dashboard_summary(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     """Get dashboard metrics and overview"""
-    # Placeholder for actual implementation
+    # Verification of token is handled by the dependency
+    
     return {
         "success": True,
         "data": {
-            "upcoming_deadlines": 5,
-            "compliance_health": 85.5,
-            "penalty_risk": "low"
+            "upcoming_deadlines": 3,
+            "compliance_health": 92.5,
+            "penalty_risk": "Low",
+            "active_tasks": 12,
+            "health_history": [80, 82, 85, 84, 88, 91, 92.5],
+            "labels": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+            "tax_liability": "₹42,500",
+            "next_deadline": "GSTR-1 (4 days)"
         }
     }

@@ -7,7 +7,6 @@
     <title>Dashboard | Niyam AI</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/feather-icons"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -679,7 +678,6 @@
                     Calendar View</a>
                 <a href="#" class="sidebar-item" onclick="switchView('gst', this)"><i data-feather="file-text"></i> GST
                     Filings</a>
-                <a href="ocr_demo.html" class="sidebar-item"><i data-feather="cpu"></i> AI Parser (OCR)</a>
                 <a href="#" class="sidebar-item" onclick="switchView('tds', this)"><i data-feather="dollar-sign"></i>
                     TDS & Taxes</a>
                 <a href="#" class="sidebar-item" onclick="switchView('roc', this)"><i data-feather="briefcase"></i> ROC
@@ -765,14 +763,6 @@
                             <span style="color: var(--success);">Low Risk</span>
                         </div>
                         <p style="font-size: 0.8rem; color: var(--text-light);">No immediate threats detected</p>
-                    </div>
-
-                    <!-- Compliance Health Trend Chart -->
-                    <div class="card" style="margin-top: var(--space-4);">
-                        <h3 style="margin-bottom: var(--space-3);">Compliance Health Trend</h3>
-                        <div style="height: 300px; position: relative;">
-                            <canvas id="healthTrendChart"></canvas>
-                        </div>
                     </div>
                 </div>
 
@@ -3115,11 +3105,7 @@
         // Authentication Check
         document.addEventListener('DOMContentLoaded', () => {
             const token = localStorage.getItem('niyam_access_token');
-            console.log('Niyam Access Token:', token);
-
             if (!token) {
-                console.warn('No access token found. Redirecting to login...');
-                // Optional: alert('Session expired or login missing. Redirecting to login page...');
                 window.location.href = 'login.html';
                 return;
             }
@@ -3128,9 +3114,9 @@
             const userName = localStorage.getItem('niyam_user_name') || 'User';
             const businessName = localStorage.getItem('niyam_business_name') || 'My Business';
 
-            // Fixed: Target h1#welcome-text instead of non-existent h2
-            const welcomeMsg = document.getElementById('welcome-text');
-            if (welcomeMsg) {
+            // Try to find elements to update (generic selectors since we can't find exact IDs easily)
+            const welcomeMsg = document.querySelector('h2'); // Usually the first h2 is the welcome message
+            if (welcomeMsg && welcomeMsg.innerText.includes('Good')) {
                 welcomeMsg.innerText = `Good Morning, ${userName.split(' ')[0]}`;
             }
 
@@ -3141,89 +3127,9 @@
             const logoutItem = document.querySelector('.sidebar-item:last-child');
             if (logoutItem && logoutItem.innerText.includes('Settings')) {
                 // Determine if there's a logout button, if not, create one
+                // Actually, let's just look for a "Log Out" text or add a logout button to the sidebar
             }
-
-            // Fetch and Render Dashboard Data
-            fetchDashboardData();
         });
-
-        async function fetchDashboardData() {
-            const token = localStorage.getItem('niyam_access_token');
-            try {
-                const response = await fetch('/api/dashboard/summary', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-                const data = await response.json();
-                if (data.success) {
-                    updateDashboardUI(data.data);
-                    renderHealthChart(data.data);
-                }
-            } catch (error) {
-                console.error('Error fetching dashboard data:', error);
-            }
-        }
-
-        function updateDashboardUI(data) {
-            // Update individual metric cards
-            const deadlineCount = document.querySelector('.metric-card:nth-child(1) .metric-value span');
-            const deadlineText = document.querySelector('.metric-card:nth-child(1) p:last-child');
-            if (deadlineCount) deadlineCount.innerText = data.upcoming_deadlines;
-            if (deadlineText) deadlineText.innerText = `Next due: ${data.next_deadline}`;
-
-            const healthPct = document.querySelector('.metric-card:nth-child(2) .metric-value span');
-            const healthBar = document.querySelector('.metric-card:nth-child(2) .metric-value').nextElementSibling.firstElementChild;
-            if (healthPct) healthPct.innerText = Math.round(data.compliance_health) + '%';
-            if (healthBar) healthBar.style.width = data.compliance_health + '%';
-
-            const riskVal = document.querySelector('#risk-card .metric-value span');
-            if (riskVal) {
-                riskVal.innerText = data.penalty_risk + ' Risk';
-                riskVal.style.color = data.penalty_risk === 'Low' ? 'var(--success)' : 'var(--error)';
-            }
-        }
-
-        function renderHealthChart(data) {
-            const ctx = document.getElementById('healthTrendChart').getContext('2d');
-            if (window.myChart) window.myChart.destroy();
-            window.myChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: data.labels,
-                    datasets: [{
-                        label: 'Compliance Score',
-                        data: data.health_history,
-                        borderColor: '#6366f1',
-                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                        borderWidth: 3,
-                        tension: 0.4,
-                        fill: true,
-                        pointBackgroundColor: '#6366f1',
-                        pointRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: false,
-                            min: 60,
-                            max: 100,
-                            grid: { color: '#f1f5f9' },
-                            ticks: { callback: value => value + '%' }
-                        },
-                        x: {
-                            grid: { display: false }
-                        }
-                    }
-                }
-            });
-        }
 
         function logout() {
             localStorage.removeItem('niyam_access_token');

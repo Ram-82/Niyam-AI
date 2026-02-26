@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 import logging
@@ -54,7 +55,7 @@ app.include_router(settings_routes.router)
 
 @app.get("/")
 async def root():
-    """Root endpoint"""
+    """Root endpoint returning API status as JSON"""
     return {
         "message": "Welcome to Niyam AI Compliance OS API",
         "version": "1.0.0",

@@ -1,0 +1,31 @@
+name: Trigger Render deploy for niyam-backend
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'niyam-backend/**'
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Trigger Render Deploy
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+        run: |
+          if [ -z "${RENDER_API_KEY}" ] || [ -z "${RENDER_SERVICE_ID}" ]; then
+            echo "Missing RENDER_API_KEY or RENDER_SERVICE_ID secrets"; exit 1
+          fi
+
+          echo "Triggering Render deploy for service ${RENDER_SERVICE_ID}"
+          curl -sSf -X POST \
+            "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys" \
+            -H "Accept: application/json" \
+            -H "Authorization: Bearer ${RENDER_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{}' || (echo 'Render deploy trigger failed' && false)

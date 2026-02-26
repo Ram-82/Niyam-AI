@@ -18,5 +18,25 @@
     "business_id": "bfa91e71-6f31-4647-858e-3ee14efa1608",
     "created_at": "2026-01-07T07:50:07.952005",
     "last_login": null
+  },
+  {
+    "id": "fa170815-2dde-4b17-a468-af89d47d1ee1",
+    "email": "user@example.com",
+    "hashed_password": "$pbkdf2-sha256$29000$zllLqfX.f./9/x.DMMZYiw$77Q/Ujbum3APRkF/Jf2//J4GvaEYQaOa.tYg488lUEs",
+    "full_name": "string",
+    "phone": "string",
+    "business_id": "05d14b75-827c-465e-b7d8-70df4925ab34",
+    "created_at": "2026-02-06T08:11:08.544156",
+    "last_login": null
+  },
+  {
+    "id": "8382aba1-3609-4c5f-8c9c-5545c4b9b175",
+    "email": "avgx@global.com",
+    "hashed_password": "$pbkdf2-sha256$29000$L8VYC2GMsfb.f6/Veo9x7g$1RYJcOCb88VXb1z/.CKsoIT3Jpk2rcnQeSEaTE304bk",
+    "full_name": "John",
+    "phone": "+91 9876543210",
+    "business_id": "1211441d-ea0e-4bf9-8768-0c3debb3f2db",
+    "created_at": "2026-02-09T08:20:11.132594",
+    "last_login": null
   }
 ]

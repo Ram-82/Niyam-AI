@@ -25,5 +25,23 @@
     "gstin": null,
     "pan": null,
     "created_at": "2026-01-07T07:50:07.952005"
+  },
+  {
+    "id": "05d14b75-827c-465e-b7d8-70df4925ab34",
+    "user_id": "fa170815-2dde-4b17-a468-af89d47d1ee1",
+    "legal_name": "string",
+    "trade_name": "string",
+    "gstin": "string",
+    "pan": "string",
+    "created_at": "2026-02-06T08:11:08.544156"
+  },
+  {
+    "id": "1211441d-ea0e-4bf9-8768-0c3debb3f2db",
+    "user_id": "8382aba1-3609-4c5f-8c9c-5545c4b9b175",
+    "legal_name": "AVGX Pvt ltd",
+    "trade_name": "AVGX Pvt ltd",
+    "gstin": null,
+    "pan": null,
+    "created_at": "2026-02-09T08:20:11.132594"
   }
 ]

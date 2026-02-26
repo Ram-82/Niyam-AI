@@ -1,0 +1,40 @@
+name: Deploy niyam-backend to Heroku
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'niyam-backend/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies (sanity)
+        run: |
+          cd niyam-backend
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Deploy niyam-backend to Heroku (subdirectory deploy)
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+          HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
+        run: |
+          set -e
+          cd niyam-backend
+          git init
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add -A
+          git commit -m "Deploy niyam-backend from GitHub Actions" || true
+          git remote add heroku https://heroku:${HEROKU_API_KEY}@git.heroku.com/${HEROKU_APP_NAME}.git
+          git push heroku HEAD:main --force

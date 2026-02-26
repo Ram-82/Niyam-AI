@@ -161,9 +161,11 @@
         }
     </style>
 
+    <script src="config.js"></script>
     <script>
         feather.replace();
 
+        const API_URL = CONFIG.API_URL;
         const uploadZone = document.getElementById('uploadZone');
         const fileInput = document.getElementById('fileInput');
         const processingState = document.getElementById('processingState');

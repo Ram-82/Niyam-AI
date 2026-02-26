@@ -10,6 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="config.js"></script>
     <style>
         .dashboard-layout {
             display: grid;
@@ -3147,10 +3148,13 @@
             fetchDashboardData();
         });
 
+        // Use CONFIG.API_URL from config.js
+        const API_URL = CONFIG.API_URL;
+
         async function fetchDashboardData() {
             const token = localStorage.getItem('niyam_access_token');
             try {
-                const response = await fetch('/api/dashboard/summary', {
+                const response = await fetch(`${API_URL}/dashboard/summary`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }

@@ -4,40 +4,13 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
-venv/
-env/
-.venv
-.env
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
 Thumbs.db
 
 # Logs
 *.log
 
-# Virtual environments
-.venv
-env/
-venv/
-ENV/
-
 # Jupyter Notebook
 .ipynb_checkpoints
-
-# PyCharm
-.idea/
-*.iml
-
-# VS Code
-.vscode/
 
 # Niyam AI / GSD specific
 .agent/
@@ -50,5 +23,4 @@ model_capabilities.yaml
 adapters/
 docs/
 scripts/
-niyam-backend/main_new.py
 ```

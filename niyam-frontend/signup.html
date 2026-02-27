@@ -8,8 +8,18 @@
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/feather-icons"></script>
     <style>
-        .auth-container { min-height: calc(100vh - 80px); display: flex; align-items: center; justify-content: center; padding: var(--space-4); }
-        .auth-card { width: 100%; max-width: 450px; }
+        .auth-container {
+            min-height: calc(100vh - 80px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-4);
+        }
+
+        .auth-card {
+            width: 100%;
+            max-width: 450px;
+        }
     </style>
 </head>
 
@@ -26,29 +36,42 @@
     <div class="auth-container">
         <div class="card auth-card">
             <h2 style="margin-bottom: var(--space-1); font-size: 1.5rem;">Create your account</h2>
-            <p style="color: var(--text-light); margin-bottom: var(--space-3); font-size: 0.9rem;">Join 1000+ MSMEs managing compliance with Niyam AI.</p>
+            <p style="color: var(--text-light); margin-bottom: var(--space-3); font-size: 0.9rem;">Join 1000+ MSMEs
+                managing compliance with Niyam AI.</p>
 
-            <div id="error-message" style="display: none; background-color: #fee2e2; color: #ef4444; padding: 10px; border-radius: 4px; margin-bottom: 20px; font-size: 0.9rem;"></div>
+            <div id="error-message"
+                style="display: none; background-color: #fee2e2; color: #ef4444; padding: 10px; border-radius: 4px; margin-bottom: 20px; font-size: 0.9rem;">
+            </div>
 
             <form id="signup-form">
-                <div class="form-group"><label for="name">Full Name</label><input type="text" id="name" placeholder="John Doe" required></div>
-                <div class="form-group"><label for="business">Business Name</label><input type="text" id="business" placeholder="Acme Solutions Pvt Ltd" required></div>
-                <div class="form-group"><label for="email">Email Address</label><input type="email" id="email" placeholder="john@example.com" required></div>
-                <div class="form-group"><label for="password">Password</label><input type="password" id="password" placeholder="••••••••" required></div>
-                <div class="form-group"><label for="phone">Phone Number (Optional)</label><input type="tel" id="phone" placeholder="+91 98765 43210"></div>
+                <div class="form-group"><label for="name">Full Name</label><input type="text" id="name"
+                        placeholder="John Doe" required></div>
+                <div class="form-group"><label for="business">Business Name</label><input type="text" id="business"
+                        placeholder="Acme Solutions Pvt Ltd" required></div>
+                <div class="form-group"><label for="email">Email Address</label><input type="email" id="email"
+                        placeholder="john@example.com" required></div>
+                <div class="form-group"><label for="password">Password</label><input type="password" id="password"
+                        placeholder="••••••••" required></div>
+                <div class="form-group"><label for="phone">Phone Number (Optional)</label><input type="tel" id="phone"
+                        placeholder="+91 98765 43210"></div>
 
                 <div style="margin-bottom: var(--space-3); display: flex; align-items: flex-start; gap: 10px;">
                     <input type="checkbox" id="terms" style="width: auto; margin-top: 4px;" required>
-                    <label for="terms" style="display: inline; font-size: 0.8rem;">I agree to the <a href="#" style="color: var(--primary-color);">Terms of Service</a> and <a href="#" style="color: var(--primary-color);">Privacy Policy</a></label>
+                    <label for="terms" style="display: inline; font-size: 0.8rem;">I agree to the <a href="#"
+                            style="color: var(--primary-color);">Terms of Service</a> and <a href="#"
+                            style="color: var(--primary-color);">Privacy Policy</a></label>
                 </div>
 
-                <button type="submit" id="signup-btn" class="btn btn-primary" style="width: 100%;">Create Account</button>
+                <button type="submit" id="signup-btn" class="btn btn-primary" style="width: 100%;">Create
+                    Account</button>
             </form>
 
-            <p style="margin-top: var(--space-3); text-align: center; font-size: 0.9rem;">Already have an account? <a href="login.html" style="color: var(--primary-color); font-weight: 600;">Log in</a></p>
+            <p style="margin-top: var(--space-3); text-align: center; font-size: 0.9rem;">Already have an account? <a
+                    href="login.html" style="color: var(--primary-color); font-weight: 600;">Log in</a></p>
         </div>
     </div>
 
+    <script src="config.js"></script>
     <script>
         feather.replace();
         const API_URL = CONFIG.API_URL;

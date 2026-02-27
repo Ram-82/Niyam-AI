@@ -6,7 +6,7 @@
  */
 const CONFIG = {
     // API_URL: 'http://localhost:8001/api', // Use this if opening HTML files directly
-    API_URL: 'https://niyam-ai.onrender.com/', // Use this when served by the backend (Recommended)
+    API_URL: 'https://niyam-ai.onrender.com/api', // Use this when served by the backend (Recommended)
     // API_URL: 'https://niyam-api.onrender.com/api', // Example Production URL
 };
 

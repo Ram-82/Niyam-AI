@@ -5,9 +5,9 @@ load_dotenv()
 
 class Settings:
     # Supabase Configuration
-    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
-    SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
-    SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "").strip().strip('"')
+    SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "").strip().strip('"')
+    SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip().strip('"')
     
     # JWT Configuration
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production")

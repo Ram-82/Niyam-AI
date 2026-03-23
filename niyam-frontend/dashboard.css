@@ -33,6 +33,7 @@
 
 .main-content {
     padding: var(--space-4);
+    padding-bottom: 56px; /* space for fixed legal footer */
     background-color: var(--bg-color);
 }
 

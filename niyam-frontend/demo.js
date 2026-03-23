@@ -109,12 +109,12 @@
                 return `
                     <div class="demo-action-card">
                         <div style="display:flex; align-items:center; gap:14px; margin-bottom:12px;">
+                            ${a.amount ? `<span style="font-weight:700; color:var(--error); white-space:nowrap; font-size:1.15rem; min-width:90px; text-align:right;">${fmt(a.amount)}</span>` : ''}
                             <div class="cf-action-priority" style="background:${urgencyColors[urgency] || '#94a3b8'};">${i + 1}</div>
                             <div style="flex:1;">
                                 <p style="font-weight:700;">${a.title || a.message || ''}</p>
                                 <p style="font-size:0.85rem; color:var(--text-light);">${a.description || a.action_required || ''}</p>
                             </div>
-                            ${a.amount ? `<span style="font-weight:700; color:var(--error); white-space:nowrap;">${fmt(a.amount)}</span>` : ''}
                         </div>
                         ${trust.explanation ? `
                         <div class="demo-trust-box">
@@ -174,6 +174,26 @@
             ].map(([l, v, c]) => `<span style="font-size:0.8rem;"><span style="color:var(--text-light);">${l}:</span> <strong style="color:${c};">${fmt(v)}</strong></span>`).join('');
         }
 
+        // ---- Invoice Records ----
+        const invoiceRecords = (data.invoices || {}).records || [];
+        const invoicesEl = $('demo-invoices');
+        if (invoicesEl) {
+            invoicesEl.innerHTML = invoiceRecords.map(inv => {
+                const conf = inv.confidence || 0;
+                const confColor = conf >= 90 ? '#10b981' : conf >= 75 ? '#f59e0b' : '#ef4444';
+                return `
+                    <div style="display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #f1f5f9;">
+                        <div style="flex:1;">
+                            <span style="font-weight:700;">${inv.invoice_number || 'N/A'}</span>
+                            <span style="color:var(--text-light); font-size:0.85rem; margin-left:8px;">${inv.vendor_name || ''}</span>
+                        </div>
+                        <span style="font-size:0.85rem; color:var(--text-light); white-space:nowrap;">${fmt(inv.total_amount)}</span>
+                        <span class="badge" style="background:${confColor}; color:white;">${conf}% conf</span>
+                        ${inv.needs_review ? `<span class="badge" style="background:#f59e0b; color:white;">Needs Review</span>` : ''}
+                    </div>`;
+            }).join('');
+        }
+
         // ---- ITC Matches (with trust) ----
         const matches = (data.itc_results || {}).matches || [];
         const matchesEl = $('demo-itc-matches');
@@ -196,6 +216,7 @@
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                             <div>
                                 <span class="badge" style="background:${matchColors[mt] || '#94a3b8'}; color:white;">${matchLabels[mt] || mt}</span>
+                                ${m.confidence_score != null ? `<span class="badge" style="background:#6b7280; color:white; margin-left:4px;">${m.confidence_score}%</span>` : ''}
                                 <span style="font-weight:700; margin-left:8px;">${m.invoice_number || 'N/A'}</span>
                             </div>
                             <span style="font-size:0.8rem; color:var(--text-light);">${m.vendor_gstin || ''}</span>

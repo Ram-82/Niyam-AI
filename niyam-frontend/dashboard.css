@@ -1,3 +1,12 @@
+/* View System */
+.content-view {
+    display: none;
+}
+
+.content-view.active {
+    display: block;
+}
+
 /* Dashboard Layout */
 .dashboard-layout {
     display: grid;

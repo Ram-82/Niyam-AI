@@ -24,6 +24,8 @@ function switchView(viewId, element) {
     const targetView = document.getElementById(`view-${viewId}`);
     if (targetView) targetView.classList.add("active");
 
+    window.scrollTo(0, 0);
+
     if (viewId === 'calendar') {
         setTimeout(() => { calendar.render(); }, 100);
     }

@@ -130,11 +130,13 @@ def check_deadlines(deadlines: List[dict], today: date = None) -> List[Complianc
             days_late = abs(days_until)
             impact = days_late * penalty_rate if penalty_rate else 0
 
+            portal = dl.get("filing_portal", "")
             flags.append(ComplianceFlag(
                 rule_id=f"{dl_type}_overdue",
                 category=category,
                 severity=Severity.CRITICAL,
                 message=f"{subtype} is {days_late} days overdue",
+                action_required=f"File {subtype} immediately to stop penalty accrual ({portal})" if portal else f"File {subtype} immediately to stop penalty accrual",
                 impact_amount=impact,
                 due_date=due_str,
                 related_id=dl.get("id"),
@@ -146,12 +148,14 @@ def check_deadlines(deadlines: List[dict], today: date = None) -> List[Complianc
             ))
 
         elif days_until <= ERROR_DAYS:
+            portal = dl.get("filing_portal", "")
             flags.append(ComplianceFlag(
                 rule_id=f"{dl_type}_due_imminent",
                 category=category,
                 severity=Severity.ERROR,
                 message=f"{subtype} due in {days_until} day{'s' if days_until != 1 else ''}",
-                impact_amount=penalty_rate,  # 1 day late penalty
+                action_required=f"File {subtype} before {due_str} to avoid penalty ({portal})" if portal else f"File {subtype} before {due_str} to avoid penalty",
+                impact_amount=penalty_rate,
                 due_date=due_str,
                 related_id=dl.get("id"),
                 metadata={"subtype": subtype, "days_until": days_until},
@@ -163,6 +167,7 @@ def check_deadlines(deadlines: List[dict], today: date = None) -> List[Complianc
                 category=category,
                 severity=Severity.WARNING,
                 message=f"{subtype} due in {days_until} days",
+                action_required=f"Prepare {subtype} filing — due {due_str}",
                 due_date=due_str,
                 related_id=dl.get("id"),
                 metadata={"subtype": subtype, "days_until": days_until},
@@ -174,6 +179,7 @@ def check_deadlines(deadlines: List[dict], today: date = None) -> List[Complianc
                 category=category,
                 severity=Severity.INFO,
                 message=f"{subtype} due in {days_until} days",
+                action_required=None,
                 due_date=due_str,
                 related_id=dl.get("id"),
                 metadata={"subtype": subtype, "days_until": days_until},

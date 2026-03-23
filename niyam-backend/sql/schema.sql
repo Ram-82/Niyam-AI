@@ -138,11 +138,13 @@ create table public.itc_matches (
     invoice_id      uuid references public.invoices(id),
     period          text,                   -- e.g. "Mar 2026"
     match_type      text not null,          -- exact_match, partial_match, missing_in_2b, etc.
+    severity        text default 'none',   -- none, low, medium, high, critical
     vendor_gstin    text,
     invoice_number  text,
     eligible_itc    numeric default 0,
     claimed_itc     numeric default 0,
     itc_at_risk     numeric default 0,
+    recovery_priority text default 'none', -- none, low, medium, high
     risk_flag       boolean default false,
     reason          text,
     confidence_score integer default 0,

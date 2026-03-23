@@ -67,11 +67,65 @@ create table public.gst_filings (
     challan_number text
 );
 
+-- ============================================================
+-- Pipeline tables (OCR → Parser → Rules → ITC)
+-- ============================================================
+
+-- Documents: uploaded files tracked before/after OCR
+create table public.documents (
+    id              uuid default uuid_generate_v4() primary key,
+    business_id     uuid references public.businesses(id) not null,
+    uploaded_by     uuid references public.users(id) not null,
+    filename        text not null,
+    file_path       text not null,
+    file_size       integer,
+    mime_type       text,
+    document_type   text not null,  -- purchase_invoice, sales_invoice, bank_statement, gstr2b
+    status          text default 'uploaded',  -- uploaded, processing, extracted, failed
+    raw_text        text,
+    created_at      timestamptz default now() not null,
+    processed_at    timestamptz
+);
+
+-- Invoices: structured data extracted from documents (or manually entered)
+create table public.invoices (
+    id              uuid default uuid_generate_v4() primary key,
+    business_id     uuid references public.businesses(id) not null,
+    document_id     uuid references public.documents(id),
+    source          text default 'ocr',  -- ocr, manual, gstr2b_import
+    invoice_number  text,
+    invoice_date    date,
+    vendor_name     text,
+    vendor_gstin    text,
+    buyer_gstin     text,
+    taxable_value   numeric default 0,
+    cgst            numeric default 0,
+    sgst            numeric default 0,
+    igst            numeric default 0,
+    cess            numeric default 0,
+    total_amount    numeric default 0,
+    hsn_codes       text[],
+    invoice_type    text default 'purchase',  -- purchase, sales
+    confidence      numeric,
+    needs_review    boolean default false,
+    review_notes    text,
+    created_at      timestamptz default now() not null,
+    updated_at      timestamptz
+);
+
+-- Indexes for query performance
+create index idx_documents_business    on public.documents(business_id);
+create index idx_invoices_business     on public.invoices(business_id);
+create index idx_invoices_vendor_gstin on public.invoices(vendor_gstin);
+create index idx_invoices_date         on public.invoices(invoice_date);
+
 -- Enable Row Level Security (RLS)
 alter table public.businesses enable row level security;
 alter table public.users enable row level security;
 alter table public.compliance_deadlines enable row level security;
 alter table public.gst_filings enable row level security;
+alter table public.documents enable row level security;
+alter table public.invoices enable row level security;
 
 -- RLS Policies: users can only access their own data
 -- Note: Since we use custom JWT (not Supabase Auth), these policies
@@ -100,4 +154,12 @@ using (true);
 
 create policy "Users can manage their own GST filings"
 on public.gst_filings for all
+using (true);
+
+create policy "Users can manage their own documents"
+on public.documents for all
+using (true);
+
+create policy "Users can manage their own invoices"
+on public.invoices for all
 using (true);

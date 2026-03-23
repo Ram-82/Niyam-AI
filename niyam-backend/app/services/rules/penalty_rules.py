@@ -46,6 +46,7 @@ def calculate_gst_penalty(
         category="gst",
         severity=Severity.CRITICAL if days_late > 15 else Severity.ERROR,
         message=f"{filing_type} is {days_late} days late — penalty ₹{penalty:,.0f}",
+        action_required=f"File {filing_type} immediately to avoid further penalty accrual",
         impact_amount=penalty,
         due_date=due_date,
         metadata={
@@ -95,6 +96,7 @@ def calculate_tds_interest(
         category="tds",
         severity=Severity.CRITICAL if months_late >= 3 else Severity.ERROR,
         message=f"TDS payment {months_late} month{'s' if months_late > 1 else ''} late — interest ₹{interest:,.0f}",
+        action_required="Deposit TDS amount with interest via challan on incometax.gov.in",
         impact_amount=interest,
         due_date=due_date,
         metadata={
@@ -141,11 +143,16 @@ def calculate_roc_penalty(
         severity = Severity.CRITICAL
         message += " — DIRECTOR DISQUALIFICATION RISK"
 
+    action = f"File {filing_type} on MCA portal immediately — penalty ₹{rate_per_day:.0f}/day accruing"
+    if days_late > 365:
+        action = f"URGENT: File {filing_type} on MCA portal — director disqualification proceedings may begin"
+
     return ComplianceFlag(
         rule_id="roc_late_penalty",
         category="roc",
         severity=severity,
         message=message,
+        action_required=action,
         impact_amount=penalty,
         due_date=due_date,
         metadata={

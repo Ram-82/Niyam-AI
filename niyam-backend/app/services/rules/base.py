@@ -41,6 +41,7 @@ class ComplianceFlag:
         "category",         # FlagCategory enum value
         "severity",         # Severity enum value
         "message",          # human-readable description
+        "action_required",  # what the user should do RIGHT NOW
         "impact_amount",    # estimated financial impact in ₹ (penalty, lost ITC, etc.)
         "due_date",         # relevant deadline (ISO string or None)
         "related_id",       # FK to invoice_id, deadline_id, etc.
@@ -53,6 +54,7 @@ class ComplianceFlag:
         category: str,
         severity: str,
         message: str,
+        action_required: Optional[str] = None,
         impact_amount: float = 0.0,
         due_date: Optional[str] = None,
         related_id: Optional[str] = None,
@@ -62,6 +64,7 @@ class ComplianceFlag:
         self.category = category
         self.severity = severity
         self.message = message
+        self.action_required = action_required
         self.impact_amount = impact_amount
         self.due_date = due_date
         self.related_id = related_id
@@ -73,6 +76,7 @@ class ComplianceFlag:
             "category": self.category,
             "severity": self.severity,
             "message": self.message,
+            "action_required": self.action_required,
             "impact_amount": self.impact_amount,
             "due_date": self.due_date,
             "related_id": self.related_id,

@@ -121,6 +121,7 @@ create table public.compliance_flags (
     category        text not null,          -- gst, tds, roc, invoice, itc
     severity        text default 'info',    -- info, warning, error, critical
     message         text not null,
+    action_required text,                   -- what the user should do RIGHT NOW
     impact_amount   numeric default 0,      -- estimated penalty in ₹
     due_date        date,
     related_id      uuid,                   -- FK to invoice, deadline, etc.

@@ -24,6 +24,7 @@ def check_invoices(invoices: List[dict]) -> List[ComplianceFlag]:
 
     for inv in invoices:
         inv_id = inv.get("invoice_id") or inv.get("id", "unknown")
+        inv_date = inv.get("invoice_date")
         review_reasons = inv.get("review_reasons") or []
 
         # If review_reasons is a comma-separated string (from DB), split it
@@ -37,7 +38,9 @@ def check_invoices(invoices: List[dict]) -> List[ComplianceFlag]:
                 category=FlagCategory.INVOICE,
                 severity=Severity.ERROR,
                 message="Invoice missing vendor GSTIN — ITC cannot be claimed",
+                action_required="Obtain valid GSTIN from vendor before claiming ITC",
                 impact_amount=_estimate_itc_at_risk(inv),
+                due_date=inv_date,
                 related_id=inv_id,
                 metadata={"vendor_name": inv.get("vendor_name")},
             ))
@@ -49,6 +52,8 @@ def check_invoices(invoices: List[dict]) -> List[ComplianceFlag]:
                 category=FlagCategory.INVOICE,
                 severity=Severity.WARNING,
                 message="GSTIN format invalid — verify manually",
+                action_required="Cross-check GSTIN on GST portal and correct the invoice",
+                due_date=inv_date,
                 related_id=inv_id,
                 metadata={"vendor_name": inv.get("vendor_name")},
             ))
@@ -62,6 +67,8 @@ def check_invoices(invoices: List[dict]) -> List[ComplianceFlag]:
                 category=FlagCategory.INVOICE,
                 severity=Severity.WARNING,
                 message="Invoice total amount missing or zero",
+                action_required="Re-upload invoice or manually enter the total amount",
+                due_date=inv_date,
                 related_id=inv_id,
             ))
 
@@ -72,6 +79,8 @@ def check_invoices(invoices: List[dict]) -> List[ComplianceFlag]:
                 category=FlagCategory.INVOICE,
                 severity=Severity.ERROR,
                 message="Invoice total does not match taxable + GST",
+                action_required="Verify invoice amounts — total should equal taxable value + GST",
+                due_date=inv_date,
                 related_id=inv_id,
             ))
 
@@ -82,6 +91,8 @@ def check_invoices(invoices: List[dict]) -> List[ComplianceFlag]:
                 category=FlagCategory.INVOICE,
                 severity=Severity.WARNING,
                 message="Invoice has both intra-state and inter-state GST — auto-resolved, verify",
+                action_required="Confirm whether this is an intra-state or inter-state supply",
+                due_date=inv_date,
                 related_id=inv_id,
             ))
 
@@ -93,6 +104,8 @@ def check_invoices(invoices: List[dict]) -> List[ComplianceFlag]:
                 category=FlagCategory.INVOICE,
                 severity=Severity.INFO,
                 message=f"OCR extraction confidence is low ({confidence}%) — manual review recommended",
+                action_required="Review extracted data against the original invoice",
+                due_date=inv_date,
                 related_id=inv_id,
                 metadata={"confidence": confidence},
             ))
@@ -108,6 +121,8 @@ def check_invoices(invoices: List[dict]) -> List[ComplianceFlag]:
                     category=FlagCategory.INVOICE,
                     severity=Severity.ERROR,
                     message=f"Duplicate invoice {inv_number} from same vendor",
+                    action_required="Verify this is not a duplicate entry — remove if duplicate",
+                    due_date=inv_date,
                     related_id=inv_id,
                     metadata={
                         "duplicate_of": seen_numbers[dup_key],
@@ -124,6 +139,7 @@ def check_invoices(invoices: List[dict]) -> List[ComplianceFlag]:
                 category=FlagCategory.INVOICE,
                 severity=Severity.WARNING,
                 message="Invoice date missing — cannot determine filing period",
+                action_required="Add invoice date to determine the correct GST filing period",
                 related_id=inv_id,
             ))
 

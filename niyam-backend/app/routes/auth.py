@@ -55,8 +55,9 @@ async def get_current_user(
     """Get current authenticated user details"""
     try:
         token = credentials.credentials
-        user_id = verify_token(token)
-        
+        payload = verify_token(token)
+        user_id = payload.get("sub")
+
         auth_service = AuthService()
         user_data = await auth_service.get_user_profile(user_id)
         

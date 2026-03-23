@@ -263,6 +263,10 @@ def export_json(
     payload = {
         "export_format": "json",
         "generated_at": datetime.utcnow().isoformat() + "Z",
+        "disclaimer": (
+            "Niyam AI provides compliance insights for informational purposes only. "
+            "Final filing responsibility lies with the user and their Chartered Accountant."
+        ),
         "business": _serialize(business),
         "period": period,
         "filing_readiness": _serialize(filing_readiness),
@@ -518,6 +522,22 @@ def export_excel(
 
     for col_idx in range(1, len(flag_headers) + 1):
         ws_flags.column_dimensions[chr(64 + col_idx) if col_idx <= 26 else "A"].width = 22
+
+    # Add disclaimer to Summary sheet footer
+    disclaimer_row = ws_summary.max_row + 3
+    disc_cell = ws_summary.cell(
+        row=disclaimer_row, column=1,
+        value=(
+            "DISCLAIMER: Niyam AI provides compliance insights for informational purposes only. "
+            "Final filing responsibility lies with the user and their Chartered Accountant."
+        ),
+    )
+    from openpyxl.styles import Font as _Font
+    disc_cell.font = _Font(italic=True, size=9, color="808080")
+    ws_summary.merge_cells(
+        start_row=disclaimer_row, start_column=1,
+        end_row=disclaimer_row, end_column=4,
+    )
 
     # Save to bytes
     buffer = io.BytesIO()

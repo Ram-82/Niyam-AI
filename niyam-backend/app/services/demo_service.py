@@ -15,7 +15,7 @@ Goal: user sees the output and thinks "I understand why this is happening."
 import logging
 import time
 from datetime import date
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Tuple
 
 from app.services.itc_service import ITCService
 from app.services.itc_matcher import MatchConfig
@@ -382,6 +382,12 @@ def _enrich_top_actions(actions: List[dict]) -> List[dict]:
 # Demo Runner
 # ============================================================
 
+# Module-level result cache: (result_dict, computed_at_epoch)
+# TTL = 5 minutes — demo data never changes, so caching is safe
+_DEMO_CACHE: Optional[Tuple[dict, float]] = None
+_DEMO_CACHE_TTL = 300  # seconds
+
+
 class DemoService:
     """Runs full pipeline on prebuilt dataset, returns enriched output."""
 
@@ -390,7 +396,18 @@ class DemoService:
         Execute full demo pipeline.
 
         Returns complete output with trust layer in <2 seconds.
+        Cached for 5 minutes — demo data is static, no need to recompute.
         """
+        global _DEMO_CACHE
+        now = time.time()
+
+        if _DEMO_CACHE is not None:
+            cached_result, cached_at = _DEMO_CACHE
+            if now - cached_at < _DEMO_CACHE_TTL:
+                logger.debug("Demo cache hit")
+                return cached_result
+            logger.debug("Demo cache expired, recomputing")
+
         t0 = time.time()
 
         # ---- Step 1: Run Rules Engine ----
@@ -438,7 +455,7 @@ class DemoService:
 
         elapsed_ms = round((time.time() - t0) * 1000)
 
-        return _serialize({
+        result = _serialize({
             "demo": True,
             "business": DEMO_BUSINESS,
             "period": "Mar 2026",
@@ -480,3 +497,7 @@ class DemoService:
                 "blocking_issues": len(readiness.get("blocking_issues", [])),
             },
         })
+
+        _DEMO_CACHE = (result, time.time())
+        logger.info(f"Demo pipeline computed in {elapsed_ms}ms, cached for {_DEMO_CACHE_TTL}s")
+        return result

@@ -1,134 +1,159 @@
 import logging
-from datetime import datetime, timedelta
-from typing import Optional, Dict
+from datetime import datetime, timezone
+from typing import Dict
 import uuid
 from fastapi import HTTPException, status
-try:
-    from supabase import Client
-except ImportError:
-    class Client: pass
 
-
-from app.models.user import UserCreate, UserResponse, BusinessResponse
-from app.database import supabase, supabase_admin
-from app.utils.mock_db import MockDB
+from app.models.user import UserCreate
+from app.config import settings
 from app.utils.security import (
-    hash_password, 
-    verify_password, 
+    hash_password,
+    verify_password,
     create_access_token,
+    create_refresh_token,
     verify_token,
-    create_refresh_token
 )
 
 logger = logging.getLogger(__name__)
 
+
 class AuthService:
+    """
+    Authentication service using custom JWT only.
+    - PROD (ENVIRONMENT=production): uses Supabase as a PostgreSQL database
+    - DEV  (ENVIRONMENT=development): falls back to MockDB (JSON files)
+    """
+
     def __init__(self):
-        self.client: Client = supabase
-        self.admin_client: Client = supabase_admin
-        self.use_mock = self.client is None or self.admin_client is None
-        
+        self.use_mock = settings.ENVIRONMENT != "production"
+
         if self.use_mock:
+            from app.utils.mock_db import MockDB
             self.mock_db = MockDB()
-            logger.warning("Supabase client not available. Using Mock DB.")
-    
+            logger.info("Running in DEV mode with MockDB.")
+        else:
+            from app.database import get_db_client
+            self.db = get_db_client()
+            if self.db is None:
+                raise RuntimeError(
+                    "ENVIRONMENT is 'production' but Supabase client could not be initialized. "
+                    "Check SUPABASE_URL and SUPABASE_KEY."
+                )
+            logger.info("Running in PROD mode with Supabase PostgreSQL.")
+
+    # ------------------------------------------------------------------
+    # Registration
+    # ------------------------------------------------------------------
     async def register_user(self, user_data: UserCreate) -> Dict:
-        """Register a new user with business details"""
         if self.use_mock:
             return self._register_user_mock(user_data)
+        return self._register_user_db(user_data)
 
+    def _register_user_db(self, user_data: UserCreate) -> Dict:
+        """Register user directly in Supabase PostgreSQL (no Supabase Auth)."""
         try:
-            # Check if user already exists
-            existing_user = self.client.auth.sign_up({
-                "email": user_data.email,
-                "password": user_data.password
-            })
-            
-            if existing_user.user:
-                # Create business profile
-                business_data = {
-                    "user_id": existing_user.user.id,
+            # Check if email already exists
+            existing = (
+                self.db.table("users")
+                .select("id")
+                .eq("email", user_data.email)
+                .execute()
+            )
+            if existing.data:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="User already registered",
+                )
+
+            user_id = str(uuid.uuid4())
+            business_id = str(uuid.uuid4())
+            now = datetime.now(timezone.utc).isoformat()
+
+            # Create business
+            self.db.table("businesses").insert(
+                {
+                    "id": business_id,
+                    "user_id": user_id,
                     "legal_name": user_data.business_name,
                     "trade_name": user_data.business_name,
                     "gstin": user_data.gstin,
                     "pan": user_data.pan,
-                    "created_at": datetime.utcnow().isoformat()
+                    "created_at": now,
                 }
-                
-                # Use admin client to bypass RLS for initial creation
-                business_response = self.admin_client.table("businesses").insert(business_data).execute()
-                
-                # Create user profile
-                user_profile = {
-                    "id": existing_user.user.id,
+            ).execute()
+
+            # Create user with hashed password
+            hashed = hash_password(user_data.password)
+            self.db.table("users").insert(
+                {
+                    "id": user_id,
                     "email": user_data.email,
+                    "hashed_password": hashed,
                     "full_name": user_data.full_name,
                     "phone": user_data.phone,
-                    "business_id": business_response.data[0]["id"],
-                    "created_at": datetime.utcnow().isoformat()
+                    "business_id": business_id,
+                    "created_at": now,
                 }
-                
-                self.admin_client.table("users").insert(user_profile).execute()
-                
-                # Create access token
-                access_token = create_access_token(data={"sub": existing_user.user.id})
-                refresh_token = create_refresh_token(data={"sub": existing_user.user.id})
-                
-                return {
-                    "user_id": existing_user.user.id,
-                    "business_id": business_response.data[0]["id"],
-                    "access_token": access_token,
-                    "refresh_token": refresh_token,
-                    "user_name": user_data.full_name,
-                    "business_name": user_data.business_name
-                }
-            
+            ).execute()
+
+            access_token = create_access_token(data={"sub": user_id})
+            refresh_token = create_refresh_token(data={"sub": user_id})
+
+            return {
+                "user_id": user_id,
+                "business_id": business_id,
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "user_name": user_data.full_name,
+                "business_name": user_data.business_name,
+            }
+
+        except HTTPException:
+            raise
         except Exception as e:
-            logger.error(f"Registration error: {str(e)}")
+            logger.error(f"Registration error: {e}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Registration failed: {str(e)}"
+                detail=f"Registration failed: {str(e)}",
             )
 
     def _register_user_mock(self, user_data: UserCreate) -> Dict:
-        # Check existing
         if self.mock_db.get_user_by_email(user_data.email):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="User already registered"
+                detail="User already registered",
             )
 
         user_id = str(uuid.uuid4())
         business_id = str(uuid.uuid4())
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
-        # Create Business
-        business_data = {
-            "id": business_id,
-            "user_id": user_id,
-            "legal_name": user_data.business_name,
-            "trade_name": user_data.business_name,
-            "gstin": user_data.gstin,
-            "pan": user_data.pan,
-            "created_at": now
-        }
-        self.mock_db.create_business(business_data)
+        self.mock_db.create_business(
+            {
+                "id": business_id,
+                "user_id": user_id,
+                "legal_name": user_data.business_name,
+                "trade_name": user_data.business_name,
+                "gstin": user_data.gstin,
+                "pan": user_data.pan,
+                "created_at": now,
+            }
+        )
 
-        # Create User
         hashed = hash_password(user_data.password)
-        user_profile = {
-            "id": user_id,
-            "email": user_data.email,
-            "hashed_password": hashed,
-            "full_name": user_data.full_name,
-            "phone": user_data.phone,
-            "business_id": business_id,
-            "created_at": now,
-            "last_login": None
-        }
-        self.mock_db.create_user(user_profile)
+        self.mock_db.create_user(
+            {
+                "id": user_id,
+                "email": user_data.email,
+                "hashed_password": hashed,
+                "full_name": user_data.full_name,
+                "phone": user_data.phone,
+                "business_id": business_id,
+                "created_at": now,
+                "last_login": None,
+            }
+        )
 
-        # Tokens
         access_token = create_access_token(data={"sub": user_id})
         refresh_token = create_refresh_token(data={"sub": user_id})
 
@@ -138,53 +163,60 @@ class AuthService:
             "access_token": access_token,
             "refresh_token": refresh_token,
             "user_name": user_data.full_name,
-            "business_name": user_data.business_name
+            "business_name": user_data.business_name,
         }
-    
+
+    # ------------------------------------------------------------------
+    # Authentication
+    # ------------------------------------------------------------------
     async def authenticate_user(self, email: str, password: str) -> Dict:
-        """Authenticate user with email and password"""
         if self.use_mock:
             return self._authenticate_user_mock(email, password)
+        return self._authenticate_user_db(email, password)
 
+    def _authenticate_user_db(self, email: str, password: str) -> Dict:
+        """Authenticate against Supabase PostgreSQL directly."""
         try:
-            # Use Supabase Auth
-            auth_response = self.client.auth.sign_in_with_password({
-                "email": email,
-                "password": password
-            })
-            
-            if auth_response.user:
-                # Update last login
-                self.client.table("users").update({
-                    "last_login": datetime.utcnow().isoformat()
-                }).eq("id", auth_response.user.id).execute()
-                
-                # Get user profile
-                user_profile = self.client.table("users").select("*").eq("id", auth_response.user.id).single().execute()
-                
-                # Create tokens
-                access_token = create_access_token(data={"sub": auth_response.user.id})
-                refresh_token = create_refresh_token(data={"sub": auth_response.user.id})
-                
-                return {
-                    "user_id": auth_response.user.id,
-                    "business_id": user_profile.data.get("business_id"),
-                    "access_token": access_token,
-                    "refresh_token": refresh_token,
-                    "user_name": user_profile.data.get("full_name"),
-                    "business_name": self._get_business_name(user_profile.data.get("business_id"))
-                }
-            else:
+            response = (
+                self.db.table("users")
+                .select("*")
+                .eq("email", email)
+                .single()
+                .execute()
+            )
+            user = response.data
+            if not user or not verify_password(password, user["hashed_password"]):
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid credentials"
+                    detail="Invalid email or password",
                 )
-                
+
+            # Update last login
+            self.db.table("users").update(
+                {"last_login": datetime.now(timezone.utc).isoformat()}
+            ).eq("id", user["id"]).execute()
+
+            business = self._get_business_by_id_db(user.get("business_id"))
+            business_name = business.get("trade_name", "Business") if business else "Business"
+
+            access_token = create_access_token(data={"sub": user["id"]})
+            refresh_token = create_refresh_token(data={"sub": user["id"]})
+
+            return {
+                "user_id": user["id"],
+                "business_id": user.get("business_id"),
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "user_name": user.get("full_name"),
+                "business_name": business_name,
+            }
+        except HTTPException:
+            raise
         except Exception as e:
-            logger.error(f"Authentication error: {str(e)}")
+            logger.error(f"Authentication error: {e}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password"
+                detail="Invalid email or password",
             )
 
     def _authenticate_user_mock(self, email: str, password: str) -> Dict:
@@ -192,17 +224,18 @@ class AuthService:
         if not user or not verify_password(password, user["hashed_password"]):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password"
+                detail="Invalid email or password",
             )
-        
-        # Update last login
-        self.mock_db.update_user_last_login(user["id"], datetime.utcnow().isoformat())
-        
-        access_token = create_access_token(data={"sub": user["id"]})
-        refresh_token = create_refresh_token(data={"sub": user["id"]})
-        
+
+        self.mock_db.update_user_last_login(
+            user["id"], datetime.now(timezone.utc).isoformat()
+        )
+
         business = self.mock_db.get_business_by_id(user["business_id"])
         business_name = business["trade_name"] if business else "Business"
+
+        access_token = create_access_token(data={"sub": user["id"]})
+        refresh_token = create_refresh_token(data={"sub": user["id"]})
 
         return {
             "user_id": user["id"],
@@ -210,89 +243,98 @@ class AuthService:
             "access_token": access_token,
             "refresh_token": refresh_token,
             "user_name": user["full_name"],
-            "business_name": business_name
+            "business_name": business_name,
         }
-    
+
+    # ------------------------------------------------------------------
+    # Profile
+    # ------------------------------------------------------------------
     async def get_user_profile(self, user_id: str) -> Dict:
-        """Get complete user profile with business details"""
         if self.use_mock:
             return self._get_user_profile_mock(user_id)
+        return self._get_user_profile_db(user_id)
 
+    def _get_user_profile_db(self, user_id: str) -> Dict:
         try:
-            # Get user data
-            user_response = self.client.table("users").select("*").eq("id", user_id).single().execute()
-            user_data = user_response.data
-            
-            # Get business data
-            business_id = user_data.get("business_id")
-            business_response = self.client.table("businesses").select("*").eq("id", business_id).single().execute()
-            business_data = business_response.data
-            
-            return {
-                "user": user_data,
-                "business": business_data
-            }
-        except Exception as e:
-            logger.error(f"Failed to fetch user profile: {str(e)}")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User profile not found"
+            user_resp = (
+                self.db.table("users")
+                .select("*")
+                .eq("id", user_id)
+                .single()
+                .execute()
             )
+            user_data = user_resp.data
+            if not user_data:
+                raise HTTPException(status_code=404, detail="User not found")
+
+            # Strip sensitive fields
+            user_data.pop("hashed_password", None)
+
+            business = self._get_business_by_id_db(user_data.get("business_id"))
+
+            return {"user": user_data, "business": business}
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to fetch user profile: {e}")
+            raise HTTPException(status_code=404, detail="User profile not found")
 
     def _get_user_profile_mock(self, user_id: str) -> Dict:
         user = self.mock_db.get_user_by_id(user_id)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-        
-        business = self.mock_db.get_business_by_id(user["business_id"])
-        
-        # Remove sensitive data
-        user_safe = user.copy()
-        if "hashed_password" in user_safe:
-            del user_safe["hashed_password"]
 
-        return {
-            "user": user_safe,
-            "business": business
-        }
-    
-    async def refresh_token(self, refresh_token: str) -> Dict:
-        """Refresh access token"""
+        business = self.mock_db.get_business_by_id(user["business_id"])
+
+        user_safe = user.copy()
+        user_safe.pop("hashed_password", None)
+
+        return {"user": user_safe, "business": business}
+
+    # ------------------------------------------------------------------
+    # Token Refresh
+    # ------------------------------------------------------------------
+    async def refresh_token(self, refresh_token_str: str) -> Dict:
         try:
-            # Verify refresh token
-            payload = verify_token(refresh_token, is_refresh=True)
+            payload = verify_token(refresh_token_str, is_refresh=True)
             user_id = payload.get("sub")
-            
+
             if not user_id:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid refresh token"
+                    detail="Invalid refresh token",
                 )
-            
-            # Create new tokens
+
             new_access_token = create_access_token(data={"sub": user_id})
             new_refresh_token = create_refresh_token(data={"sub": user_id})
-            
+
             return {
                 "access_token": new_access_token,
-                "refresh_token": new_refresh_token
+                "refresh_token": new_refresh_token,
             }
-            
+        except HTTPException:
+            raise
         except Exception as e:
-            logger.error(f"Token refresh error: {str(e)}")
+            logger.error(f"Token refresh error: {e}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid refresh token"
+                detail="Invalid refresh token",
             )
-    
-    def _get_business_name(self, business_id: str) -> str:
-        """Helper to get business name"""
-        if self.use_mock:
-           biz = self.mock_db.get_business_by_id(business_id)
-           return biz["trade_name"] if biz else "Business"
 
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+    def _get_business_by_id_db(self, business_id: str) -> dict:
+        if not business_id:
+            return {}
         try:
-            response = self.client.table("businesses").select("trade_name").eq("id", business_id).single().execute()
-            return response.data.get("trade_name", "Business")
-        except:
-            return "Business"
+            resp = (
+                self.db.table("businesses")
+                .select("*")
+                .eq("id", business_id)
+                .single()
+                .execute()
+            )
+            return resp.data or {}
+        except Exception:
+            return {}

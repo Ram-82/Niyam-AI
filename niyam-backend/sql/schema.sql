@@ -131,6 +131,27 @@ create table public.compliance_flags (
     created_at      timestamptz default now() not null
 );
 
+-- ITC matching results: output of reconciliation engine
+create table public.itc_matches (
+    id              uuid default uuid_generate_v4() primary key,
+    business_id     uuid references public.businesses(id) not null,
+    invoice_id      uuid references public.invoices(id),
+    period          text,                   -- e.g. "Mar 2026"
+    match_type      text not null,          -- exact_match, partial_match, missing_in_2b, etc.
+    vendor_gstin    text,
+    invoice_number  text,
+    eligible_itc    numeric default 0,
+    claimed_itc     numeric default 0,
+    itc_at_risk     numeric default 0,
+    risk_flag       boolean default false,
+    reason          text,
+    confidence_score integer default 0,
+    action_required text,
+    due_date        date,
+    metadata        jsonb,
+    created_at      timestamptz default now() not null
+);
+
 -- Indexes for query performance
 create index idx_documents_business    on public.documents(business_id);
 create index idx_invoices_business     on public.invoices(business_id);
@@ -138,6 +159,9 @@ create index idx_invoices_vendor_gstin on public.invoices(vendor_gstin);
 create index idx_invoices_date         on public.invoices(invoice_date);
 create index idx_flags_business        on public.compliance_flags(business_id, is_resolved);
 create index idx_flags_severity        on public.compliance_flags(severity);
+create index idx_itc_business          on public.itc_matches(business_id, period);
+create index idx_itc_match_type        on public.itc_matches(match_type);
+create index idx_itc_vendor            on public.itc_matches(vendor_gstin);
 
 -- Enable Row Level Security (RLS)
 alter table public.businesses enable row level security;
@@ -147,6 +171,7 @@ alter table public.gst_filings enable row level security;
 alter table public.documents enable row level security;
 alter table public.invoices enable row level security;
 alter table public.compliance_flags enable row level security;
+alter table public.itc_matches enable row level security;
 
 -- RLS Policies: users can only access their own data
 -- Note: Since we use custom JWT (not Supabase Auth), these policies
@@ -187,4 +212,8 @@ using (true);
 
 create policy "Users can manage their own compliance flags"
 on public.compliance_flags for all
+using (true);
+
+create policy "Users can manage their own ITC matches"
+on public.itc_matches for all
 using (true);

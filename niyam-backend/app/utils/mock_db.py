@@ -10,12 +10,16 @@ class MockDB:
         self.data_dir = data_dir
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
-            
+
         self.users_file = os.path.join(data_dir, "users.json")
         self.businesses_file = os.path.join(data_dir, "businesses.json")
-        
+        self.documents_file = os.path.join(data_dir, "documents.json")
+        self.invoices_file = os.path.join(data_dir, "invoices.json")
+
         self._ensure_file(self.users_file)
         self._ensure_file(self.businesses_file)
+        self._ensure_file(self.documents_file)
+        self._ensure_file(self.invoices_file)
 
     def _ensure_file(self, filepath: str):
         if not os.path.exists(filepath):
@@ -79,3 +83,46 @@ class MockDB:
             if business.get("id") == business_id:
                 return business
         return None
+
+    # Document operations
+    def create_document(self, doc_data: Dict) -> Dict:
+        docs = self._read_file(self.documents_file)
+        docs.append(doc_data)
+        self._write_file(self.documents_file, docs)
+        return doc_data
+
+    def get_document_by_id(self, doc_id: str) -> Optional[Dict]:
+        docs = self._read_file(self.documents_file)
+        for doc in docs:
+            if doc.get("id") == doc_id:
+                return doc
+        return None
+
+    def update_document_status(self, doc_id: str, status: str, processed_at: str = None):
+        docs = self._read_file(self.documents_file)
+        for doc in docs:
+            if doc.get("id") == doc_id:
+                doc["status"] = status
+                if processed_at:
+                    doc["processed_at"] = processed_at
+                break
+        self._write_file(self.documents_file, docs)
+
+    def update_document_raw_text(self, doc_id: str, raw_text: str):
+        docs = self._read_file(self.documents_file)
+        for doc in docs:
+            if doc.get("id") == doc_id:
+                doc["raw_text"] = raw_text
+                break
+        self._write_file(self.documents_file, docs)
+
+    # Invoice operations
+    def create_invoice(self, invoice_data: Dict) -> Dict:
+        invoices = self._read_file(self.invoices_file)
+        invoices.append(invoice_data)
+        self._write_file(self.invoices_file, invoices)
+        return invoice_data
+
+    def get_invoices_by_business(self, business_id: str) -> List[Dict]:
+        invoices = self._read_file(self.invoices_file)
+        return [inv for inv in invoices if inv.get("business_id") == business_id]

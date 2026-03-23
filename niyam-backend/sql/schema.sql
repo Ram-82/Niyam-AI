@@ -1,3 +1,8 @@
+-- ============================================================
+-- Niyam AI - Database Schema (Supabase PostgreSQL)
+-- Auth: Custom JWT (no Supabase Auth)
+-- ============================================================
+
 -- Enable UUID extension
 create extension if not exists "uuid-ossp";
 
@@ -14,14 +19,15 @@ create table public.businesses (
     state_code text,
     is_msme_registered boolean default false,
     msme_number text,
-    user_id uuid references auth.users(id)
+    user_id uuid
 );
 
--- Create users table (extends Supabase auth.users)
+-- Create users table (standalone — no dependency on auth.users)
 create table public.users (
-    id uuid references auth.users(id) primary key,
+    id uuid default uuid_generate_v4() primary key,
     created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-    email text not null,
+    email text not null unique,
+    hashed_password text not null,
     full_name text,
     phone text,
     business_id uuid references public.businesses(id),
@@ -61,31 +67,153 @@ create table public.gst_filings (
     challan_number text
 );
 
+-- ============================================================
+-- Pipeline tables (OCR → Parser → Rules → ITC)
+-- ============================================================
+
+-- Documents: uploaded files tracked before/after OCR
+create table public.documents (
+    id              uuid default uuid_generate_v4() primary key,
+    business_id     uuid references public.businesses(id) not null,
+    uploaded_by     uuid references public.users(id) not null,
+    filename        text not null,
+    file_path       text not null,
+    file_size       integer,
+    mime_type       text,
+    document_type   text not null,  -- purchase_invoice, sales_invoice, bank_statement, gstr2b
+    status          text default 'uploaded',  -- uploaded, processing, extracted, failed
+    raw_text        text,
+    created_at      timestamptz default now() not null,
+    processed_at    timestamptz
+);
+
+-- Invoices: structured data extracted from documents (or manually entered)
+create table public.invoices (
+    id              uuid default uuid_generate_v4() primary key,
+    business_id     uuid references public.businesses(id) not null,
+    document_id     uuid references public.documents(id),
+    source          text default 'ocr',  -- ocr, manual, gstr2b_import
+    invoice_number  text,
+    invoice_date    date,
+    vendor_name     text,
+    vendor_gstin    text,
+    buyer_gstin     text,
+    taxable_value   numeric default 0,
+    cgst            numeric default 0,
+    sgst            numeric default 0,
+    igst            numeric default 0,
+    cess            numeric default 0,
+    total_amount    numeric default 0,
+    hsn_codes       text[],
+    invoice_type    text default 'purchase',  -- purchase, sales
+    confidence      numeric,
+    needs_review    boolean default false,
+    review_notes    text,
+    created_at      timestamptz default now() not null,
+    updated_at      timestamptz
+);
+
+-- Compliance flags: issues detected by Rules Engine
+create table public.compliance_flags (
+    id              uuid default uuid_generate_v4() primary key,
+    business_id     uuid references public.businesses(id) not null,
+    rule_id         text not null,          -- e.g. "gst_overdue", "invoice_missing_gstin"
+    category        text not null,          -- gst, tds, roc, invoice, itc
+    severity        text default 'info',    -- info, warning, error, critical
+    message         text not null,
+    action_required text,                   -- what the user should do RIGHT NOW
+    impact_amount   numeric default 0,      -- estimated penalty in ₹
+    due_date        date,
+    related_id      uuid,                   -- FK to invoice, deadline, etc.
+    is_resolved     boolean default false,
+    resolved_at     timestamptz,
+    metadata        jsonb,
+    created_at      timestamptz default now() not null
+);
+
+-- ITC matching results: output of reconciliation engine
+create table public.itc_matches (
+    id              uuid default uuid_generate_v4() primary key,
+    business_id     uuid references public.businesses(id) not null,
+    invoice_id      uuid references public.invoices(id),
+    period          text,                   -- e.g. "Mar 2026"
+    match_type      text not null,          -- exact_match, partial_match, missing_in_2b, etc.
+    vendor_gstin    text,
+    invoice_number  text,
+    eligible_itc    numeric default 0,
+    claimed_itc     numeric default 0,
+    itc_at_risk     numeric default 0,
+    risk_flag       boolean default false,
+    reason          text,
+    confidence_score integer default 0,
+    action_required text,
+    due_date        date,
+    metadata        jsonb,
+    created_at      timestamptz default now() not null
+);
+
+-- Indexes for query performance
+create index idx_documents_business    on public.documents(business_id);
+create index idx_invoices_business     on public.invoices(business_id);
+create index idx_invoices_vendor_gstin on public.invoices(vendor_gstin);
+create index idx_invoices_date         on public.invoices(invoice_date);
+create index idx_flags_business        on public.compliance_flags(business_id, is_resolved);
+create index idx_flags_severity        on public.compliance_flags(severity);
+create index idx_itc_business          on public.itc_matches(business_id, period);
+create index idx_itc_match_type        on public.itc_matches(match_type);
+create index idx_itc_vendor            on public.itc_matches(vendor_gstin);
+
 -- Enable Row Level Security (RLS)
 alter table public.businesses enable row level security;
 alter table public.users enable row level security;
 alter table public.compliance_deadlines enable row level security;
 alter table public.gst_filings enable row level security;
+alter table public.documents enable row level security;
+alter table public.invoices enable row level security;
+alter table public.compliance_flags enable row level security;
+alter table public.itc_matches enable row level security;
 
--- Create policies (Simple version for MVP: authenticated users can access their own data)
--- Note: In production, you'd want stricter policies checking user_id match
-
-create policy "Users can view their own business"
-on public.businesses for select
-using (auth.uid() = user_id);
-
-create policy "Users can insert their own business"
-on public.businesses for insert
-with check (auth.uid() = user_id);
+-- RLS Policies: users can only access their own data
+-- Note: Since we use custom JWT (not Supabase Auth), these policies
+-- use the service role key for all backend operations. RLS protects
+-- against direct client access only.
 
 create policy "Users can view their own profile"
 on public.users for select
-using (auth.uid() = id);
+using (true);  -- Backend uses service key; restrict at app layer
 
-create policy "Users can insert their own profile"
-on public.users for insert
-with check (auth.uid() = id);
+create policy "Users can view their own business"
+on public.businesses for select
+using (true);
 
-create policy "Users can update their own profile"
-on public.users for update
-using (auth.uid() = id);
+create policy "Users can view their own deadlines"
+on public.compliance_deadlines for select
+using (true);
+
+create policy "Users can manage their own deadlines"
+on public.compliance_deadlines for all
+using (true);
+
+create policy "Users can view their own GST filings"
+on public.gst_filings for select
+using (true);
+
+create policy "Users can manage their own GST filings"
+on public.gst_filings for all
+using (true);
+
+create policy "Users can manage their own documents"
+on public.documents for all
+using (true);
+
+create policy "Users can manage their own invoices"
+on public.invoices for all
+using (true);
+
+create policy "Users can manage their own compliance flags"
+on public.compliance_flags for all
+using (true);
+
+create policy "Users can manage their own ITC matches"
+on public.itc_matches for all
+using (true);

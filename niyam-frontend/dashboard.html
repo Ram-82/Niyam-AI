@@ -41,6 +41,8 @@
 
             <div class="sidebar-group">
                 <div class="sidebar-group-label">Actions</div>
+                <a href="#" class="sidebar-item" onclick="switchView('compliance-flow', this)"><i data-feather="zap"></i>
+                    Compliance Flow</a>
                 <a href="#" class="sidebar-item" onclick="switchView('upload', this)"><i data-feather="upload"></i>
                     Upload Invoices</a>
                 <a href="#" class="sidebar-item" onclick="switchView('bank', this)"><i data-feather="link"></i> Connect
@@ -1466,6 +1468,246 @@
                 </div>
             </section>
 
+            <!-- View: Compliance Flow -->
+            <section id="view-compliance-flow" class="content-view">
+                <div class="welcome-bar">
+                    <h1>Compliance Flow</h1>
+                    <p style="color: var(--text-light);">Upload &rarr; Extract &rarr; Check &rarr; Match &rarr; Export</p>
+                </div>
+
+                <!-- Step Progress Bar -->
+                <div class="cf-steps" id="cf-steps">
+                    <div class="cf-step active" data-step="1"><span class="cf-step-num">1</span><span class="cf-step-label">Upload</span></div>
+                    <div class="cf-step-line"></div>
+                    <div class="cf-step" data-step="2"><span class="cf-step-num">2</span><span class="cf-step-label">Extract</span></div>
+                    <div class="cf-step-line"></div>
+                    <div class="cf-step" data-step="3"><span class="cf-step-num">3</span><span class="cf-step-label">Compliance</span></div>
+                    <div class="cf-step-line"></div>
+                    <div class="cf-step" data-step="4"><span class="cf-step-num">4</span><span class="cf-step-label">ITC Match</span></div>
+                    <div class="cf-step-line"></div>
+                    <div class="cf-step" data-step="5"><span class="cf-step-num">5</span><span class="cf-step-label">Dashboard</span></div>
+                    <div class="cf-step-line"></div>
+                    <div class="cf-step" data-step="6"><span class="cf-step-num">6</span><span class="cf-step-label">Export</span></div>
+                </div>
+
+                <!-- Error Banner -->
+                <div id="cf-error" class="cf-error" style="display:none;"></div>
+
+                <!-- ====================== STEP 1: Upload ====================== -->
+                <div class="cf-panel" id="cf-panel-1">
+                    <div class="card" style="padding:40px; text-align:center; border:2px dashed #cbd5e1; background:#f8fafc;">
+                        <i data-feather="upload-cloud" style="width:48px; height:48px; color:var(--primary-color); margin-bottom:20px;"></i>
+                        <h3>Upload Invoice (PDF or Image)</h3>
+                        <p style="color:var(--text-light); margin:10px 0 20px;">Niyam AI will extract, validate, and match your data.</p>
+                        <input type="file" id="cf-file-input" accept=".pdf,.jpg,.jpeg,.png" style="display:none;">
+                        <button class="btn btn-primary" onclick="document.getElementById('cf-file-input').click()">
+                            <i data-feather="file-plus" style="width:16px; margin-right:6px;"></i> Browse Files
+                        </button>
+                        <div id="cf-upload-progress" style="display:none; margin-top:24px;">
+                            <div class="cf-progress-bar"><div class="cf-progress-fill" id="cf-progress-fill"></div></div>
+                            <p id="cf-upload-status" style="font-size:0.85rem; margin-top:8px; color:var(--text-light);">Uploading...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ====================== STEP 2: Extraction ====================== -->
+                <div class="cf-panel" id="cf-panel-2" style="display:none;">
+                    <div class="card">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                            <h3>Extracted Invoice Data</h3>
+                            <span id="cf-confidence-badge" class="badge"></span>
+                        </div>
+                        <div id="cf-extracted-data" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;"></div>
+                        <div style="margin-top:24px; display:flex; gap:10px; justify-content:flex-end;">
+                            <button class="btn btn-outline" onclick="cfRestart()">Start Over</button>
+                            <button class="btn btn-primary" onclick="cfRunCompliance()">
+                                <i data-feather="shield" style="width:16px; margin-right:6px;"></i> Run Compliance Check
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ====================== STEP 3: Compliance ====================== -->
+                <div class="cf-panel" id="cf-panel-3" style="display:none;">
+                    <div id="cf-compliance-loading" class="cf-loading">
+                        <div class="cf-spinner"></div>
+                        <p>Running compliance rules...</p>
+                    </div>
+                    <div id="cf-compliance-results" style="display:none;">
+                        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:20px;">
+                            <div class="card cf-stat-card">
+                                <p class="cf-stat-label">Compliance Score</p>
+                                <p class="cf-stat-value" id="cf-comp-score">--</p>
+                            </div>
+                            <div class="card cf-stat-card">
+                                <p class="cf-stat-label">Risk Level</p>
+                                <p class="cf-stat-value" id="cf-risk-level">--</p>
+                            </div>
+                            <div class="card cf-stat-card">
+                                <p class="cf-stat-label">Estimated Penalties</p>
+                                <p class="cf-stat-value" id="cf-penalties">--</p>
+                            </div>
+                        </div>
+                        <div class="card" id="cf-flags-card">
+                            <h3 style="margin-bottom:16px;">Compliance Flags</h3>
+                            <div id="cf-flags-list"></div>
+                        </div>
+                        <div style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end;">
+                            <button class="btn btn-outline" onclick="cfRestart()">Start Over</button>
+                            <button class="btn btn-primary" onclick="cfShowITCPanel()">
+                                <i data-feather="git-merge" style="width:16px; margin-right:6px;"></i> Run ITC Matching
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ====================== STEP 4: ITC Match ====================== -->
+                <div class="cf-panel" id="cf-panel-4" style="display:none;">
+                    <div class="card" style="margin-bottom:20px;">
+                        <h3 style="margin-bottom:16px;">Upload GSTR-2B JSON (optional)</h3>
+                        <p style="color:var(--text-light); font-size:0.85rem; margin-bottom:16px;">
+                            Paste your GSTR-2B JSON or skip to use only book data.
+                        </p>
+                        <textarea id="cf-gstr2b-input" placeholder='Paste GSTR-2B JSON here...' style="width:100%; height:120px; padding:12px; border:1px solid #e2e8f0; border-radius:8px; font-family:monospace; font-size:0.8rem; resize:vertical;"></textarea>
+                        <div style="margin-top:16px; display:flex; gap:10px; justify-content:flex-end;">
+                            <button class="btn btn-outline" onclick="cfRunITC('')">Skip (No 2B Data)</button>
+                            <button class="btn btn-primary" onclick="cfRunITC(document.getElementById('cf-gstr2b-input').value)">
+                                <i data-feather="zap" style="width:16px; margin-right:6px;"></i> Reconcile ITC
+                            </button>
+                        </div>
+                    </div>
+                    <div id="cf-itc-loading" class="cf-loading" style="display:none;">
+                        <div class="cf-spinner"></div>
+                        <p>Matching invoices against GSTR-2B...</p>
+                    </div>
+                    <div id="cf-itc-results" style="display:none;">
+                        <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:16px; margin-bottom:20px;">
+                            <div class="card cf-stat-card">
+                                <p class="cf-stat-label">ITC Available</p>
+                                <p class="cf-stat-value cf-money" id="cf-itc-available">--</p>
+                            </div>
+                            <div class="card cf-stat-card">
+                                <p class="cf-stat-label">ITC Claimed</p>
+                                <p class="cf-stat-value cf-money" id="cf-itc-claimed">--</p>
+                            </div>
+                            <div class="card cf-stat-card">
+                                <p class="cf-stat-label">ITC at Risk</p>
+                                <p class="cf-stat-value cf-money cf-danger" id="cf-itc-risk">--</p>
+                            </div>
+                            <div class="card cf-stat-card">
+                                <p class="cf-stat-label">Recoverable</p>
+                                <p class="cf-stat-value cf-money cf-success" id="cf-itc-recoverable">--</p>
+                            </div>
+                        </div>
+                        <div class="card" id="cf-itc-actions-card">
+                            <h3 style="margin-bottom:16px;">Priority Actions</h3>
+                            <div id="cf-itc-actions"></div>
+                        </div>
+                        <div style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end;">
+                            <button class="btn btn-outline" onclick="cfRestart()">Start Over</button>
+                            <button class="btn btn-primary" onclick="cfLoadDashboard()">
+                                <i data-feather="layout" style="width:16px; margin-right:6px;"></i> View Dashboard
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ====================== STEP 5: Dashboard ====================== -->
+                <div class="cf-panel" id="cf-panel-5" style="display:none;">
+                    <div id="cf-dash-loading" class="cf-loading">
+                        <div class="cf-spinner"></div>
+                        <p>Loading dashboard summary...</p>
+                    </div>
+                    <div id="cf-dash-results" style="display:none;">
+                        <!-- Readiness Banner -->
+                        <div id="cf-readiness-banner" class="cf-readiness-banner"></div>
+
+                        <!-- Top Actions -->
+                        <div class="card" style="margin-bottom:20px;">
+                            <h3 style="margin-bottom:16px;">Top 3 Actions</h3>
+                            <div id="cf-top-actions"></div>
+                        </div>
+
+                        <!-- Financial Summary -->
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
+                            <div class="card">
+                                <h3 style="margin-bottom:16px;">Financial Summary</h3>
+                                <div id="cf-financials"></div>
+                            </div>
+                            <div class="card">
+                                <h3 style="margin-bottom:16px;">Compliance Overview</h3>
+                                <div id="cf-compliance-overview"></div>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; gap:10px; justify-content:flex-end;">
+                            <button class="btn btn-outline" onclick="cfRestart()">Start Over</button>
+                            <button class="btn btn-primary" onclick="cfShowExport()">
+                                <i data-feather="download" style="width:16px; margin-right:6px;"></i> Export Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ====================== STEP 6: Export ====================== -->
+                <div class="cf-panel" id="cf-panel-6" style="display:none;">
+                    <div class="card" style="margin-bottom:20px;">
+                        <h3 style="margin-bottom:16px;">Export Filing Data</h3>
+
+                        <!-- Readiness Status -->
+                        <div id="cf-export-readiness" style="margin-bottom:20px;"></div>
+
+                        <!-- Export Options -->
+                        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:20px;">
+                            <div class="cf-export-option" onclick="cfExport('json')" id="cf-opt-json">
+                                <i data-feather="code" style="width:32px; height:32px; color:var(--primary-color); margin-bottom:10px;"></i>
+                                <h4>JSON</h4>
+                                <p style="font-size:0.8rem; color:var(--text-light);">Structured data for systems</p>
+                            </div>
+                            <div class="cf-export-option" onclick="cfExport('excel')" id="cf-opt-excel">
+                                <i data-feather="grid" style="width:32px; height:32px; color:#10b981; margin-bottom:10px;"></i>
+                                <h4>Excel</h4>
+                                <p style="font-size:0.8rem; color:var(--text-light);">CA-friendly, multi-sheet</p>
+                            </div>
+                            <div class="cf-export-option" onclick="cfExport('csv')" id="cf-opt-csv">
+                                <i data-feather="file-text" style="width:32px; height:32px; color:#f59e0b; margin-bottom:10px;"></i>
+                                <h4>CSV</h4>
+                                <p style="font-size:0.8rem; color:var(--text-light);">Lightweight, tool-ready</p>
+                            </div>
+                        </div>
+
+                        <!-- Export Filters -->
+                        <div style="border-top:1px solid #e2e8f0; padding-top:16px;">
+                            <p style="font-weight:600; margin-bottom:12px; font-size:0.85rem;">Export Filters</p>
+                            <div style="display:flex; gap:20px; flex-wrap:wrap;">
+                                <label style="display:flex; align-items:center; gap:6px; font-size:0.85rem; cursor:pointer;">
+                                    <input type="checkbox" id="cf-filter-clean"> Clean invoices only
+                                </label>
+                                <label style="display:flex; align-items:center; gap:6px; font-size:0.85rem; cursor:pointer;">
+                                    <input type="checkbox" id="cf-filter-risk"> Exclude high-risk
+                                </label>
+                                <label style="display:flex; align-items:center; gap:6px; font-size:0.85rem; cursor:pointer;">
+                                    <input type="checkbox" id="cf-filter-flagged" checked> Include flagged items
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Export Loading -->
+                    <div id="cf-export-loading" class="cf-loading" style="display:none;">
+                        <div class="cf-spinner"></div>
+                        <p>Generating export...</p>
+                    </div>
+
+                    <!-- Export Result -->
+                    <div id="cf-export-result" style="display:none;"></div>
+
+                    <div style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end;">
+                        <button class="btn btn-outline" onclick="cfRestart()">Start Over</button>
+                    </div>
+                </div>
+            </section>
+
             <!-- View: Help & Support -->
             <section id="view-support" class="content-view">
                 <div class="welcome-bar">
@@ -1651,6 +1893,7 @@
         </div>
     </div>
 
+    <script src="compliance-flow.js"></script>
     <script src="dashboard.js"></script>
 </body>
 

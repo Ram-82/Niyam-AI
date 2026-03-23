@@ -90,6 +90,14 @@ _MATCH_SEVERITY = {
     MatchType.DUPLICATE_CLAIM: "critical",
 }
 
+_MATCH_ACTION_TYPE = {
+    MatchType.EXACT_MATCH: "monitor",
+    MatchType.PARTIAL_MATCH: "fix",
+    MatchType.MISSING_IN_2B: "recover",
+    MatchType.MISSING_IN_INVOICES: "recover",
+    MatchType.DUPLICATE_CLAIM: "remove",
+}
+
 
 def _calculate_recovery_priority(
     match_type: str,
@@ -140,6 +148,7 @@ class MatchResult:
         "claimed_itc",        # ITC actually claimable after matching
         "itc_at_risk",        # ITC that may be denied
         "recovery_priority",  # none, low, medium, high
+        "action_type",        # recover, fix, remove, monitor
         "risk_flag",          # True if any risk
         "reason",             # structured reason code
         "confidence_score",   # 0-100
@@ -151,9 +160,11 @@ class MatchResult:
     def __init__(self, **kwargs):
         for slot in self.__slots__:
             setattr(self, slot, kwargs.get(slot))
-        # Auto-compute severity and recovery_priority from match_type
+        # Auto-compute severity, action_type, recovery_priority from match_type
         if self.severity is None and self.match_type is not None:
             self.severity = _MATCH_SEVERITY.get(self.match_type, "none")
+        if self.action_type is None and self.match_type is not None:
+            self.action_type = _MATCH_ACTION_TYPE.get(self.match_type, "monitor")
         if self.recovery_priority is None and self.match_type is not None:
             itc = float(self.itc_at_risk or 0) + float(self.eligible_itc or 0) if self.match_type == MatchType.MISSING_IN_INVOICES else float(self.itc_at_risk or 0)
             self.recovery_priority = _calculate_recovery_priority(

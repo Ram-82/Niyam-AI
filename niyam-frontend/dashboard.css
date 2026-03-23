@@ -879,6 +879,49 @@ th {
     color: #166534;
 }
 
+/* ============================================================
+   Demo Mode — Trust Layer Styles
+   ============================================================ */
+
+.demo-action-card {
+    padding: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    background: #fafbfc;
+}
+
+.demo-trust-box {
+    background: #f0f4ff;
+    border: 1px solid #c7d2fe;
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 0.82rem;
+    line-height: 1.5;
+}
+
+.demo-trust-row {
+    margin-bottom: 4px;
+}
+
+.demo-trust-row:last-child {
+    margin-bottom: 0;
+}
+
+.demo-trust-label {
+    font-weight: 700;
+    color: #4338ca;
+    margin-right: 4px;
+}
+
+.demo-itc-card {
+    padding: 14px 16px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    background: #fafbfc;
+    border: 1px solid #e2e8f0;
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
     .calendar-layout {

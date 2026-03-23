@@ -7,7 +7,7 @@ import logging
 from app.config import settings
 from app.routes import (
     auth, dashboard, upload, compliance, gst, tds, roc,
-    ocr, analytics, export, settings as settings_routes
+    ocr, analytics, export, demo, settings as settings_routes
 )
 
 # Configure logging
@@ -57,6 +57,7 @@ app.include_router(roc.router)
 app.include_router(ocr.router)
 app.include_router(analytics.router)
 app.include_router(export.router)
+app.include_router(demo.router)
 app.include_router(settings_routes.router)
 
 

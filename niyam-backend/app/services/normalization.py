@@ -12,7 +12,7 @@ Pipeline position:
 import re
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 from dateutil import parser as dateutil_parser
 
@@ -23,6 +23,54 @@ REVIEW_CONFIDENCE_THRESHOLD = 60
 
 # Critical fields — if ANY of these are null, needs_review = True
 CRITICAL_FIELDS = ("gstin", "invoice_number", "invoice_date", "total_amount")
+
+
+# ============================================================
+# Structured Review Reason Codes
+# ============================================================
+# Every review reason is a standardized code.
+# Rules Engine and Dashboard can switch/filter on these directly.
+
+class ReviewCode:
+    """Standardized review reason codes."""
+
+    # Missing fields
+    MISSING_GSTIN = "missing_gstin"
+    MISSING_INVOICE_NUMBER = "missing_invoice_number"
+    MISSING_INVOICE_DATE = "missing_invoice_date"
+    MISSING_TOTAL_AMOUNT = "missing_total_amount"
+    MISSING_TAXABLE_AMOUNT = "missing_taxable_amount"
+    MISSING_GST_AMOUNT = "missing_gst_amount"
+
+    # Confidence
+    LOW_CONFIDENCE = "low_confidence"
+
+    # Amount issues
+    TOTAL_MISMATCH = "total_mismatch"
+    INVALID_TOTAL = "invalid_total"
+    NEGATIVE_AMOUNT = "negative_amount"
+
+    # GST issues
+    GST_CONFLICT = "gst_conflict"
+    GST_MISMATCH = "gst_mismatch"
+
+    # Format issues
+    INVALID_GSTIN_FORMAT = "invalid_gstin_format"
+    INVALID_DATE_FORMAT = "invalid_date_format"
+
+    # Map field names to missing codes
+    _MISSING_FIELD_CODES = {
+        "gstin": "missing_gstin",
+        "invoice_number": "missing_invoice_number",
+        "invoice_date": "missing_invoice_date",
+        "total_amount": "missing_total_amount",
+        "taxable_amount": "missing_taxable_amount",
+        "gst_amount": "missing_gst_amount",
+    }
+
+    @classmethod
+    def missing(cls, field_name: str) -> str:
+        return cls._MISSING_FIELD_CODES.get(field_name, f"missing_{field_name}")
 
 
 class NormalizedInvoice:
@@ -247,9 +295,11 @@ def _reconcile_gst(
     sgst: Optional[float],
     igst: Optional[float],
     gst_amount: Optional[float],
+    reasons: List[str],
 ) -> tuple:
     """
     Ensure GST values are consistent. Returns (cgst, sgst, igst, gst_amount).
+    Appends structured review codes to `reasons` when conflicts detected.
 
     Rules:
     1. If CGST+SGST present → gst_amount = cgst + sgst; igst should be 0/null
@@ -262,7 +312,6 @@ def _reconcile_gst(
 
     if has_intra and has_inter:
         # Conflicting: both intra-state (CGST+SGST) and inter-state (IGST)
-        # Trust the larger total — likely the real one
         intra_total = (cgst or 0) + (sgst or 0)
         if intra_total >= igst:
             igst = None
@@ -271,19 +320,18 @@ def _reconcile_gst(
             cgst = None
             sgst = None
             gst_amount = round(igst, 2)
+        reasons.append(ReviewCode.GST_CONFLICT)
         logger.warning("Conflicting GST: both CGST/SGST and IGST present. Resolved by larger total.")
 
     elif has_intra:
         computed = round((cgst or 0) + (sgst or 0), 2)
         if gst_amount is not None and abs(gst_amount - computed) > 1.0:
-            # Components disagree with total — trust components
+            reasons.append(ReviewCode.GST_MISMATCH)
             logger.debug(f"GST mismatch: components={computed}, total={gst_amount}. Trusting components.")
         gst_amount = computed
 
     elif has_inter:
         gst_amount = round(igst, 2)
-
-    # else: keep gst_amount as-is (may be None)
 
     return cgst, sgst, igst, gst_amount
 
@@ -296,10 +344,12 @@ def _cross_check_total(
     taxable: Optional[float],
     gst: Optional[float],
     total: Optional[float],
+    reasons: List[str],
 ) -> Optional[float]:
     """
     Verify total ≈ taxable + gst. If total is missing but components
     exist, compute it. If total conflicts, return None (unsafe).
+    Appends structured review codes to `reasons` on mismatch.
     """
     if taxable is not None and gst is not None:
         expected = round(taxable + gst, 2)
@@ -308,10 +358,10 @@ def _cross_check_total(
             return expected
 
         if abs(total - expected) <= 1.0:
-            # Close enough — keep original total
             return total
 
-        # Mismatch > ₹1 — don't trust either; return None to force review
+        # Mismatch > ₹1
+        reasons.append(ReviewCode.TOTAL_MISMATCH)
         logger.warning(
             f"Total mismatch: total={total}, taxable+gst={expected}. "
             f"Returning None to force review."
@@ -333,16 +383,20 @@ def normalize_invoice(parsed: dict, invoice_id: str) -> NormalizedInvoice:
     {
         "gstin":          {"value": "29ABCDE1234F1Z5", "confidence": 80, "method": "..."},
         "invoice_number": {"value": "INV-001",         "confidence": 85, ...},
-        "invoice_date":   {"value": "2026-03-15",      "confidence": 88, ...},
         ...
         "overall_confidence": 73,
         "needs_review": [...],
         "extraction_errors": [...]
     }
 
-    Output: NormalizedInvoice with clean types and deterministic review flag.
+    Output: NormalizedInvoice with clean types, structured review codes,
+    and deterministic review flag.
+
+    review_reasons contains ONLY standardized codes from ReviewCode:
+        ["missing_gstin", "low_confidence", "total_mismatch"]
+    Never free-text. Rules Engine and Dashboard can switch on these directly.
     """
-    review_reasons = list(parsed.get("extraction_errors", []))
+    review_reasons: List[str] = []
 
     # ---- Extract raw values ----
     def _val(field: str):
@@ -376,18 +430,18 @@ def normalize_invoice(parsed: dict, invoice_id: str) -> NormalizedInvoice:
     else:
         hsn_codes = []
 
+    # ---- Detect format failures (parser extracted something, normalizer rejected it) ----
+    if _val("gstin") is not None and gstin is None:
+        review_reasons.append(ReviewCode.INVALID_GSTIN_FORMAT)
+
+    if _val("invoice_date") is not None and invoice_date is None:
+        review_reasons.append(ReviewCode.INVALID_DATE_FORMAT)
+
     # ---- GST reconciliation ----
-    cgst, sgst, igst, gst_amount = _reconcile_gst(cgst, sgst, igst, gst_amount)
+    cgst, sgst, igst, gst_amount = _reconcile_gst(cgst, sgst, igst, gst_amount, review_reasons)
 
     # ---- Total cross-check ----
-    original_total = total_amount
-    total_amount = _cross_check_total(taxable_amount, gst_amount, total_amount)
-
-    if original_total is not None and total_amount is None:
-        review_reasons.append(
-            f"Total amount conflict: stated={original_total}, "
-            f"computed={round((taxable_amount or 0) + (gst_amount or 0), 2)}"
-        )
+    total_amount = _cross_check_total(taxable_amount, gst_amount, total_amount, review_reasons)
 
     # ---- Confidence score ----
     # Weighted average: critical fields count more
@@ -403,21 +457,20 @@ def normalize_invoice(parsed: dict, invoice_id: str) -> NormalizedInvoice:
         "vendor_name": (_conf("vendor_name"), 0.5),
     }
 
+    val_map = {
+        "gstin": gstin, "invoice_number": invoice_number,
+        "invoice_date": invoice_date, "total_amount": total_amount,
+        "taxable_amount": taxable_amount, "cgst": cgst,
+        "sgst": sgst, "igst": igst, "vendor_name": vendor_name,
+    }
+
     total_weight = 0.0
     weighted_sum = 0.0
     for field_name, (conf, weight) in field_confs.items():
-        # Only include fields that were actually extracted
-        val_map = {
-            "gstin": gstin, "invoice_number": invoice_number,
-            "invoice_date": invoice_date, "total_amount": total_amount,
-            "taxable_amount": taxable_amount, "cgst": cgst,
-            "sgst": sgst, "igst": igst, "vendor_name": vendor_name,
-        }
         if val_map.get(field_name) is not None:
             weighted_sum += conf * weight
             total_weight += weight
         else:
-            # Null critical field → penalize
             if field_name in CRITICAL_FIELDS:
                 total_weight += weight  # add weight but zero confidence
 
@@ -430,7 +483,7 @@ def normalize_invoice(parsed: dict, invoice_id: str) -> NormalizedInvoice:
     # Rule 1: overall confidence below threshold
     if confidence_score < REVIEW_CONFIDENCE_THRESHOLD:
         needs_review = True
-        review_reasons.append(f"Low confidence: {confidence_score} < {REVIEW_CONFIDENCE_THRESHOLD}")
+        review_reasons.append(ReviewCode.LOW_CONFIDENCE)
 
     # Rule 2: any critical field is null
     critical_vals = {
@@ -439,19 +492,25 @@ def normalize_invoice(parsed: dict, invoice_id: str) -> NormalizedInvoice:
         "invoice_date": invoice_date,
         "total_amount": total_amount,
     }
-    missing = [k for k, v in critical_vals.items() if v is None]
-    if missing:
-        needs_review = True
-        review_reasons.append(f"Missing critical fields: {', '.join(missing)}")
+    for field_name, val in critical_vals.items():
+        if val is None:
+            needs_review = True
+            review_reasons.append(ReviewCode.missing(field_name))
 
     # Rule 3: negative or zero total
     if total_amount is not None and total_amount <= 0:
         needs_review = True
-        review_reasons.append(f"Invalid total_amount: {total_amount}")
-        total_amount = None  # null out bad data
+        review_reasons.append(ReviewCode.INVALID_TOTAL)
+        total_amount = None
 
-    # Deduplicate reasons
-    review_reasons = list(dict.fromkeys(review_reasons))
+    # Deduplicate while preserving order
+    seen = set()
+    deduped = []
+    for code in review_reasons:
+        if code not in seen:
+            seen.add(code)
+            deduped.append(code)
+    review_reasons = deduped
 
     return NormalizedInvoice(
         invoice_id=invoice_id,

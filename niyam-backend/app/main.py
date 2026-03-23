@@ -6,7 +6,7 @@ import logging
 
 from app.config import settings
 from app.routes import (
-    auth, dashboard, upload, gst, tds, roc,
+    auth, dashboard, upload, compliance, gst, tds, roc,
     ocr, analytics, settings as settings_routes
 )
 
@@ -50,6 +50,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(dashboard.router)
 app.include_router(upload.router)
+app.include_router(compliance.router)
 app.include_router(gst.router)
 app.include_router(tds.router)
 app.include_router(roc.router)

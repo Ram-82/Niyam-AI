@@ -265,7 +265,7 @@ async def extract_document(
         "invoice_type": doc.get("document_type", "purchase"),
         "confidence": norm["confidence_score"],
         "needs_review": norm["needs_review"],
-        "review_notes": "; ".join(norm["review_reasons"]) if norm["review_reasons"] else None,
+        "review_notes": ",".join(norm["review_reasons"]) if norm["review_reasons"] else None,
         "created_at": now,
     }
 

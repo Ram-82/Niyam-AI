@@ -26,6 +26,7 @@ from app.models.document import (
 )
 from app.services.ocr_service import OCRService
 from app.services.data_parser import DataParser
+from app.services.normalization import normalize_invoice
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["Upload & Extract"])
@@ -233,42 +234,45 @@ async def extract_document(
             },
         }
 
+    # Step 2: Parse raw text into per-field extractions
     parser = DataParser()
     parsed = parser.parse_invoice(raw_text)
 
-    # Step 3: Save invoice to DB if extraction succeeded
+    # Step 3: Normalize — enforce types, reconcile GST, cross-check totals
     now = datetime.now(timezone.utc).isoformat()
     invoice_id = str(uuid.uuid4())
     business_id = doc.get("business_id", "unknown")
 
+    normalized = normalize_invoice(parsed, invoice_id)
+    norm = normalized.to_dict()
+
+    # Step 4: Save normalized invoice to DB
     invoice_record = {
         "id": invoice_id,
         "business_id": business_id,
         "document_id": doc_id,
         "source": "ocr",
-        "invoice_number": parsed["invoice_number"]["value"],
-        "invoice_date": parsed["invoice_date"]["value"],
-        "vendor_name": parsed["vendor_name"]["value"],
-        "vendor_gstin": parsed["gstin"]["value"],
-        "taxable_value": parsed["taxable_amount"]["value"] or 0,
-        "cgst": parsed["cgst"]["value"] or 0,
-        "sgst": parsed["sgst"]["value"] or 0,
-        "igst": parsed["igst"]["value"] or 0,
-        "total_amount": parsed["total_amount"]["value"] or 0,
-        "hsn_codes": parsed["hsn_codes"]["value"] or [],
+        "invoice_number": norm["invoice_number"],
+        "invoice_date": norm["invoice_date"],
+        "vendor_name": norm["vendor_name"],
+        "vendor_gstin": norm["gstin"],
+        "taxable_value": norm["taxable_amount"] or 0,
+        "cgst": norm["cgst"] or 0,
+        "sgst": norm["sgst"] or 0,
+        "igst": norm["igst"] or 0,
+        "total_amount": norm["total_amount"] or 0,
+        "hsn_codes": norm["hsn_codes"] or [],
         "invoice_type": doc.get("document_type", "purchase"),
-        "confidence": parsed["overall_confidence"],
-        "needs_review": len(parsed["needs_review"]) > 0,
-        "review_notes": ", ".join(parsed["needs_review"]) if parsed["needs_review"] else None,
+        "confidence": norm["confidence_score"],
+        "needs_review": norm["needs_review"],
+        "review_notes": "; ".join(norm["review_reasons"]) if norm["review_reasons"] else None,
         "created_at": now,
     }
 
     if is_mock:
         db.create_invoice(invoice_record)
     else:
-        # Convert hsn_codes list to PostgreSQL array format
-        record_for_db = invoice_record.copy()
-        db.table("invoices").insert(record_for_db).execute()
+        db.table("invoices").insert(invoice_record).execute()
 
     # Update document status
     if is_mock:
@@ -287,6 +291,7 @@ async def extract_document(
             "status": "extracted",
             "ocr_quality": ocr_quality,
             "ocr_method": ocr_method,
-            "invoice": parsed,
+            "raw_extraction": parsed,
+            "normalized": norm,
         },
     }

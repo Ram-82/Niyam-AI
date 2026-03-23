@@ -78,6 +78,54 @@ def _normalize_inv_number(raw: Optional[str]) -> str:
 # Match Result
 # ============================================================
 
+# ============================================================
+# Severity mapping — aligns with Rules Engine severity system
+# ============================================================
+
+_MATCH_SEVERITY = {
+    MatchType.EXACT_MATCH: "none",
+    MatchType.PARTIAL_MATCH: "medium",
+    MatchType.MISSING_IN_2B: "high",
+    MatchType.MISSING_IN_INVOICES: "low",
+    MatchType.DUPLICATE_CLAIM: "critical",
+}
+
+
+def _calculate_recovery_priority(
+    match_type: str,
+    itc_amount: float,
+    invoice_date: str,
+) -> str:
+    """
+    Determine recovery priority for actionable ITC items.
+
+    High:   recent (≤30 days) AND ≥₹5,000
+    Medium: recent OR ≥₹1,000
+    Low:    old AND small
+    None:   EXACT_MATCH (nothing to recover)
+    """
+    if match_type == MatchType.EXACT_MATCH:
+        return "none"
+
+    is_recent = False
+    if invoice_date:
+        try:
+            from datetime import date as _date
+            inv_d = _date.fromisoformat(str(invoice_date)[:10])
+            is_recent = (_date.today() - inv_d).days <= 30
+        except (ValueError, TypeError):
+            pass
+
+    high_value = itc_amount >= 5000
+    mid_value = itc_amount >= 1000
+
+    if is_recent and high_value:
+        return "high"
+    if is_recent or mid_value:
+        return "medium"
+    return "low"
+
+
 class MatchResult:
     """Result of matching a single invoice against GSTR-2B."""
 
@@ -85,11 +133,13 @@ class MatchResult:
         "invoice_id",
         "gstr2b_id",
         "match_type",
+        "severity",           # none, low, medium, high, critical
         "vendor_gstin",
         "invoice_number",
         "eligible_itc",       # max ITC available (from 2B or invoice, whichever lower)
         "claimed_itc",        # ITC actually claimable after matching
         "itc_at_risk",        # ITC that may be denied
+        "recovery_priority",  # none, low, medium, high
         "risk_flag",          # True if any risk
         "reason",             # structured reason code
         "confidence_score",   # 0-100
@@ -101,6 +151,14 @@ class MatchResult:
     def __init__(self, **kwargs):
         for slot in self.__slots__:
             setattr(self, slot, kwargs.get(slot))
+        # Auto-compute severity and recovery_priority from match_type
+        if self.severity is None and self.match_type is not None:
+            self.severity = _MATCH_SEVERITY.get(self.match_type, "none")
+        if self.recovery_priority is None and self.match_type is not None:
+            itc = float(self.itc_at_risk or 0) + float(self.eligible_itc or 0) if self.match_type == MatchType.MISSING_IN_INVOICES else float(self.itc_at_risk or 0)
+            self.recovery_priority = _calculate_recovery_priority(
+                self.match_type, itc, self.due_date,
+            )
 
     def to_dict(self) -> dict:
         return {slot: getattr(self, slot) for slot in self.__slots__}

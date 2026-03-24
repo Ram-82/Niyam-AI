@@ -55,6 +55,7 @@
 
             <div class="sidebar-group" style="margin-top: auto;">
                 <div class="sidebar-group-label">Account</div>
+                <a href="about.html" class="sidebar-item"><i data-feather="info"></i> About</a>
                 <a href="#" class="sidebar-item" onclick="switchView('settings', this)"><i data-feather="settings"></i>
                     Settings</a>
                 <a href="#" class="sidebar-item" onclick="switchView('support', this)"><i
@@ -1987,19 +1988,62 @@
         </main>
     </div>
 
-    <!-- Footer -->
-    <footer class="app-footer">
-        <div class="footer-content">
-            <div class="footer-links">
-                <a href="#" data-soon="Privacy Policy">Privacy Policy</a>
-                <span class="footer-sep">&middot;</span>
-                <a href="#" data-soon="Terms of Service">Terms of Service</a>
-                <span class="footer-sep">&middot;</span>
-                <a href="#" onclick="switchView('support', document.querySelector('[onclick*=support]')); return false;">Contact</a>
-                <span class="footer-sep">&middot;</span>
-                <a href="#" onclick="switchView('support', document.querySelector('[onclick*=support]')); return false;">FAQ</a>
+    <!-- Premium Footer -->
+    <footer class="premium-footer">
+        <div class="footer-inner">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <img src="logo.svg" alt="Niyam AI" height="32">
+                    <p class="tagline">AI-powered compliance engine for MSMEs and professionals.</p>
+                    <div class="footer-social">
+                        <a href="#" aria-label="LinkedIn"><i data-feather="linkedin" style="width:16px; height:16px;"></i></a>
+                        <a href="#" aria-label="Twitter"><i data-feather="twitter" style="width:16px; height:16px;"></i></a>
+                        <a href="mailto:support@niyam.ai" aria-label="Email"><i data-feather="mail" style="width:16px; height:16px;"></i></a>
+                    </div>
+                </div>
+                <div class="footer-col">
+                    <h4>Product</h4>
+                    <ul>
+                        <li><a href="#" onclick="switchView('dashboard', document.querySelector('[onclick*=dashboard]')); return false;">Dashboard</a></li>
+                        <li><a href="#" onclick="switchView('compliance-flow', document.querySelector('[onclick*=compliance-flow]')); return false;">Compliance Flow</a></li>
+                        <li><a href="#" onclick="switchView('gst', document.querySelector('[onclick*=gst]')); return false;">GST Reconciliation</a></li>
+                        <li><a href="#" onclick="switchView('reports', document.querySelector('[onclick*=reports]')); return false;">Reports & Analytics</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Resources</h4>
+                    <ul>
+                        <li><a href="about.html">About</a></li>
+                        <li><a href="#" onclick="switchView('support', document.querySelector('[onclick*=support]')); return false;">FAQ</a></li>
+                        <li><a href="#" data-soon="Documentation">Documentation</a></li>
+                        <li><a href="#" data-soon="Blog">Blog</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Legal</h4>
+                    <ul>
+                        <li><a href="#" data-soon="Privacy Policy">Privacy Policy</a></li>
+                        <li><a href="#" data-soon="Terms of Service">Terms of Service</a></li>
+                        <li><a href="#" data-soon="Disclaimer">Disclaimer</a></li>
+                        <li><a href="#" onclick="switchView('support', document.querySelector('[onclick*=support]')); return false;">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Community</h4>
+                    <ul>
+                        <li><a href="#">LinkedIn</a></li>
+                        <li><a href="#">Twitter</a></li>
+                        <li><a href="mailto:support@niyam.ai">Email Support</a></li>
+                    </ul>
+                </div>
             </div>
-            <p>&copy; <span id="footer-year">2026</span> Niyam AI. All rights reserved. Compliance insights for informational purposes only.</p>
+            <div class="footer-bottom">
+                <p>&copy; <span id="footer-year">2026</span> Niyam AI. All rights reserved.</p>
+                <div class="footer-status">
+                    <span class="status-indicator"></span>
+                    System Status: Operational
+                </div>
+            </div>
         </div>
     </footer>
 

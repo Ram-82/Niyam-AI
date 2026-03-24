@@ -48,7 +48,6 @@
 
 .main-content {
     padding: var(--space-4);
-    padding-bottom: 56px; /* space for fixed legal footer */
     background-color: var(--bg-color);
 }
 
@@ -977,48 +976,13 @@ th {
     background: #f8fafc;
 }
 
-/* App Footer */
-.app-footer {
-    background: #f8fafc;
-    border-top: 1px solid #e2e8f0;
-    padding: 14px 24px;
-    text-align: center;
-    font-size: 0.75rem;
-    color: #94a3b8;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 100;
+/* Dashboard Premium Footer Override */
+.dashboard-layout + .premium-footer {
+    margin-left: 0;
 }
 
-.footer-content {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    align-items: center;
-}
-
-.footer-links {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-    flex-wrap: wrap;
-    justify-content: center;
-}
-
-.footer-links a {
-    color: #64748b;
-    font-weight: 500;
-    transition: color 0.15s;
-}
-
-.footer-links a:hover {
-    color: var(--primary-color);
-}
-
-.footer-sep {
-    color: #cbd5e1;
+.dashboard-layout ~ .premium-footer .footer-grid {
+    grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr;
 }
 
 /* View Transitions */
@@ -1131,14 +1095,6 @@ th {
         width: calc(100% - 40px);
         right: 20px;
         bottom: 20px;
-    }
-
-    .app-footer {
-        position: relative;
-    }
-
-    .footer-links {
-        gap: 4px;
     }
 
     .account-dropdown {

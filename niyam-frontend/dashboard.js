@@ -20,9 +20,11 @@ function switchView(viewId, element) {
     document.querySelectorAll(".sidebar-item").forEach(item => item.classList.remove("active"));
     if (element) element.classList.add("active");
 
-    document.querySelectorAll(".content-view").forEach(view => view.classList.remove("active"));
     const targetView = document.getElementById(`view-${viewId}`);
-    if (targetView) targetView.classList.add("active");
+    if (!targetView) return;
+
+    document.querySelectorAll(".content-view").forEach(view => view.classList.remove("active"));
+    targetView.classList.add("active");
 
     window.scrollTo(0, 0);
 

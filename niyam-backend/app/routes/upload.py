@@ -5,13 +5,14 @@ POST /api/upload   — accept a document, save to disk, create DB record
 POST /api/extract  — run OCR + parser on an uploaded document
 """
 
+import asyncio
 import os
 import uuid
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException, status
+from fastapi import APIRouter, Request, UploadFile, File, Form, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from app.config import settings
@@ -113,6 +114,10 @@ async def upload_document(
     safe_filename = f"{doc_id}{ext}"
     file_path = UPLOAD_DIR / safe_filename
 
+    # Mask user_id in log (show only first 8 chars)
+    uid_masked = (user_id or "")[:8] + "****"
+    logger.info(f"Upload start user={uid_masked} file={filename!r} size={file_size} type={content_type}")
+
     with open(file_path, "wb") as f:
         f.write(content)
 
@@ -166,12 +171,13 @@ async def upload_document(
 # ================================================================
 @router.post("/extract", response_model=dict)
 async def extract_document(
-    request: ExtractRequest,
+    request: Request,
+    body: ExtractRequest,
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ):
     """Run OCR + data parsing on an uploaded document."""
     user_id = _get_user_id(credentials)
-    doc_id = request.document_id
+    doc_id = body.document_id
 
     # Fetch document record
     db, is_mock = _get_db()
@@ -197,13 +203,34 @@ async def extract_document(
     else:
         db.table("documents").update({"status": DocumentStatus.PROCESSING.value}).eq("id", doc_id).execute()
 
-    # Step 1: OCR
+    # Step 1: OCR — with timeout to prevent hangs on corrupt/large files
+    trace_id = getattr(request.state, "request_id", doc_id[:8]) if hasattr(request, "state") else doc_id[:8]
+    logger.info(f"[{trace_id}] OCR start doc={doc_id} mime={mime_type}")
     ocr = OCRService()
-    ocr_result = await ocr.extract_text(file_path, mime_type)
+    try:
+        ocr_result = await asyncio.wait_for(
+            ocr.extract_text(file_path, mime_type),
+            timeout=settings.OCR_TIMEOUT,
+        )
+    except asyncio.TimeoutError:
+        logger.error(f"[{trace_id}] OCR timeout after {settings.OCR_TIMEOUT}s doc={doc_id}")
+        now = datetime.now(timezone.utc).isoformat()
+        if is_mock:
+            db.update_document_status(doc_id, DocumentStatus.FAILED.value, now)
+        else:
+            db.table("documents").update({
+                "status": DocumentStatus.FAILED.value,
+                "processed_at": now,
+            }).eq("id", doc_id).execute()
+        raise HTTPException(
+            status_code=504,
+            detail=f"OCR timed out after {settings.OCR_TIMEOUT}s. File may be corrupt or too complex.",
+        )
 
     raw_text = ocr_result.get("text", "")
     ocr_quality = ocr_result.get("quality", "empty")
     ocr_method = ocr_result.get("method", "none")
+    logger.info(f"[{trace_id}] OCR done method={ocr_method} quality={ocr_quality} chars={len(raw_text)}")
 
     # Save raw text to document record
     if is_mock:
@@ -235,8 +262,10 @@ async def extract_document(
         }
 
     # Step 2: Parse raw text into per-field extractions
+    logger.info(f"[{trace_id}] Parse start doc={doc_id}")
     parser = DataParser()
     parsed = parser.parse_invoice(raw_text)
+    logger.info(f"[{trace_id}] Parse done invoice_number={parsed.get('invoice_number', {}).get('value', '?')}")
 
     # Step 3: Normalize — enforce types, reconcile GST, cross-check totals
     now = datetime.now(timezone.utc).isoformat()
@@ -282,6 +311,11 @@ async def extract_document(
             "status": DocumentStatus.EXTRACTED.value,
             "processed_at": now,
         }).eq("id", doc_id).execute()
+
+    logger.info(
+        f"[{trace_id}] Extract complete doc={doc_id} invoice={invoice_id} "
+        f"confidence={norm.get('confidence_score', 0)} needs_review={norm.get('needs_review', False)}"
+    )
 
     return {
         "success": True,

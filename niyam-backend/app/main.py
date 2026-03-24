@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 
 from app.config import settings
+from app.middleware import RequestIDMiddleware, RateLimitMiddleware, install_error_handlers
 from app.routes import (
     auth, dashboard, upload, compliance, gst, tds, roc,
     ocr, analytics, export, demo, settings as settings_routes
@@ -37,7 +38,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS middleware
+# Middleware stack (order matters — outermost first)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,
@@ -45,6 +46,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RateLimitMiddleware)
+app.add_middleware(RequestIDMiddleware)
+
+# Standardized error handlers
+install_error_handlers(app)
 
 # Include routers
 app.include_router(auth.router)

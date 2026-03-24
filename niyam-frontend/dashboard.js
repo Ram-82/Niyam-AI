@@ -17,11 +17,15 @@ const API_URL = CONFIG.API_URL;
 // View Switching Logic
 // ============================================================
 function switchView(viewId, element) {
+    const targetView = document.getElementById(`view-${viewId}`);
+    if (!targetView) {
+        console.warn(`View not found: view-${viewId}, falling back to dashboard`);
+        if (viewId !== 'dashboard') return switchView('dashboard', element);
+        return;
+    }
+
     document.querySelectorAll(".sidebar-item").forEach(item => item.classList.remove("active"));
     if (element) element.classList.add("active");
-
-    const targetView = document.getElementById(`view-${viewId}`);
-    if (!targetView) return;
 
     document.querySelectorAll(".content-view").forEach(view => view.classList.remove("active"));
     targetView.classList.add("active");
@@ -37,6 +41,12 @@ function switchView(viewId, element) {
 
     feather.replace();
 }
+
+// URL hash deep-linking: dashboard.html#gst opens GST view directly
+window.addEventListener('DOMContentLoaded', () => {
+    const hash = window.location.hash.replace('#', '');
+    if (hash) switchView(hash);
+});
 
 // ============================================================
 // Calendar Initialization

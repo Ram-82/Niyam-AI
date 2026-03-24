@@ -59,7 +59,7 @@
                     Settings</a>
                 <a href="#" class="sidebar-item" onclick="switchView('support', this)"><i
                         data-feather="help-circle"></i> Help & Support</a>
-                <a href="index.html" class="sidebar-item" style="color: var(--error);"><i data-feather="log-out"></i>
+                <a href="#" class="sidebar-item" style="color: var(--error);" onclick="logout()"><i data-feather="log-out"></i>
                     Logout</a>
             </div>
         </aside>
@@ -76,11 +76,23 @@
                         <p style="color: var(--text-light);">Here's what's happening with your compliance today.</p>
                     </div>
                     <div style="display: flex; align-items: center; gap: 15px;">
-                        <button class="btn btn-primary" style="padding: 8px 16px;"><i data-feather="plus"
+                        <button class="btn btn-primary" style="padding: 8px 16px;" onclick="switchView('compliance-flow', document.querySelector('[onclick*=compliance-flow]'))"><i data-feather="plus"
                                 style="width: 16px;"></i> New Filing</button>
-                        <div
-                            style="width: 40px; height: 40px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center;">
-                            <i data-feather="user"></i>
+                        <div class="account-menu" style="position: relative;">
+                            <div id="account-trigger" onclick="toggleAccountDropdown()" style="width: 40px; height: 40px; border-radius: 50%; background: var(--primary-color); display: flex; align-items: center; justify-content: center; cursor: pointer; color: white; font-weight: 700; font-size: 0.9rem;" title="Account">
+                                <span id="account-initials">U</span>
+                            </div>
+                            <div id="account-dropdown" class="account-dropdown">
+                                <div style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9;">
+                                    <p id="dropdown-name" style="font-weight: 600; font-size: 0.9rem;">User</p>
+                                    <p id="dropdown-business" style="font-size: 0.75rem; color: var(--text-light);">Business</p>
+                                </div>
+                                <a href="#" class="dropdown-item" onclick="switchView('settings', document.querySelector('[onclick*=settings]')); toggleAccountDropdown();"><i data-feather="user" style="width:14px; height:14px;"></i> Profile</a>
+                                <a href="#" class="dropdown-item" onclick="switchView('settings', document.querySelector('[onclick*=settings]')); toggleAccountDropdown();"><i data-feather="briefcase" style="width:14px; height:14px;"></i> Business Info</a>
+                                <div style="border-top: 1px solid #f1f5f9;">
+                                    <a href="#" class="dropdown-item" style="color: var(--error);" onclick="logout()"><i data-feather="log-out" style="width:14px; height:14px;"></i> Logout</a>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1975,9 +1987,20 @@
         </main>
     </div>
 
-    <!-- Legal Disclaimer Footer -->
-    <footer style="background:#f8fafc; border-top:1px solid #e2e8f0; padding:12px 24px; text-align:center; font-size:0.75rem; color:#94a3b8; position:fixed; bottom:0; left:0; right:0; z-index:100;">
-        Niyam AI provides compliance insights for informational purposes only. Final filing responsibility lies with the user and their Chartered Accountant. &copy; 2026 Niyam AI.
+    <!-- Footer -->
+    <footer class="app-footer">
+        <div class="footer-content">
+            <div class="footer-links">
+                <a href="#" onclick="showToast('Privacy Policy — Coming soon'); return false;">Privacy Policy</a>
+                <span class="footer-sep">&middot;</span>
+                <a href="#" onclick="showToast('Terms of Service — Coming soon'); return false;">Terms of Service</a>
+                <span class="footer-sep">&middot;</span>
+                <a href="#" onclick="switchView('support', document.querySelector('[onclick*=support]')); return false;">Contact</a>
+                <span class="footer-sep">&middot;</span>
+                <a href="#" onclick="switchView('support', document.querySelector('[onclick*=support]')); return false;">FAQ</a>
+            </div>
+            <p>&copy; <span id="footer-year">2026</span> Niyam AI. All rights reserved. Compliance insights for informational purposes only.</p>
+        </div>
     </footer>
 
     <!-- Ask Niyam Widget -->

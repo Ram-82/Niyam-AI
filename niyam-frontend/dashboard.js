@@ -655,7 +655,8 @@ function updateComplianceMetrics(period) {
 document.addEventListener('DOMContentLoaded', () => {
     const token = localStorage.getItem('niyam_access_token');
 
-    if (!token) {
+    // Allow demo mode to bypass auth
+    if (!token && !window._demoMode && window.location.hash !== '#demo') {
         window.location.href = 'login.html';
         return;
     }
@@ -680,6 +681,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function fetchDashboardData() {
     const token = localStorage.getItem('niyam_access_token');
+    setSectionLoading('view-dashboard', true);
     try {
         const response = await fetch(`${API_URL}/dashboard/summary`, {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -694,6 +696,8 @@ async function fetchDashboardData() {
     } catch (error) {
         console.error('Error fetching dashboard data:', error);
         renderHealthChart({});
+    } finally {
+        setSectionLoading('view-dashboard', false);
     }
 }
 
@@ -791,4 +795,103 @@ document.addEventListener('click', (e) => {
 document.addEventListener('DOMContentLoaded', () => {
     const yearEl = document.getElementById('footer-year');
     if (yearEl) yearEl.textContent = new Date().getFullYear();
+});
+
+// ============================================================
+// 1. Loading States — setSectionLoading
+// ============================================================
+function setSectionLoading(id, isLoading) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.querySelectorAll('.data-bound').forEach(n => {
+        n.textContent = isLoading ? 'Loading\u2026' : (n.dataset.value || n.textContent);
+    });
+}
+
+// ============================================================
+// 2. Central "Coming Soon" Handler
+// ============================================================
+function comingSoon(feature) {
+    feature = feature || 'This feature';
+    showToast('\uD83D\uDEA7 ' + feature + ' is coming soon');
+}
+
+document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-soon]');
+    if (btn) {
+        e.preventDefault();
+        comingSoon(btn.dataset.soon);
+    }
+});
+
+// ============================================================
+// 5. Empty States — actionable upgrades
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.empty-state').forEach(el => {
+        const text = el.querySelector('p');
+        if (text && text.textContent.trim() === 'No data yet') {
+            text.textContent = 'No data yet. Upload invoices to see insights.';
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-primary';
+            btn.textContent = 'Upload Invoices';
+            btn.addEventListener('click', () => {
+                const sidebar = document.getElementById('sidebar-compliance');
+                if (typeof switchView === 'function') switchView('compliance', sidebar);
+            });
+            el.appendChild(btn);
+        }
+    });
+});
+
+// ============================================================
+// 6. Dashboard Sanity Fallbacks
+// ============================================================
+function applySanityFallbacks() {
+    // Health bar: ensure minimum 5% width so it's always visible
+    const healthBar = document.querySelector('#view-dashboard .metric-card:nth-child(2) div[style*="height: 6px"] div');
+    if (healthBar) {
+        const w = parseFloat(healthBar.style.width);
+        if (!isNaN(w) && w < 5) healthBar.style.width = '5%';
+    }
+
+    // Risk badge colors
+    const riskVal = document.querySelector('#risk-card .metric-value span');
+    if (riskVal) {
+        const text = (riskVal.textContent || '').toLowerCase();
+        if (text.includes('low')) {
+            riskVal.style.color = 'var(--success)';
+        } else if (text.includes('medium')) {
+            riskVal.style.color = '#f59e0b';
+        } else if (text.includes('high') || text.includes('critical')) {
+            riskVal.style.color = 'var(--error)';
+        }
+    }
+}
+
+// Re-apply after dashboard data updates
+const _origUpdateDashboardUI = window.updateDashboardUI || updateDashboardUI;
+window.updateDashboardUI = function (data) {
+    _origUpdateDashboardUI(data);
+    applySanityFallbacks();
+};
+document.addEventListener('DOMContentLoaded', applySanityFallbacks);
+
+// ============================================================
+// A. First-use Guide (one-time)
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+    if (!localStorage.getItem('seen_onboarding')) {
+        setTimeout(() => {
+            showToast('Start by clicking "Try Demo" or upload invoices');
+            localStorage.setItem('seen_onboarding', '1');
+        }, 800);
+    }
+});
+
+// ============================================================
+// B. Global Error Boundary
+// ============================================================
+window.addEventListener('error', () => {
+    showToast('Something went wrong. Please refresh.');
 });

@@ -1065,6 +1065,12 @@ th {
     gap: 8px;
 }
 
+/* Loading State */
+.loader {
+    opacity: .7;
+    font-size: 14px;
+}
+
 /* Empty State */
 .empty-state {
     display: flex;
@@ -1079,6 +1085,10 @@ th {
 .empty-state p {
     font-size: 0.9rem;
     margin-top: 12px;
+}
+
+.empty-state .btn {
+    margin-top: 16px;
 }
 
 /* Card Hover */

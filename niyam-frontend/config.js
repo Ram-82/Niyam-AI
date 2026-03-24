@@ -1,13 +1,12 @@
 /**
  * Niyam AI - Frontend Configuration
- * 
- * For local development: Use '/api' if served by the backend, or 'http://localhost:8001/api' if served separately.
- * For production: Replace with your deployed Render/Cloud API URL.
+ *
+ * API_URL is auto-detected: localhost in dev, production URL otherwise.
  */
 const CONFIG = {
-    // API_URL: 'http://localhost:8001/api', // Use this if opening HTML files directly
-    API_URL: 'https://niyam-ai.onrender.com/api', // Use this when served by the backend (Recommended)
-    // API_URL: 'https://niyam-api.onrender.com/api', // Example Production URL
+    API_URL: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? 'http://localhost:8001/api'
+        : 'https://niyam-ai.onrender.com/api',
 };
 
 // Export for use in scripts if needed

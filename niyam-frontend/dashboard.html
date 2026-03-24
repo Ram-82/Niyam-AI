@@ -55,11 +55,12 @@
 
             <div class="sidebar-group" style="margin-top: auto;">
                 <div class="sidebar-group-label">Account</div>
+                <a href="about.html" class="sidebar-item"><i data-feather="info"></i> About</a>
                 <a href="#" class="sidebar-item" onclick="switchView('settings', this)"><i data-feather="settings"></i>
                     Settings</a>
                 <a href="#" class="sidebar-item" onclick="switchView('support', this)"><i
                         data-feather="help-circle"></i> Help & Support</a>
-                <a href="index.html" class="sidebar-item" style="color: var(--error);"><i data-feather="log-out"></i>
+                <a href="#" class="sidebar-item" style="color: var(--error);" onclick="logout()"><i data-feather="log-out"></i>
                     Logout</a>
             </div>
         </aside>
@@ -76,11 +77,23 @@
                         <p style="color: var(--text-light);">Here's what's happening with your compliance today.</p>
                     </div>
                     <div style="display: flex; align-items: center; gap: 15px;">
-                        <button class="btn btn-primary" style="padding: 8px 16px;"><i data-feather="plus"
+                        <button class="btn btn-primary" style="padding: 8px 16px;" onclick="switchView('compliance-flow', document.querySelector('[onclick*=compliance-flow]'))"><i data-feather="plus"
                                 style="width: 16px;"></i> New Filing</button>
-                        <div
-                            style="width: 40px; height: 40px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center;">
-                            <i data-feather="user"></i>
+                        <div class="account-menu" style="position: relative;">
+                            <div id="account-trigger" onclick="toggleAccountDropdown()" style="width: 40px; height: 40px; border-radius: 50%; background: var(--primary-color); display: flex; align-items: center; justify-content: center; cursor: pointer; color: white; font-weight: 700; font-size: 0.9rem;" title="Account">
+                                <span id="account-initials">U</span>
+                            </div>
+                            <div id="account-dropdown" class="account-dropdown">
+                                <div style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9;">
+                                    <p id="dropdown-name" style="font-weight: 600; font-size: 0.9rem;">User</p>
+                                    <p id="dropdown-business" style="font-size: 0.75rem; color: var(--text-light);">Business</p>
+                                </div>
+                                <a href="#" class="dropdown-item" onclick="switchView('settings', document.querySelector('[onclick*=settings]')); toggleAccountDropdown();"><i data-feather="user" style="width:14px; height:14px;"></i> Profile</a>
+                                <a href="#" class="dropdown-item" onclick="switchView('settings', document.querySelector('[onclick*=settings]')); toggleAccountDropdown();"><i data-feather="briefcase" style="width:14px; height:14px;"></i> Business Info</a>
+                                <div style="border-top: 1px solid #f1f5f9;">
+                                    <a href="#" class="dropdown-item" style="color: var(--error);" onclick="logout()"><i data-feather="log-out" style="width:14px; height:14px;"></i> Logout</a>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1515,7 +1528,7 @@
                     <i data-feather="plus-circle" style="width: 48px; height: 48px; color: var(--primary-color); margin-bottom: 15px;"></i>
                     <h3>Add New Bank Account</h3>
                     <p style="color: var(--text-light); margin: 10px 0 20px;">Supported: HDFC, ICICI, SBI, Axis, Kotak, Yes Bank</p>
-                    <button class="btn btn-primary" onclick="showToast('Bank connection wizard coming soon!')">Connect via Account Aggregator</button>
+                    <button class="btn btn-primary" data-soon="Connect Bank">Connect via Account Aggregator</button>
                 </div>
             </section>
 
@@ -1975,9 +1988,63 @@
         </main>
     </div>
 
-    <!-- Legal Disclaimer Footer -->
-    <footer style="background:#f8fafc; border-top:1px solid #e2e8f0; padding:12px 24px; text-align:center; font-size:0.75rem; color:#94a3b8; position:fixed; bottom:0; left:0; right:0; z-index:100;">
-        Niyam AI provides compliance insights for informational purposes only. Final filing responsibility lies with the user and their Chartered Accountant. &copy; 2026 Niyam AI.
+    <!-- Premium Footer -->
+    <footer class="premium-footer">
+        <div class="footer-inner">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <img src="logo.svg" alt="Niyam AI" height="32">
+                    <p class="tagline">AI-powered compliance engine for MSMEs and professionals.</p>
+                    <div class="footer-social">
+                        <a href="#" aria-label="LinkedIn"><i data-feather="linkedin" style="width:16px; height:16px;"></i></a>
+                        <a href="#" aria-label="Twitter"><i data-feather="twitter" style="width:16px; height:16px;"></i></a>
+                        <a href="mailto:support@niyam.ai" aria-label="Email"><i data-feather="mail" style="width:16px; height:16px;"></i></a>
+                    </div>
+                </div>
+                <div class="footer-col">
+                    <h4>Product</h4>
+                    <ul>
+                        <li><a href="#" onclick="switchView('dashboard', document.querySelector('[onclick*=dashboard]')); return false;">Dashboard</a></li>
+                        <li><a href="#" onclick="switchView('compliance-flow', document.querySelector('[onclick*=compliance-flow]')); return false;">Compliance Flow</a></li>
+                        <li><a href="#" onclick="switchView('gst', document.querySelector('[onclick*=gst]')); return false;">GST Reconciliation</a></li>
+                        <li><a href="#" onclick="switchView('reports', document.querySelector('[onclick*=reports]')); return false;">Reports & Analytics</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Resources</h4>
+                    <ul>
+                        <li><a href="about.html">About</a></li>
+                        <li><a href="#" onclick="switchView('support', document.querySelector('[onclick*=support]')); return false;">FAQ</a></li>
+                        <li><a href="#" data-soon="Documentation">Documentation</a></li>
+                        <li><a href="#" data-soon="Blog">Blog</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Legal</h4>
+                    <ul>
+                        <li><a href="#" data-soon="Privacy Policy">Privacy Policy</a></li>
+                        <li><a href="#" data-soon="Terms of Service">Terms of Service</a></li>
+                        <li><a href="#" data-soon="Disclaimer">Disclaimer</a></li>
+                        <li><a href="#" onclick="switchView('support', document.querySelector('[onclick*=support]')); return false;">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Community</h4>
+                    <ul>
+                        <li><a href="#">LinkedIn</a></li>
+                        <li><a href="#">Twitter</a></li>
+                        <li><a href="mailto:support@niyam.ai">Email Support</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; <span id="footer-year">2026</span> Niyam AI. All rights reserved.</p>
+                <div class="footer-status">
+                    <span class="status-indicator"></span>
+                    System Status: Operational
+                </div>
+            </div>
+        </div>
     </footer>
 
     <!-- Ask Niyam Widget -->

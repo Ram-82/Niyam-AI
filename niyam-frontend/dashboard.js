@@ -655,56 +655,86 @@ function updateComplianceMetrics(period) {
 document.addEventListener('DOMContentLoaded', () => {
     const token = localStorage.getItem('niyam_access_token');
 
-    if (!token) {
+    // Allow demo mode to bypass auth
+    if (!token && !window._demoMode && window.location.hash !== '#demo') {
         window.location.href = 'login.html';
         return;
     }
 
     const userName = localStorage.getItem('niyam_user_name') || 'User';
+    const businessNameStored = localStorage.getItem('niyam_business_name') || localStorage.getItem('niyam_user_business') || 'Your Business';
     const welcomeMsg = document.getElementById('welcome-text');
     if (welcomeMsg) {
         welcomeMsg.innerText = `Good Morning, ${userName.split(' ')[0]}`;
     }
+
+    // Account dropdown info
+    const initials = document.getElementById('account-initials');
+    if (initials) initials.textContent = userName.charAt(0).toUpperCase();
+    const ddName = document.getElementById('dropdown-name');
+    if (ddName) ddName.textContent = userName;
+    const ddBiz = document.getElementById('dropdown-business');
+    if (ddBiz) ddBiz.textContent = businessNameStored;
 
     fetchDashboardData();
 });
 
 async function fetchDashboardData() {
     const token = localStorage.getItem('niyam_access_token');
+    setSectionLoading('view-dashboard', true);
     try {
         const response = await fetch(`${API_URL}/dashboard/summary`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await response.json();
-        if (data.success) {
+        if (data.success && data.data) {
             updateDashboardUI(data.data);
             renderHealthChart(data.data);
+        } else {
+            renderHealthChart({});
         }
     } catch (error) {
         console.error('Error fetching dashboard data:', error);
+        renderHealthChart({});
+    } finally {
+        setSectionLoading('view-dashboard', false);
     }
 }
 
 function updateDashboardUI(data) {
-    const deadlineCount = document.querySelector('.metric-card:nth-child(1) .metric-value span');
-    const deadlineText = document.querySelector('.metric-card:nth-child(1) p:last-child');
-    if (deadlineCount) deadlineCount.innerText = data.upcoming_deadlines;
-    if (deadlineText) deadlineText.innerText = `Next due: ${data.next_deadline}`;
+    const deadlineCount = document.querySelector('#view-dashboard .metric-card:nth-child(1) .metric-value span');
+    const deadlineText = document.querySelector('#view-dashboard .metric-card:nth-child(1) p:last-child');
+    if (deadlineCount) deadlineCount.innerText = data.upcoming_deadlines ?? '0';
+    if (deadlineText) deadlineText.innerText = data.next_deadline ? `Next due: ${data.next_deadline}` : 'No upcoming deadlines';
 
-    const healthPct = document.querySelector('.metric-card:nth-child(2) .metric-value span');
-    const healthBar = document.querySelector('.metric-card:nth-child(2) .metric-value').nextElementSibling.firstElementChild;
-    if (healthPct) healthPct.innerText = Math.round(data.compliance_health) + '%';
-    if (healthBar) healthBar.style.width = data.compliance_health + '%';
+    const healthPct = document.querySelector('#view-dashboard .metric-card:nth-child(2) .metric-value span');
+    const healthBarParent = document.querySelector('#view-dashboard .metric-card:nth-child(2) .metric-value');
+    const healthBar = healthBarParent ? healthBarParent.nextElementSibling?.firstElementChild : null;
+    const health = data.compliance_health != null && !isNaN(data.compliance_health) ? Math.round(data.compliance_health) : 0;
+    if (healthPct) healthPct.innerText = health + '%';
+    if (healthBar) healthBar.style.width = health + '%';
 
     const riskVal = document.querySelector('#risk-card .metric-value span');
     if (riskVal) {
-        riskVal.innerText = data.penalty_risk + ' Risk';
-        riskVal.style.color = data.penalty_risk === 'Low' ? 'var(--success)' : 'var(--error)';
+        const risk = data.penalty_risk || 'Low';
+        riskVal.innerText = risk + ' Risk';
+        riskVal.style.color = risk === 'Low' ? 'var(--success)' : 'var(--error)';
     }
 }
 
 function renderHealthChart(data) {
-    const ctx = document.getElementById('healthTrendChart').getContext('2d');
+    const canvas = document.getElementById('healthTrendChart');
+    if (!canvas) return;
+    const container = canvas.parentElement;
+
+    // Show placeholder if no chart data
+    if (!data.labels || !data.health_history || data.health_history.length === 0) {
+        container.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:100%; color:var(--text-light); text-align:center; flex-direction:column; gap:8px;"><i data-feather="bar-chart-2" style="width:32px; height:32px; opacity:0.4;"></i><p style="font-size:0.9rem;">Compliance trend will appear after data is processed</p></div>';
+        if (window.feather) feather.replace();
+        return;
+    }
+
+    const ctx = canvas.getContext('2d');
     if (window.myChart) window.myChart.destroy();
     window.myChart = new Chart(ctx, {
         type: 'line',
@@ -742,16 +772,126 @@ function logout() {
     window.location.href = 'login.html';
 }
 
-// Add Logout Button to Sidebar
-const sidebarEl = document.querySelector('.sidebar');
-if (sidebarEl) {
-    const logoutBtn = document.createElement('div');
-    logoutBtn.className = 'sidebar-item';
-    logoutBtn.style.marginTop = 'auto';
-    logoutBtn.style.cursor = 'pointer';
-    logoutBtn.style.color = '#ef4444';
-    logoutBtn.innerHTML = '<i data-feather="log-out"></i> Log Out';
-    logoutBtn.onclick = logout;
-    sidebarEl.appendChild(logoutBtn);
-    if (window.feather) feather.replace();
+// ============================================================
+// Account Dropdown
+// ============================================================
+function toggleAccountDropdown() {
+    const dd = document.getElementById('account-dropdown');
+    if (dd) dd.classList.toggle('open');
 }
+
+// Close dropdown on outside click
+document.addEventListener('click', (e) => {
+    const dd = document.getElementById('account-dropdown');
+    const trigger = document.getElementById('account-trigger');
+    if (dd && trigger && !trigger.contains(e.target) && !dd.contains(e.target)) {
+        dd.classList.remove('open');
+    }
+});
+
+// ============================================================
+// Footer dynamic year
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+    const yearEl = document.getElementById('footer-year');
+    if (yearEl) yearEl.textContent = new Date().getFullYear();
+});
+
+// ============================================================
+// 1. Loading States — setSectionLoading
+// ============================================================
+function setSectionLoading(id, isLoading) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.querySelectorAll('.data-bound').forEach(n => {
+        n.textContent = isLoading ? 'Loading\u2026' : (n.dataset.value || n.textContent);
+    });
+}
+
+// ============================================================
+// 2. Central "Coming Soon" Handler
+// ============================================================
+function comingSoon(feature) {
+    feature = feature || 'This feature';
+    showToast('\uD83D\uDEA7 ' + feature + ' is coming soon');
+}
+
+document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-soon]');
+    if (btn) {
+        e.preventDefault();
+        comingSoon(btn.dataset.soon);
+    }
+});
+
+// ============================================================
+// 5. Empty States — actionable upgrades
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.empty-state').forEach(el => {
+        const text = el.querySelector('p');
+        if (text && text.textContent.trim() === 'No data yet') {
+            text.textContent = 'No data yet. Upload invoices to see insights.';
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-primary';
+            btn.textContent = 'Upload Invoices';
+            btn.addEventListener('click', () => {
+                const sidebar = document.getElementById('sidebar-compliance');
+                if (typeof switchView === 'function') switchView('compliance', sidebar);
+            });
+            el.appendChild(btn);
+        }
+    });
+});
+
+// ============================================================
+// 6. Dashboard Sanity Fallbacks
+// ============================================================
+function applySanityFallbacks() {
+    // Health bar: ensure minimum 5% width so it's always visible
+    const healthBar = document.querySelector('#view-dashboard .metric-card:nth-child(2) div[style*="height: 6px"] div');
+    if (healthBar) {
+        const w = parseFloat(healthBar.style.width);
+        if (!isNaN(w) && w < 5) healthBar.style.width = '5%';
+    }
+
+    // Risk badge colors
+    const riskVal = document.querySelector('#risk-card .metric-value span');
+    if (riskVal) {
+        const text = (riskVal.textContent || '').toLowerCase();
+        if (text.includes('low')) {
+            riskVal.style.color = 'var(--success)';
+        } else if (text.includes('medium')) {
+            riskVal.style.color = '#f59e0b';
+        } else if (text.includes('high') || text.includes('critical')) {
+            riskVal.style.color = 'var(--error)';
+        }
+    }
+}
+
+// Re-apply after dashboard data updates
+const _origUpdateDashboardUI = window.updateDashboardUI || updateDashboardUI;
+window.updateDashboardUI = function (data) {
+    _origUpdateDashboardUI(data);
+    applySanityFallbacks();
+};
+document.addEventListener('DOMContentLoaded', applySanityFallbacks);
+
+// ============================================================
+// A. First-use Guide (one-time)
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+    if (!localStorage.getItem('seen_onboarding')) {
+        setTimeout(() => {
+            showToast('Start by clicking "Try Demo" or upload invoices');
+            localStorage.setItem('seen_onboarding', '1');
+        }, 800);
+    }
+});
+
+// ============================================================
+// B. Global Error Boundary
+// ============================================================
+window.addEventListener('error', () => {
+    showToast('Something went wrong. Please refresh.');
+});

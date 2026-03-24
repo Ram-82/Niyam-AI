@@ -215,7 +215,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Founder:** Ramachandragowda S Patil
 - **Email:** ramachandragowdasp19@gmail.com
-- **LinkedIn:** https://www.linkedin.com/in/ramachandragowda-s-p-avgx
+- **LinkedIn:** https://www.linkedin.com/in/ramachandragowda-s-p
 - **Website:** [Coming Soon]
 
 **Support Channels:**

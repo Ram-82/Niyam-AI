@@ -1,10 +1,16 @@
-/* View System */
-.content-view {
-    display: none;
+/* View System — Strict Isolation */
+.main-content > .content-view {
+    display: none !important;
+    visibility: hidden;
+    height: 0;
+    overflow: hidden;
 }
 
-.content-view.active {
-    display: block;
+.main-content > .content-view.active {
+    display: block !important;
+    visibility: visible;
+    height: auto;
+    overflow: visible;
 }
 
 /* Dashboard Layout */

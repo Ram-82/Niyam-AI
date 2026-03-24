@@ -661,10 +661,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const userName = localStorage.getItem('niyam_user_name') || 'User';
+    const businessNameStored = localStorage.getItem('niyam_business_name') || localStorage.getItem('niyam_user_business') || 'Your Business';
     const welcomeMsg = document.getElementById('welcome-text');
     if (welcomeMsg) {
         welcomeMsg.innerText = `Good Morning, ${userName.split(' ')[0]}`;
     }
+
+    // Account dropdown info
+    const initials = document.getElementById('account-initials');
+    if (initials) initials.textContent = userName.charAt(0).toUpperCase();
+    const ddName = document.getElementById('dropdown-name');
+    if (ddName) ddName.textContent = userName;
+    const ddBiz = document.getElementById('dropdown-business');
+    if (ddBiz) ddBiz.textContent = businessNameStored;
 
     fetchDashboardData();
 });
@@ -676,35 +685,52 @@ async function fetchDashboardData() {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await response.json();
-        if (data.success) {
+        if (data.success && data.data) {
             updateDashboardUI(data.data);
             renderHealthChart(data.data);
+        } else {
+            renderHealthChart({});
         }
     } catch (error) {
         console.error('Error fetching dashboard data:', error);
+        renderHealthChart({});
     }
 }
 
 function updateDashboardUI(data) {
-    const deadlineCount = document.querySelector('.metric-card:nth-child(1) .metric-value span');
-    const deadlineText = document.querySelector('.metric-card:nth-child(1) p:last-child');
-    if (deadlineCount) deadlineCount.innerText = data.upcoming_deadlines;
-    if (deadlineText) deadlineText.innerText = `Next due: ${data.next_deadline}`;
+    const deadlineCount = document.querySelector('#view-dashboard .metric-card:nth-child(1) .metric-value span');
+    const deadlineText = document.querySelector('#view-dashboard .metric-card:nth-child(1) p:last-child');
+    if (deadlineCount) deadlineCount.innerText = data.upcoming_deadlines ?? '0';
+    if (deadlineText) deadlineText.innerText = data.next_deadline ? `Next due: ${data.next_deadline}` : 'No upcoming deadlines';
 
-    const healthPct = document.querySelector('.metric-card:nth-child(2) .metric-value span');
-    const healthBar = document.querySelector('.metric-card:nth-child(2) .metric-value').nextElementSibling.firstElementChild;
-    if (healthPct) healthPct.innerText = Math.round(data.compliance_health) + '%';
-    if (healthBar) healthBar.style.width = data.compliance_health + '%';
+    const healthPct = document.querySelector('#view-dashboard .metric-card:nth-child(2) .metric-value span');
+    const healthBarParent = document.querySelector('#view-dashboard .metric-card:nth-child(2) .metric-value');
+    const healthBar = healthBarParent ? healthBarParent.nextElementSibling?.firstElementChild : null;
+    const health = data.compliance_health != null && !isNaN(data.compliance_health) ? Math.round(data.compliance_health) : 0;
+    if (healthPct) healthPct.innerText = health + '%';
+    if (healthBar) healthBar.style.width = health + '%';
 
     const riskVal = document.querySelector('#risk-card .metric-value span');
     if (riskVal) {
-        riskVal.innerText = data.penalty_risk + ' Risk';
-        riskVal.style.color = data.penalty_risk === 'Low' ? 'var(--success)' : 'var(--error)';
+        const risk = data.penalty_risk || 'Low';
+        riskVal.innerText = risk + ' Risk';
+        riskVal.style.color = risk === 'Low' ? 'var(--success)' : 'var(--error)';
     }
 }
 
 function renderHealthChart(data) {
-    const ctx = document.getElementById('healthTrendChart').getContext('2d');
+    const canvas = document.getElementById('healthTrendChart');
+    if (!canvas) return;
+    const container = canvas.parentElement;
+
+    // Show placeholder if no chart data
+    if (!data.labels || !data.health_history || data.health_history.length === 0) {
+        container.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:100%; color:var(--text-light); text-align:center; flex-direction:column; gap:8px;"><i data-feather="bar-chart-2" style="width:32px; height:32px; opacity:0.4;"></i><p style="font-size:0.9rem;">Compliance trend will appear after data is processed</p></div>';
+        if (window.feather) feather.replace();
+        return;
+    }
+
+    const ctx = canvas.getContext('2d');
     if (window.myChart) window.myChart.destroy();
     window.myChart = new Chart(ctx, {
         type: 'line',
@@ -742,16 +768,27 @@ function logout() {
     window.location.href = 'login.html';
 }
 
-// Add Logout Button to Sidebar
-const sidebarEl = document.querySelector('.sidebar');
-if (sidebarEl) {
-    const logoutBtn = document.createElement('div');
-    logoutBtn.className = 'sidebar-item';
-    logoutBtn.style.marginTop = 'auto';
-    logoutBtn.style.cursor = 'pointer';
-    logoutBtn.style.color = '#ef4444';
-    logoutBtn.innerHTML = '<i data-feather="log-out"></i> Log Out';
-    logoutBtn.onclick = logout;
-    sidebarEl.appendChild(logoutBtn);
-    if (window.feather) feather.replace();
+// ============================================================
+// Account Dropdown
+// ============================================================
+function toggleAccountDropdown() {
+    const dd = document.getElementById('account-dropdown');
+    if (dd) dd.classList.toggle('open');
 }
+
+// Close dropdown on outside click
+document.addEventListener('click', (e) => {
+    const dd = document.getElementById('account-dropdown');
+    const trigger = document.getElementById('account-trigger');
+    if (dd && trigger && !trigger.contains(e.target) && !dd.contains(e.target)) {
+        dd.classList.remove('open');
+    }
+});
+
+// ============================================================
+// Footer dynamic year
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+    const yearEl = document.getElementById('footer-year');
+    if (yearEl) yearEl.textContent = new Date().getFullYear();
+});

@@ -1470,6 +1470,55 @@
                 </div>
             </section>
 
+            <!-- View: Connect Bank -->
+            <section id="view-bank" class="content-view">
+                <div class="welcome-bar">
+                    <h1>Connect Bank Account</h1>
+                    <p style="color: var(--text-light);">Link your bank for automatic statement sync and reconciliation.</p>
+                </div>
+                <div class="metrics-grid">
+                    <div class="card metric-card">
+                        <p style="color: var(--text-light); text-transform: uppercase; font-size: 0.7rem; font-weight: 600;">Connected Accounts</p>
+                        <div class="metric-value">1</div>
+                        <p style="font-size: 0.8rem; color: var(--success);">HDFC Bank — Active</p>
+                    </div>
+                    <div class="card metric-card">
+                        <p style="color: var(--text-light); text-transform: uppercase; font-size: 0.7rem; font-weight: 600;">Last Sync</p>
+                        <div class="metric-value" style="font-size: 1.4rem;">Today, 9:15 AM</div>
+                        <p style="font-size: 0.8rem; color: var(--text-light);">Auto-sync every 6 hours</p>
+                    </div>
+                    <div class="card metric-card">
+                        <p style="color: var(--text-light); text-transform: uppercase; font-size: 0.7rem; font-weight: 600;">Transactions Imported</p>
+                        <div class="metric-value">342</div>
+                        <p style="font-size: 0.8rem; color: var(--text-light);">Last 90 days</p>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3 style="margin-bottom: 20px;">Linked Accounts</h3>
+                    <div style="padding: 15px; border: 1px solid #e2e8f0; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <div style="width: 40px; height: 40px; background: #eff6ff; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--primary-color);">
+                                <i data-feather="database"></i>
+                            </div>
+                            <div>
+                                <p style="font-weight: 600;">HDFC Bank — Current A/c ****4521</p>
+                                <p style="font-size: 0.75rem; color: var(--success);">Connected & Syncing</p>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn-outline" style="font-size: 0.75rem; padding: 6px 12px;" onclick="showToast('Syncing now...')">Sync Now</button>
+                            <button class="btn-outline" style="font-size: 0.75rem; padding: 6px 12px; color: var(--error); border-color: var(--error);" onclick="showToast('Disconnecting...')">Disconnect</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card" style="margin-top: var(--space-3); padding: 40px; text-align: center; border: 2px dashed #cbd5e1; background: #f8fafc;">
+                    <i data-feather="plus-circle" style="width: 48px; height: 48px; color: var(--primary-color); margin-bottom: 15px;"></i>
+                    <h3>Add New Bank Account</h3>
+                    <p style="color: var(--text-light); margin: 10px 0 20px;">Supported: HDFC, ICICI, SBI, Axis, Kotak, Yes Bank</p>
+                    <button class="btn btn-primary" onclick="showToast('Bank connection wizard coming soon!')">Connect via Account Aggregator</button>
+                </div>
+            </section>
+
             <!-- View: Demo -->
             <section id="view-demo" class="content-view">
                 <div class="welcome-bar">
@@ -1509,6 +1558,12 @@
                             <h3 style="margin-bottom:16px;">Compliance Overview</h3>
                             <div id="demo-compliance-overview"></div>
                         </div>
+                    </div>
+
+                    <!-- Invoice Records -->
+                    <div class="card" style="margin-bottom:20px;">
+                        <h3 style="margin-bottom:16px;">Invoice Records</h3>
+                        <div id="demo-invoices"></div>
                     </div>
 
                     <!-- ITC Results -->
@@ -1919,6 +1974,11 @@
 
         </main>
     </div>
+
+    <!-- Legal Disclaimer Footer -->
+    <footer style="background:#f8fafc; border-top:1px solid #e2e8f0; padding:12px 24px; text-align:center; font-size:0.75rem; color:#94a3b8; position:fixed; bottom:0; left:0; right:0; z-index:100;">
+        Niyam AI provides compliance insights for informational purposes only. Final filing responsibility lies with the user and their Chartered Accountant. &copy; 2026 Niyam AI.
+    </footer>
 
     <!-- Ask Niyam Widget -->
     <div class="ask-niyam-widget">

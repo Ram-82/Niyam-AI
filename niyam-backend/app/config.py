@@ -32,11 +32,12 @@ class Settings:
     ]
 
     # ---- File Upload ----
-    MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024  # 10MB
+    MAX_UPLOAD_SIZE: int = 15 * 1024 * 1024  # 15MB
     ALLOWED_FILE_TYPES: list = [".pdf", ".jpg", ".jpeg", ".png"]
 
-    # ---- OCR (future) ----
+    # ---- OCR ----
     TESSERACT_PATH: str = os.getenv("TESSERACT_PATH", "/usr/bin/tesseract")
+    OCR_TIMEOUT: int = int(os.getenv("OCR_TIMEOUT", "30"))  # seconds
 
     # ---- Validation ----
     def validate(self):

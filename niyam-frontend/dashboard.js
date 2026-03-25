@@ -87,7 +87,7 @@ function openAddDeadlineModal() {
 }
 
 // ============================================================
-// File Upload & Real OCR Pipeline
+// File Upload — Single-call /api/process-invoice pipeline
 // ============================================================
 async function handleFileUpload(input) {
     if (!input.files || !input.files[0]) return;
@@ -99,137 +99,200 @@ async function handleFileUpload(input) {
     const percent = document.getElementById("progress-percent");
     const results = document.getElementById("ocr-results");
 
+    if (!token) {
+        showToast('Please login first');
+        return;
+    }
+
     // Show progress
     progress.style.display = "block";
     results.style.display = "none";
     bar.style.width = "10%";
-    percent.textContent = "10%";
+    percent.textContent = "10% — Uploading...";
+
+    // Timeout for Render free tier cold starts
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
 
     try {
-        // Step 1: Upload file
-        bar.style.width = "20%";
-        percent.textContent = "20% — Uploading...";
+        bar.style.width = "30%";
+        percent.textContent = "30% — Processing with AI...";
 
+        // Single call: upload + OCR + parse + validate
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('document_type', 'purchase_invoice');
 
-        const uploadResp = await fetch(`${API_URL}/upload`, {
+        const response = await fetch(`${API_URL}/process-invoice`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` },
             body: formData,
+            signal: controller.signal,
         });
 
-        if (!uploadResp.ok) {
-            const err = await uploadResp.json().catch(() => ({}));
-            throw new Error(err.error || err.detail || `Upload failed (${uploadResp.status})`);
+        clearTimeout(timeoutId);
+        bar.style.width = "80%";
+        percent.textContent = "80% — Reading response...";
+
+        // Safe JSON parsing (backend may return non-JSON on 502/503)
+        const responseText = await response.text();
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (parseErr) {
+            console.error('Invalid JSON response:', responseText.substring(0, 200));
+            throw new Error(
+                response.status === 502 ? 'Server is starting up — please retry in 30 seconds' :
+                response.status === 503 ? 'Server temporarily unavailable — please retry' :
+                `Server returned invalid response (HTTP ${response.status})`
+            );
         }
 
-        const uploadData = await uploadResp.json();
-        const documentId = uploadData.data?.document_id;
-
-        if (!documentId) throw new Error('No document ID returned from upload');
-
-        bar.style.width = "50%";
-        percent.textContent = "50% — Extracting with AI...";
-
-        // Step 2: Extract (OCR + Parse)
-        const extractResp = await fetch(`${API_URL}/extract`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ document_id: documentId }),
-        });
-
-        const extractData = await extractResp.json();
+        if (!response.ok) {
+            throw new Error(data.error || data.detail || data.reason || `Processing failed (HTTP ${response.status})`);
+        }
 
         bar.style.width = "100%";
         percent.textContent = "100%";
 
-        // Step 3: Display results
         setTimeout(() => {
             progress.style.display = "none";
-
-            if (extractData.success && extractData.data?.normalized) {
-                displayOCRResults(extractData.data);
+            if (data.status === "success") {
+                displayInvoiceResults(data);
                 results.style.display = "block";
-                showToast("AI analysis complete! Data extracted.");
+                showToast("Invoice processed successfully!");
+            } else if (data.status === "failed") {
+                showToast(data.reason === "OCR_FAILED"
+                    ? "Could not read the document. Try a clearer image or digital PDF."
+                    : `Processing failed: ${data.reason || 'Unknown error'}`);
             } else {
-                const errorMsg = extractData.error || 'Extraction failed. Try a different file.';
-                showToast(errorMsg);
-                results.style.display = "none";
+                displayInvoiceResults(data);
+                results.style.display = "block";
             }
-        }, 500);
+        }, 400);
 
     } catch (error) {
-        console.error('Upload/extract error:', error);
+        clearTimeout(timeoutId);
+        console.error('Invoice processing error:', error);
         progress.style.display = "none";
-        showToast(`Error: ${error.message}`);
+        if (error.name === 'AbortError') {
+            showToast('Request timed out — server may be cold-starting. Please retry in 30 seconds.');
+        } else {
+            showToast(`Error: ${error.message}`);
+        }
     }
 }
 
-function displayOCRResults(extractionData) {
-    const norm = extractionData.normalized || {};
+// Format currency for display
+function _fmtINR(val) {
+    const num = Number(val);
+    if (isNaN(num) || num === 0) return '₹0.00';
+    return '₹' + num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function displayInvoiceResults(data) {
     const resultsContainer = document.getElementById("ocr-results");
     if (!resultsContainer) return;
 
-    const vendor = norm.vendor_name || 'Unknown Vendor';
-    const gstin = norm.gstin || 'Not detected';
-    const date = norm.invoice_date || 'Not detected';
-    const total = norm.total_amount != null ? `₹${Number(norm.total_amount).toLocaleString('en-IN', {minimumFractionDigits: 2})}` : 'Not detected';
-    const invoiceNum = norm.invoice_number || 'Not detected';
-    const confidence = norm.confidence_score != null ? Math.round(norm.confidence_score) : 0;
-    const needsReview = norm.needs_review || false;
-    const reviewReasons = norm.review_reasons || [];
-
+    const vendor = data.vendor_name || 'Not detected';
+    const gstin = data.vendor_gstin || 'Not detected';
+    const invoiceNum = data.invoice_number || 'Not detected';
+    const invoiceDate = data.invoice_date || 'Not detected';
+    const total = data.total_amount ? _fmtINR(data.total_amount) : 'Not detected';
+    const taxable = data.taxable_value ? _fmtINR(data.taxable_value) : 'Not detected';
+    const gst = data.gst_breakdown || {};
+    const rawConf = data.confidence_score || 0;
+    const confidence = Math.round(rawConf * 100);
     const confColor = confidence >= 70 ? 'var(--success)' : confidence >= 40 ? '#f59e0b' : 'var(--error)';
-    const reviewBadge = needsReview
-        ? `<div style="margin-top: 15px; padding: 10px; background: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b;">
-            <strong>Needs Review:</strong> ${reviewReasons.join(', ') || 'Low confidence extraction'}
-           </div>`
-        : '';
+    const ocrMeta = data.ocr_metadata || {};
+    const compliance = data.compliance || {};
+    const compIssues = compliance.issues || [];
+    const itc = compliance.itc_eligibility || {};
+
+    // Compliance badge
+    let compBadge = '';
+    if (compliance.is_valid === true) {
+        compBadge = '<span style="background:#dcfce7;color:#166534;padding:3px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;">GST COMPLIANT</span>';
+    } else if (compliance.is_valid === false) {
+        compBadge = '<span style="background:#fee2e2;color:#991b1b;padding:3px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;">' + compIssues.length + ' ISSUE(S)</span>';
+    }
+
+    // Issues HTML
+    let issuesHtml = '';
+    if (compIssues.length > 0) {
+        issuesHtml = '<div style="margin-top:15px;border-top:1px solid #e2e8f0;padding-top:15px;">' +
+            '<p style="font-size:0.85rem;font-weight:600;margin-bottom:8px;">Compliance Issues</p>' +
+            compIssues.map(issue => {
+                const sevColor = issue.severity === 'high' ? '#ef4444' : issue.severity === 'medium' ? '#f59e0b' : '#6b7280';
+                return '<div style="padding:8px 10px;margin-bottom:6px;background:#f8fafc;border-radius:6px;border-left:3px solid ' + sevColor + ';">' +
+                    '<p style="font-size:0.8rem;font-weight:600;color:' + sevColor + ';">' + (issue.type || '').replace(/_/g, ' ') + '</p>' +
+                    '<p style="font-size:0.78rem;color:var(--text-light);">' + (issue.message || '') + '</p>' +
+                    (issue.impact ? '<p style="font-size:0.75rem;color:#64748b;margin-top:4px;">' + issue.impact + '</p>' : '') +
+                    '</div>';
+            }).join('') +
+            '</div>';
+    }
+
+    // Line items
+    let lineItemsHtml = '';
+    const items = data.line_items || [];
+    if (items.length > 0) {
+        lineItemsHtml = '<div style="margin-top:15px;border-top:1px solid #e2e8f0;padding-top:15px;">' +
+            '<p style="font-size:0.85rem;font-weight:600;margin-bottom:8px;">Line Items (' + items.length + ')</p>' +
+            '<table style="width:100%;font-size:0.8rem;border-collapse:collapse;">' +
+            '<thead><tr style="text-align:left;color:var(--text-light);border-bottom:1px solid #e2e8f0;">' +
+            '<th style="padding:6px;">Description</th><th style="padding:6px;">Qty</th><th style="padding:6px;">Rate</th><th style="padding:6px;">Amount</th></tr></thead><tbody>' +
+            items.slice(0, 20).map(item =>
+                '<tr style="border-bottom:1px solid #f1f5f9;">' +
+                '<td style="padding:6px;">' + (item.description || '-') + '</td>' +
+                '<td style="padding:6px;">' + (item.quantity || '-') + '</td>' +
+                '<td style="padding:6px;">' + (item.rate ? _fmtINR(item.rate) : '-') + '</td>' +
+                '<td style="padding:6px;">' + (item.amount ? _fmtINR(item.amount) : '-') + '</td></tr>'
+            ).join('') +
+            '</tbody></table></div>';
+    }
+
+    // ITC eligibility
+    let itcHtml = '';
+    if (itc.eligible !== undefined) {
+        const itcColor = itc.eligible ? '#166534' : '#991b1b';
+        const itcBg = itc.eligible ? '#dcfce7' : '#fee2e2';
+        itcHtml = '<div style="margin-top:15px;padding:10px;background:' + itcBg + ';border-radius:8px;">' +
+            '<p style="font-size:0.85rem;font-weight:600;color:' + itcColor + ';">ITC ' + (itc.eligible ? 'Eligible' : 'At Risk') + ': ' + _fmtINR(itc.eligible ? itc.itc_amount : (itc.itc_at_risk || 0)) + '</p>' +
+            (itc.reasons || []).map(r => '<p style="font-size:0.75rem;color:#64748b;">- ' + r + '</p>').join('') +
+            '</div>';
+    }
 
     resultsContainer.innerHTML = `
-        <h3 style="margin-bottom: 15px;">Extracted Data Preview</h3>
+        <h3 style="margin-bottom: 15px;">Extracted Invoice Data</h3>
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <span style="font-size: 0.85rem; color: var(--text-light);">Confidence Score</span>
-                <span style="font-weight: 700; color: ${confColor};">${confidence}%</span>
-            </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                 <div>
-                    <p style="font-size: 0.8rem; color: var(--text-light);">Invoice Number</p>
-                    <p style="font-weight: 600;">${invoiceNum}</p>
+                    <span style="font-size: 0.85rem; color: var(--text-light);">Confidence</span>
+                    <span style="font-weight: 700; color: ${confColor}; margin-left: 8px;">${confidence}%</span>
                 </div>
-                <div>
-                    <p style="font-size: 0.8rem; color: var(--text-light);">Vendor</p>
-                    <p style="font-weight: 600;">${vendor}</p>
-                </div>
-                <div>
-                    <p style="font-size: 0.8rem; color: var(--text-light);">GSTIN Extracted</p>
-                    <p style="font-weight: 600;">${gstin}</p>
-                </div>
-                <div>
-                    <p style="font-size: 0.8rem; color: var(--text-light);">Date</p>
-                    <p style="font-weight: 600;">${date}</p>
-                </div>
-                <div>
-                    <p style="font-size: 0.8rem; color: var(--text-light);">Total Amount</p>
-                    <p style="font-weight: 600;">${total}</p>
-                </div>
-                <div>
-                    <p style="font-size: 0.8rem; color: var(--text-light);">OCR Method</p>
-                    <p style="font-weight: 600;">${extractionData.ocr_method || 'auto'} (${extractionData.ocr_quality || 'unknown'})</p>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    ${compBadge}
+                    <span style="font-size:0.7rem;color:var(--text-light);">${ocrMeta.method || 'auto'}</span>
                 </div>
             </div>
-            ${reviewBadge}
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div><p style="font-size:0.78rem;color:var(--text-light);">Invoice Number</p><p style="font-weight:600;">${invoiceNum}</p></div>
+                <div><p style="font-size:0.78rem;color:var(--text-light);">Invoice Date</p><p style="font-weight:600;">${invoiceDate}</p></div>
+                <div><p style="font-size:0.78rem;color:var(--text-light);">Vendor</p><p style="font-weight:600;">${vendor}</p></div>
+                <div><p style="font-size:0.78rem;color:var(--text-light);">GSTIN</p><p style="font-weight:600;">${gstin}</p></div>
+                <div><p style="font-size:0.78rem;color:var(--text-light);">Taxable Value</p><p style="font-weight:600;">${taxable}</p></div>
+                <div><p style="font-size:0.78rem;color:var(--text-light);">Total Amount</p><p style="font-weight:600;font-size:1.1rem;">${total}</p></div>
+                <div><p style="font-size:0.78rem;color:var(--text-light);">CGST / SGST</p><p style="font-weight:600;">${_fmtINR(gst.cgst||0)} / ${_fmtINR(gst.sgst||0)}</p></div>
+                <div><p style="font-size:0.78rem;color:var(--text-light);">IGST</p><p style="font-weight:600;">${_fmtINR(gst.igst||0)}</p></div>
+            </div>
+            ${itcHtml}
+            ${lineItemsHtml}
+            ${issuesHtml}
             <div style="margin-top: 20px; text-align: right;">
                 <button class="btn btn-outline" style="padding: 8px 16px; font-size: 0.8rem;"
                     onclick="document.getElementById('file-upload-input').click()">Upload Another</button>
                 <button class="btn btn-primary" style="padding: 8px 16px; font-size: 0.8rem;"
-                    onclick="showToast('Data saved to compliance register!')">Confirm & Sync</button>
+                    onclick="showToast('Invoice saved to compliance register!')">Confirm & Save</button>
             </div>
         </div>
     `;

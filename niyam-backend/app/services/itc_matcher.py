@@ -74,6 +74,64 @@ def _normalize_inv_number(raw: Optional[str]) -> str:
     return _INV_STRIP.sub("", raw).upper()
 
 
+def _levenshtein_distance(s1: str, s2: str) -> int:
+    """Calculate Levenshtein edit distance between two strings."""
+    if len(s1) < len(s2):
+        return _levenshtein_distance(s2, s1)
+    if len(s2) == 0:
+        return len(s1)
+
+    prev_row = range(len(s2) + 1)
+    for i, c1 in enumerate(s1):
+        curr_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = prev_row[j + 1] + 1
+            deletions = curr_row[j] + 1
+            substitutions = prev_row[j] + (c1 != c2)
+            curr_row.append(min(insertions, deletions, substitutions))
+        prev_row = curr_row
+
+    return prev_row[-1]
+
+
+def _fuzzy_inv_match(norm1: str, norm2: str, threshold: float = 0.8) -> bool:
+    """
+    Fuzzy match two normalized invoice numbers.
+    Uses multiple strategies:
+    1. Exact match
+    2. Substring containment
+    3. Levenshtein similarity (> threshold)
+    4. Numeric suffix match (INV001 vs INV-001)
+    """
+    if not norm1 or not norm2:
+        return False
+
+    # Strategy 1: exact
+    if norm1 == norm2:
+        return True
+
+    # Strategy 2: substring
+    if norm1 in norm2 or norm2 in norm1:
+        return True
+
+    # Strategy 3: Levenshtein similarity
+    max_len = max(len(norm1), len(norm2))
+    if max_len > 0:
+        distance = _levenshtein_distance(norm1, norm2)
+        similarity = 1 - (distance / max_len)
+        if similarity >= threshold:
+            return True
+
+    # Strategy 4: extract trailing digits and compare
+    digits1 = re.sub(r"^[A-Z]+", "", norm1)
+    digits2 = re.sub(r"^[A-Z]+", "", norm2)
+    if digits1 and digits2 and digits1 == digits2:
+        # Same number, different prefix — likely same invoice
+        return True
+
+    return False
+
+
 # ============================================================
 # Match Result
 # ============================================================
@@ -432,18 +490,35 @@ class ITCMatcher:
         if matches:
             return matches[0]  # first match wins
 
-        # Priority 2: same GSTIN, check all entries for fuzzy inv number
+        # Priority 2: same GSTIN, fuzzy invoice number matching
         if self.config.fuzzy_invoice_number and inv_number_norm:
             gstin_entries = index.get(f"{gstin}::*", [])
+            best_match = None
+            best_similarity = 0.0
+
             for entry in gstin_entries:
                 entry_inv = _normalize_inv_number(
                     entry.get("invoice_number") or entry.get("inum") or ""
                 )
-                # Check if one contains the other (handles prefix/suffix differences)
-                if entry_inv and inv_number_norm and (
-                    inv_number_norm in entry_inv or entry_inv in inv_number_norm
-                ):
-                    return entry
+                if not entry_inv:
+                    continue
+
+                # Use enhanced fuzzy matching
+                if _fuzzy_inv_match(inv_number_norm, entry_inv, threshold=0.8):
+                    # Calculate similarity for ranking
+                    max_len = max(len(inv_number_norm), len(entry_inv))
+                    if max_len > 0:
+                        dist = _levenshtein_distance(inv_number_norm, entry_inv)
+                        similarity = 1 - (dist / max_len)
+                    else:
+                        similarity = 1.0
+
+                    if similarity > best_similarity:
+                        best_similarity = similarity
+                        best_match = entry
+
+            if best_match:
+                return best_match
 
         return None
 

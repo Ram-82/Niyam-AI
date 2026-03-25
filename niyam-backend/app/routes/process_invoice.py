@@ -6,6 +6,7 @@ POST /api/process-invoice
     Output: structured invoice JSON with confidence scoring and flags
 
 This is the production endpoint. Upload + OCR + Parse + Validate in one call.
+Auth: OPTIONAL — works with or without Bearer token.
 """
 
 import asyncio
@@ -14,17 +15,15 @@ import uuid
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 
-from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import APIRouter, UploadFile, File, Request, HTTPException, status
 
 from app.config import settings
-from app.utils.security import verify_token
 from app.services.invoice_processor import InvoiceProcessor
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["Invoice Processing"])
-security = HTTPBearer()
 
 UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
@@ -39,18 +38,27 @@ ALLOWED_MIME = {
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
 
-def _get_user_id(credentials: HTTPAuthorizationCredentials) -> str:
-    payload = verify_token(credentials.credentials)
-    return payload.get("sub")
+def _try_get_user_id(request: Request) -> Optional[str]:
+    """Extract user ID from Bearer token if present. Returns None if no/invalid token."""
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return None
+    token = auth_header[7:]
+    try:
+        from app.utils.security import verify_token
+        payload = verify_token(token)
+        return payload.get("sub")
+    except Exception:
+        return None
 
 
 @router.post("/process-invoice", response_model=dict)
 async def process_invoice(
+    request: Request,
     file: UploadFile = File(...),
-    credentials: HTTPAuthorizationCredentials = Depends(security),
 ):
     """
-    Process an invoice file end-to-end.
+    Process an invoice file end-to-end. **No authentication required.**
 
     Accepts PDF, JPG, or PNG. Returns structured invoice data with:
     - vendor_name, vendor_gstin
@@ -59,11 +67,14 @@ async def process_invoice(
     - gst_breakdown (cgst, sgst, igst)
     - line_items [{description, quantity, rate, amount}]
     - confidence_score (0.0 - 1.0)
+    - compliance (GST validation result)
     - flags (validation issues found)
 
     On OCR failure, returns: {"status": "failed", "reason": "OCR_FAILED"}
     """
-    user_id = _get_user_id(credentials)
+    # Auth is optional — extract user_id if token present
+    user_id = _try_get_user_id(request)
+    uid_log = (user_id or "anonymous")[:8]
 
     # Validate file type
     content_type = file.content_type or ""
@@ -96,9 +107,8 @@ async def process_invoice(
         with open(file_path, "wb") as f:
             f.write(content)
 
-        uid_masked = (user_id or "")[:8] + "****"
         logger.info(
-            f"process-invoice start user={uid_masked} "
+            f"process-invoice start user={uid_log} "
             f"file={file.filename!r} size={file_size} type={content_type}"
         )
 

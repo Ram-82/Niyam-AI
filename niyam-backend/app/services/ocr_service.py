@@ -504,16 +504,17 @@ class OCRService:
             else:
                 processed_img = img
 
-            # OCR with language support
+            # OCR with optimized config: OEM 3 (LSTM), PSM 6 (uniform block)
+            tess_config = "--oem 3 --psm 6"
             try:
-                text = pytesseract.image_to_string(processed_img, lang="eng+hin")
+                text = pytesseract.image_to_string(processed_img, lang="eng+hin", config=tess_config)
             except Exception:
-                text = pytesseract.image_to_string(processed_img, lang="eng")
+                text = pytesseract.image_to_string(processed_img, lang="eng", config=tess_config)
 
             # Get word-level data for blocks
             blocks = []
             try:
-                data = pytesseract.image_to_data(processed_img, output_type=pytesseract.Output.DICT)
+                data = pytesseract.image_to_data(processed_img, output_type=pytesseract.Output.DICT, config="--oem 3 --psm 6")
                 blocks = self._tesseract_data_to_blocks(data)
             except Exception:
                 # Fallback: create blocks from lines
@@ -579,12 +580,12 @@ class OCRService:
                     processed_img = img
 
                 # OCR
-                page_text = pytesseract.image_to_string(processed_img, lang="eng")
+                page_text = pytesseract.image_to_string(processed_img, lang="eng", config="--oem 3 --psm 6")
                 pages_text.append(page_text)
 
                 # Word-level data for blocks
                 try:
-                    data = pytesseract.image_to_data(processed_img, output_type=pytesseract.Output.DICT)
+                    data = pytesseract.image_to_data(processed_img, output_type=pytesseract.Output.DICT, config="--oem 3 --psm 6")
                     page_blocks = self._tesseract_data_to_blocks(data)
                     all_blocks.extend(page_blocks)
                 except Exception:

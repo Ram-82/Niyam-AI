@@ -39,6 +39,11 @@ class Settings:
     TESSERACT_PATH: str = os.getenv("TESSERACT_PATH", "/usr/bin/tesseract")
     OCR_TIMEOUT: int = int(os.getenv("OCR_TIMEOUT", "30"))  # seconds
 
+    # ---- AI Extraction (optional — fallback when parser confidence is low) ----
+    # Set ANTHROPIC_API_KEY to enable AI-assisted extraction for messy invoices.
+    # If not set, the system falls back to rule-based parser only.
+    ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "").strip()
+
     # ---- Validation ----
     def validate(self):
         """

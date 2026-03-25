@@ -194,11 +194,8 @@
             const file = fileInput.files[0];
             if (!file) return;
 
+            // Auth is optional for process-invoice
             const token = localStorage.getItem('niyam_access_token');
-            if (!token) {
-                showError('Please login first. <a href="login.html">Go to login</a>');
-                return;
-            }
 
             uploadZone.style.display = 'none';
             processingState.style.display = 'block';
@@ -214,9 +211,12 @@
 
                 console.log(`[Niyam] Sending ${file.name} (${(file.size/1024).toFixed(1)}KB) to ${API_URL}/process-invoice`);
 
+                const headers = {};
+                if (token) headers['Authorization'] = `Bearer ${token}`;
+
                 const response = await fetch(`${API_URL}/process-invoice`, {
                     method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` },
+                    headers: headers,
                     body: formData,
                     signal: controller.signal,
                 });

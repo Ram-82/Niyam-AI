@@ -23,6 +23,7 @@ from app.services.data_parser import (
     AMOUNT_STRICT,
 )
 from app.services.ai_extractor import AIExtractor, should_trigger_ai, merge_results
+from app.services.gst_validator import validate_invoice as gst_validate
 
 logger = logging.getLogger(__name__)
 
@@ -497,5 +498,24 @@ class InvoiceProcessor:
             except Exception as e:
                 logger.warning(f"AI extraction failed (non-fatal): {e}")
                 # Parser result stands as-is
+
+        # Step 10: GST Compliance Validation
+        try:
+            gst_compliance = gst_validate(result)
+            result["compliance"] = gst_compliance
+
+            # Surface critical compliance issues into top-level flags
+            for issue in gst_compliance.get("issues", []):
+                issue_type = issue.get("type", "")
+                if issue_type not in result.get("flags", []):
+                    result["flags"].append(issue_type)
+
+            logger.info(
+                f"GST validation: score={gst_compliance.get('compliance_score')} "
+                f"issues={len(gst_compliance.get('issues', []))} "
+                f"itc_eligible={gst_compliance.get('itc_eligibility', {}).get('eligible')}"
+            )
+        except Exception as e:
+            logger.warning(f"GST validation failed (non-fatal): {e}")
 
         return result

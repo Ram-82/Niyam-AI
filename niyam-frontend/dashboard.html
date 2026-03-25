@@ -216,65 +216,57 @@
             <section id="view-gst" class="content-view">
                 <div class="welcome-bar">
                     <h1>GST Compliance Hub</h1>
-                    <button class="btn btn-primary" onclick="showToast('Opening GSTR portal...')">Direct Portal
-                        Login</button>
+                    <button class="btn btn-primary" onclick="runITCMatch()">Run ITC Reconciliation</button>
                 </div>
                 <div class="metrics-grid">
                     <div class="card metric-card">
-                        <p
-                            style="color: var(--text-light); text-transform: uppercase; font-size: 0.7rem; font-weight: 600;">
-                            Total Tax Liability</p>
-                        <div class="metric-value">₹42,500</div>
-                        <p style="font-size: 0.8rem; color: var(--text-light);">Current month's estimate</p>
+                        <p style="color: var(--text-light); text-transform: uppercase; font-size: 0.7rem; font-weight: 600;">
+                            ITC Available</p>
+                        <div class="metric-value" id="gst-itc-available">--</div>
+                        <p style="font-size: 0.8rem; color: var(--text-light);" id="gst-itc-subtext">Upload 2B data to calculate</p>
                     </div>
                     <div class="card metric-card">
-                        <p
-                            style="color: var(--text-light); text-transform: uppercase; font-size: 0.7rem; font-weight: 600;">
-                            Available ITC (2B)</p>
-                        <div class="metric-value">₹1,12,000</div>
-                        <p style="font-size: 0.8rem; color: var(--success);">Matched with Purchase Register</p>
+                        <p style="color: var(--text-light); text-transform: uppercase; font-size: 0.7rem; font-weight: 600;">
+                            ITC At Risk</p>
+                        <div class="metric-value" id="gst-itc-risk" style="color: var(--error);">--</div>
+                        <p style="font-size: 0.8rem; color: var(--text-light);" id="gst-risk-subtext">Mismatches &amp; missing</p>
                     </div>
                     <div class="card metric-card">
-                        <p
-                            style="color: var(--text-light); text-transform: uppercase; font-size: 0.7rem; font-weight: 600;">
-                            Next Filing (GSTR-1)</p>
-                        <div class="metric-value">11th July</div>
-                        <p style="font-size: 0.8rem; color: var(--primary-color);">8 days remaining</p>
+                        <p style="color: var(--text-light); text-transform: uppercase; font-size: 0.7rem; font-weight: 600;">
+                            Recoverable ITC</p>
+                        <div class="metric-value" id="gst-recoverable" style="color: var(--success);">--</div>
+                        <p style="font-size: 0.8rem; color: var(--success);" id="gst-recover-subtext">From unrecorded purchases</p>
                     </div>
                 </div>
+
+                <!-- GSTR-2B Upload Section -->
+                <div class="card" style="margin-bottom: var(--space-4);">
+                    <h3 style="margin-bottom: 15px;">Upload GSTR-2B Data</h3>
+                    <p style="color: var(--text-light); font-size: 0.85rem; margin-bottom: 15px;">Paste your GSTR-2B JSON from the GST portal to run ITC reconciliation.</p>
+                    <textarea id="gstr2b-input" rows="6" style="width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-family: monospace; font-size: 0.8rem; resize: vertical;" placeholder='{"b2b": [{"gstin": "29ABCDE1234F1Z5", "invoice_number": "INV-001", "taxable_value": 10000, "cgst": 900, "sgst": 900}]}'></textarea>
+                    <div style="margin-top: 10px; display: flex; gap: 10px;">
+                        <button class="btn btn-primary" onclick="runITCMatch()">Match Invoices</button>
+                        <button class="btn btn-outline" onclick="loadSample2B()">Load Sample Data</button>
+                    </div>
+                </div>
+
+                <!-- ITC Results Table -->
                 <div class="card">
-                    <h3 style="margin-bottom: 20px;">GST Reconciliation (2B vs Books)</h3>
+                    <h3 style="margin-bottom: 20px;">ITC Reconciliation Results</h3>
                     <div class="table-container">
-                        <table>
+                        <table id="itc-results-table">
                             <thead>
                                 <tr>
-                                    <th>Supplier Name</th>
+                                    <th>Invoice #</th>
                                     <th>GSTIN</th>
-                                    <th>ITC in 2B</th>
-                                    <th>ITC in Books</th>
-                                    <th>Difference</th>
-                                    <th>Status</th>
+                                    <th>Eligible ITC</th>
+                                    <th>ITC At Risk</th>
+                                    <th>Match Type</th>
+                                    <th>Action</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <tr>
-                                    <td>Reliance Retail Ltd</td>
-                                    <td>27AAAAA0000A1Z5</td>
-                                    <td>₹12,400</td>
-                                    <td>₹12,400</td>
-                                    <td>₹0</td>
-                                    <td><span class="badge"
-                                            style="background: var(--success); color: white;">Matched</span></td>
-                                </tr>
-                                <tr class="status-border-warning">
-                                    <td>Aman Enterprises</td>
-                                    <td>07BBBBB1111B2Z6</td>
-                                    <td>₹0</td>
-                                    <td>₹8,200</td>
-                                    <td style="color: var(--error);">-₹8,200</td>
-                                    <td><span class="badge" style="background: var(--warning); color: white;">Missing in
-                                            2B</span></td>
-                                </tr>
+                            <tbody id="itc-results-body">
+                                <tr><td colspan="6" style="text-align: center; color: var(--text-light); padding: 30px;">Upload GSTR-2B data and click "Match Invoices" to see results</td></tr>
                             </tbody>
                         </table>
                     </div>

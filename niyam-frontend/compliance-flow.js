@@ -286,19 +286,25 @@
         }
 
         try {
-            const res = await fetch(`${API}/gst/itc-reconcile`, {
+            const res = await fetch(`${API}/itc-match`, {
                 method: 'POST',
                 headers: jsonHeaders(),
-                body: JSON.stringify({ gstr2b_data: gstr2b, period: new Date().toLocaleString('en-US', { month: 'short', year: 'numeric' }) })
+                body: JSON.stringify({
+                    gstr2b_data: gstr2b,
+                    period: new Date().toLocaleString('en-US', { month: 'short', year: 'numeric' }),
+                    amount_tolerance: 1.0,
+                    gst_tolerance: 1.0,
+                    fuzzy_invoice_number: true
+                })
             });
 
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}));
-                throw new Error(err.detail || `ITC reconciliation failed (${res.status})`);
+                throw new Error(err.error || err.detail || `ITC reconciliation failed (${res.status})`);
             }
 
             const data = await res.json();
-            if (!data.success) throw new Error(data.detail || 'ITC reconciliation failed');
+            if (!data.success) throw new Error(data.error || data.detail || 'ITC reconciliation failed');
 
             itcData = data.data;
             renderITC(itcData);
@@ -312,14 +318,24 @@
         hide($('cf-itc-loading'));
         show($('cf-itc-results'));
 
-        const fin = data.financial_summary || {};
-        $('cf-itc-available').textContent = fmt(fin.available);
-        $('cf-itc-claimed').textContent = fmt(fin.claimed);
-        $('cf-itc-risk').textContent = fmt(fin.at_risk);
-        $('cf-itc-recoverable').textContent = fmt(fin.recoverable);
+        const fin = data.financials || data.financial_summary || {};
+        const elAvail = $('cf-itc-available');
+        const elClaimed = $('cf-itc-claimed');
+        const elRisk = $('cf-itc-risk');
+        const elRecover = $('cf-itc-recoverable');
+        if (elAvail) elAvail.textContent = fmt(fin.total_itc_available || fin.available || 0);
+        if (elClaimed) elClaimed.textContent = fmt(fin.total_itc_claimed || fin.claimed || 0);
+        if (elRisk) elRisk.textContent = fmt(fin.total_itc_at_risk || fin.at_risk || 0);
+        if (elRecover) elRecover.textContent = fmt(fin.recoverable_itc || fin.recoverable || 0);
 
-        // Priority actions
-        const actions = data.prioritized_action_items || [];
+        // Priority actions from action_summary
+        const actionSummary = data.action_summary || {};
+        const actions = [
+            ...(actionSummary.critical || []),
+            ...(actionSummary.high || []),
+            ...(actionSummary.medium || []),
+            ...(actionSummary.low || []),
+        ];
         const actionsEl = $('cf-itc-actions');
         if (actions.length === 0) {
             actionsEl.innerHTML = '<p style="color:var(--success); font-weight:600;">No ITC actions required.</p>';
@@ -424,13 +440,13 @@
         }
 
         // Financial summary
-        const fin = data.financials || {};
+        const fin = data.financials || data.financial_summary || {};
         const finEl = $('cf-financials');
         const finItems = [
-            ['Tax Liability', fin.total_tax_liability || fin.tax_liability, false],
-            ['ITC Available', fin.itc_available || fin.total_itc, false],
-            ['Net Payable', fin.net_payable, false],
-            ['Penalties at Risk', fin.penalties_at_risk || fin.estimated_penalties, true],
+            ['Tax Liability', fin.total_tax_liability || fin.tax_liability || 0, false],
+            ['ITC Available', fin.total_itc_available || fin.itc_available || fin.total_itc || 0, false],
+            ['ITC Claimed', fin.total_itc_claimed || fin.claimed || 0, false],
+            ['Penalties at Risk', fin.total_penalty_risk || fin.penalties_at_risk || fin.estimated_penalties || 0, true],
         ];
         finEl.innerHTML = finItems.map(([label, val, isDanger]) => `
             <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #f1f5f9;">

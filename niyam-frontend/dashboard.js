@@ -87,33 +87,152 @@ function openAddDeadlineModal() {
 }
 
 // ============================================================
-// File Upload & Mock OCR
+// File Upload & Real OCR Pipeline
 // ============================================================
-function handleFileUpload(input) {
+async function handleFileUpload(input) {
     if (!input.files || !input.files[0]) return;
+
+    const file = input.files[0];
+    const token = localStorage.getItem('niyam_access_token');
     const progress = document.getElementById("upload-progress");
     const bar = document.getElementById("progress-bar-inner");
     const percent = document.getElementById("progress-percent");
     const results = document.getElementById("ocr-results");
 
+    // Show progress
     progress.style.display = "block";
     results.style.display = "none";
-    let width = 0;
-    const interval = setInterval(() => {
-        if (width >= 100) {
-            clearInterval(interval);
-            setTimeout(() => {
-                progress.style.display = "none";
+    bar.style.width = "10%";
+    percent.textContent = "10%";
+
+    try {
+        // Step 1: Upload file
+        bar.style.width = "20%";
+        percent.textContent = "20% — Uploading...";
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('document_type', 'purchase_invoice');
+
+        const uploadResp = await fetch(`${API_URL}/upload`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData,
+        });
+
+        if (!uploadResp.ok) {
+            const err = await uploadResp.json().catch(() => ({}));
+            throw new Error(err.error || err.detail || `Upload failed (${uploadResp.status})`);
+        }
+
+        const uploadData = await uploadResp.json();
+        const documentId = uploadData.data?.document_id;
+
+        if (!documentId) throw new Error('No document ID returned from upload');
+
+        bar.style.width = "50%";
+        percent.textContent = "50% — Extracting with AI...";
+
+        // Step 2: Extract (OCR + Parse)
+        const extractResp = await fetch(`${API_URL}/extract`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ document_id: documentId }),
+        });
+
+        const extractData = await extractResp.json();
+
+        bar.style.width = "100%";
+        percent.textContent = "100%";
+
+        // Step 3: Display results
+        setTimeout(() => {
+            progress.style.display = "none";
+
+            if (extractData.success && extractData.data?.normalized) {
+                displayOCRResults(extractData.data);
                 results.style.display = "block";
                 showToast("AI analysis complete! Data extracted.");
-            }, 500);
-        } else {
-            width += Math.random() * 15;
-            if (width > 100) width = 100;
-            bar.style.width = width + "%";
-            percent.textContent = Math.floor(width) + "%";
-        }
-    }, 300);
+            } else {
+                const errorMsg = extractData.error || 'Extraction failed. Try a different file.';
+                showToast(errorMsg);
+                results.style.display = "none";
+            }
+        }, 500);
+
+    } catch (error) {
+        console.error('Upload/extract error:', error);
+        progress.style.display = "none";
+        showToast(`Error: ${error.message}`);
+    }
+}
+
+function displayOCRResults(extractionData) {
+    const norm = extractionData.normalized || {};
+    const resultsContainer = document.getElementById("ocr-results");
+    if (!resultsContainer) return;
+
+    const vendor = norm.vendor_name || 'Unknown Vendor';
+    const gstin = norm.gstin || 'Not detected';
+    const date = norm.invoice_date || 'Not detected';
+    const total = norm.total_amount != null ? `₹${Number(norm.total_amount).toLocaleString('en-IN', {minimumFractionDigits: 2})}` : 'Not detected';
+    const invoiceNum = norm.invoice_number || 'Not detected';
+    const confidence = norm.confidence_score != null ? Math.round(norm.confidence_score) : 0;
+    const needsReview = norm.needs_review || false;
+    const reviewReasons = norm.review_reasons || [];
+
+    const confColor = confidence >= 70 ? 'var(--success)' : confidence >= 40 ? '#f59e0b' : 'var(--error)';
+    const reviewBadge = needsReview
+        ? `<div style="margin-top: 15px; padding: 10px; background: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b;">
+            <strong>Needs Review:</strong> ${reviewReasons.join(', ') || 'Low confidence extraction'}
+           </div>`
+        : '';
+
+    resultsContainer.innerHTML = `
+        <h3 style="margin-bottom: 15px;">Extracted Data Preview</h3>
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <span style="font-size: 0.85rem; color: var(--text-light);">Confidence Score</span>
+                <span style="font-weight: 700; color: ${confColor};">${confidence}%</span>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <p style="font-size: 0.8rem; color: var(--text-light);">Invoice Number</p>
+                    <p style="font-weight: 600;">${invoiceNum}</p>
+                </div>
+                <div>
+                    <p style="font-size: 0.8rem; color: var(--text-light);">Vendor</p>
+                    <p style="font-weight: 600;">${vendor}</p>
+                </div>
+                <div>
+                    <p style="font-size: 0.8rem; color: var(--text-light);">GSTIN Extracted</p>
+                    <p style="font-weight: 600;">${gstin}</p>
+                </div>
+                <div>
+                    <p style="font-size: 0.8rem; color: var(--text-light);">Date</p>
+                    <p style="font-weight: 600;">${date}</p>
+                </div>
+                <div>
+                    <p style="font-size: 0.8rem; color: var(--text-light);">Total Amount</p>
+                    <p style="font-weight: 600;">${total}</p>
+                </div>
+                <div>
+                    <p style="font-size: 0.8rem; color: var(--text-light);">OCR Method</p>
+                    <p style="font-weight: 600;">${extractionData.ocr_method || 'auto'} (${extractionData.ocr_quality || 'unknown'})</p>
+                </div>
+            </div>
+            ${reviewBadge}
+            <div style="margin-top: 20px; text-align: right;">
+                <button class="btn btn-outline" style="padding: 8px 16px; font-size: 0.8rem;"
+                    onclick="document.getElementById('file-upload-input').click()">Upload Another</button>
+                <button class="btn btn-primary" style="padding: 8px 16px; font-size: 0.8rem;"
+                    onclick="showToast('Data saved to compliance register!')">Confirm & Sync</button>
+            </div>
+        </div>
+    `;
 }
 
 // ============================================================
@@ -650,6 +769,133 @@ function updateComplianceMetrics(period) {
 }
 
 // ============================================================
+// ITC Matching — GSTR-2B Upload & Reconciliation
+// ============================================================
+
+function loadSample2B() {
+    const sampleData = {
+        "b2b": [
+            {"gstin": "29ABCDE1234F1Z5", "invoice_number": "INV-2026-001", "invoice_date": "2026-03-01", "taxable_value": 50000, "cgst": 4500, "sgst": 4500, "igst": 0},
+            {"gstin": "07BBBBB1111B2Z6", "invoice_number": "INV-2026-002", "invoice_date": "2026-03-05", "taxable_value": 25000, "cgst": 2250, "sgst": 2250, "igst": 0},
+            {"gstin": "27CCCCC2222C3Z7", "invoice_number": "INV-2026-003", "invoice_date": "2026-03-10", "taxable_value": 75000, "cgst": 0, "sgst": 0, "igst": 13500}
+        ]
+    };
+    const textarea = document.getElementById('gstr2b-input');
+    if (textarea) textarea.value = JSON.stringify(sampleData, null, 2);
+    showToast('Sample GSTR-2B data loaded');
+}
+
+async function runITCMatch() {
+    const token = localStorage.getItem('niyam_access_token');
+    if (!token) {
+        showToast('Please login first');
+        return;
+    }
+
+    const textarea = document.getElementById('gstr2b-input');
+    const rawInput = textarea ? textarea.value.trim() : '';
+
+    if (!rawInput) {
+        showToast('Please paste GSTR-2B JSON data first');
+        return;
+    }
+
+    let gstr2bData;
+    try {
+        gstr2bData = JSON.parse(rawInput);
+    } catch (e) {
+        showToast('Invalid JSON format. Please check your GSTR-2B data.');
+        return;
+    }
+
+    showToast('Running ITC reconciliation...');
+
+    try {
+        const response = await fetch(`${API_URL}/itc-match`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                gstr2b_data: gstr2bData,
+                amount_tolerance: 1.0,
+                gst_tolerance: 1.0,
+                fuzzy_invoice_number: true,
+            }),
+        });
+
+        const result = await response.json();
+
+        if (result.success && result.data) {
+            displayITCResults(result.data);
+            showToast('ITC reconciliation complete!');
+        } else {
+            showToast(result.error || result.message || 'ITC matching failed');
+        }
+    } catch (error) {
+        console.error('ITC match error:', error);
+        showToast(`Error: ${error.message}`);
+    }
+}
+
+function displayITCResults(data) {
+    const financials = data.financials || {};
+    const matchResults = data.match_results || [];
+
+    // Update metric cards
+    const fmtINR = (val) => {
+        const num = Number(val);
+        if (isNaN(num) || num === 0) return '₹0';
+        return '₹' + num.toLocaleString('en-IN', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+    };
+
+    const itcAvailEl = document.getElementById('gst-itc-available');
+    const itcRiskEl = document.getElementById('gst-itc-risk');
+    const recoverEl = document.getElementById('gst-recoverable');
+
+    if (itcAvailEl) itcAvailEl.textContent = fmtINR(financials.total_itc_claimed || 0);
+    if (itcRiskEl) itcRiskEl.textContent = fmtINR(financials.total_itc_at_risk || 0);
+    if (recoverEl) recoverEl.textContent = fmtINR(financials.recoverable_itc || 0);
+
+    const subtextAvail = document.getElementById('gst-itc-subtext');
+    if (subtextAvail) subtextAvail.textContent = `Utilization: ${financials.utilization_rate || 0}%`;
+
+    // Update results table
+    const tbody = document.getElementById('itc-results-body');
+    if (!tbody) return;
+
+    if (matchResults.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-light); padding:30px;">No matches found</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = matchResults.map(r => {
+        const matchType = (r.match_type || '').replace(/_/g, ' ');
+        const severity = r.severity || 'none';
+        let badgeStyle = 'background: var(--success); color: white;';
+        if (severity === 'critical') badgeStyle = 'background: var(--error); color: white;';
+        else if (severity === 'high') badgeStyle = 'background: #ef4444; color: white;';
+        else if (severity === 'medium') badgeStyle = 'background: #f59e0b; color: white;';
+        else if (severity === 'low') badgeStyle = 'background: #3b82f6; color: white;';
+
+        const eligible = Number(r.eligible_itc || 0);
+        const atRisk = Number(r.itc_at_risk || 0);
+        const action = r.action_required || '-';
+        const truncAction = action.length > 60 ? action.substring(0, 57) + '...' : action;
+
+        return `<tr>
+            <td style="font-weight:600;">${r.invoice_number || '-'}</td>
+            <td style="font-size:0.8rem;">${r.vendor_gstin || '-'}</td>
+            <td>${fmtINR(eligible)}</td>
+            <td style="color: ${atRisk > 0 ? 'var(--error)' : 'inherit'};">${fmtINR(atRisk)}</td>
+            <td><span class="badge" style="${badgeStyle}">${matchType}</span></td>
+            <td style="font-size:0.8rem;" title="${action.replace(/"/g, '&quot;')}">${truncAction}</td>
+        </tr>`;
+    }).join('');
+}
+
+// ============================================================
 // Authentication Check & Dashboard Data Fetch
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
@@ -702,24 +948,110 @@ async function fetchDashboardData() {
 }
 
 function updateDashboardUI(data) {
+    // data comes from /api/dashboard/summary → data.data
+    // Structure: { top_actions, financial_summary, compliance_summary, risk_timeline }
+    const compliance = data.compliance_summary || {};
+    const financial = data.financial_summary || {};
+    const topActions = data.top_actions || [];
+    const timeline = data.risk_timeline || [];
+
+    // --- Metric Card 1: Upcoming Deadlines ---
     const deadlineCount = document.querySelector('#view-dashboard .metric-card:nth-child(1) .metric-value span');
     const deadlineText = document.querySelector('#view-dashboard .metric-card:nth-child(1) p:last-child');
-    if (deadlineCount) deadlineCount.innerText = data.upcoming_deadlines ?? '0';
-    if (deadlineText) deadlineText.innerText = data.next_deadline ? `Next due: ${data.next_deadline}` : 'No upcoming deadlines';
+    const upcomingCount = compliance.upcoming_deadlines != null ? compliance.upcoming_deadlines : (compliance.critical_issues || 0);
+    if (deadlineCount) deadlineCount.innerText = upcomingCount || '0';
 
+    // Find next deadline from timeline
+    const nextDeadline = timeline.find(t => t.type === 'deadline' && t.due_date);
+    if (deadlineText) {
+        if (nextDeadline && nextDeadline.due_date) {
+            deadlineText.innerText = `Next due: ${nextDeadline.due_date}`;
+        } else if (upcomingCount > 0) {
+            deadlineText.innerText = `${upcomingCount} upcoming deadline(s)`;
+        } else {
+            deadlineText.innerText = 'No upcoming deadlines';
+        }
+    }
+
+    // --- Metric Card 2: Compliance Health ---
     const healthPct = document.querySelector('#view-dashboard .metric-card:nth-child(2) .metric-value span');
     const healthBarParent = document.querySelector('#view-dashboard .metric-card:nth-child(2) .metric-value');
     const healthBar = healthBarParent ? healthBarParent.nextElementSibling?.firstElementChild : null;
-    const health = data.compliance_health != null && !isNaN(data.compliance_health) ? Math.round(data.compliance_health) : 0;
+    const rawScore = compliance.compliance_score;
+    const health = rawScore != null && !isNaN(rawScore) ? Math.round(rawScore) : 0;
     if (healthPct) healthPct.innerText = health + '%';
-    if (healthBar) healthBar.style.width = health + '%';
+    if (healthBar) healthBar.style.width = Math.max(health, 5) + '%';
 
+    // --- Metric Card 3: Penalty Risk ---
     const riskVal = document.querySelector('#risk-card .metric-value span');
+    const riskText = document.querySelector('#risk-card p:last-child');
     if (riskVal) {
-        const risk = data.penalty_risk || 'Low';
-        riskVal.innerText = risk + ' Risk';
-        riskVal.style.color = risk === 'Low' ? 'var(--success)' : 'var(--error)';
+        const risk = compliance.penalty_risk || 'low';
+        const riskDisplay = risk.charAt(0).toUpperCase() + risk.slice(1);
+        riskVal.innerText = riskDisplay + ' Risk';
+        if (risk === 'low') {
+            riskVal.style.color = 'var(--success)';
+        } else if (risk === 'medium') {
+            riskVal.style.color = '#f59e0b';
+        } else {
+            riskVal.style.color = 'var(--error)';
+        }
     }
+    if (riskText) {
+        const penaltyRisk = financial.total_penalty_risk || 0;
+        const itcRisk = financial.total_itc_at_risk || 0;
+        const totalRisk = penaltyRisk + itcRisk;
+        if (totalRisk > 0) {
+            riskText.innerText = `Total exposure: ₹${totalRisk.toLocaleString('en-IN')}`;
+        } else {
+            riskText.innerText = 'No immediate threats detected';
+        }
+    }
+
+    // --- Update Deadlines Table from top_actions + timeline ---
+    updateDeadlinesTable(topActions, timeline);
+}
+
+function updateDeadlinesTable(topActions, timeline) {
+    const tbody = document.querySelector('#deadlines-table tbody');
+    if (!tbody) return;
+
+    // Build rows from timeline (deadline-type items)
+    const deadlineItems = timeline.filter(t => t.type === 'deadline' || t.type === 'compliance');
+
+    if (deadlineItems.length === 0) return; // Keep static HTML if no data
+
+    tbody.innerHTML = deadlineItems.slice(0, 10).map(item => {
+        const severity = (item.severity || 'info').toLowerCase();
+        let statusClass = 'badge-upcoming';
+        let statusText = 'Upcoming';
+        let rowClass = '';
+
+        if (severity === 'critical' || severity === 'error') {
+            statusClass = 'badge-overdue';
+            statusText = 'Overdue';
+            rowClass = 'class="status-border-error"';
+        } else if (severity === 'warning') {
+            statusClass = 'badge-upcoming';
+            statusText = 'Upcoming';
+        } else {
+            statusClass = '';
+            statusText = 'On Track';
+        }
+
+        const category = (item.category || 'GST').toUpperCase();
+        const dueDate = item.due_date || 'TBD';
+        const impact = item.impact ? ` (₹${item.impact.toLocaleString('en-IN')})` : '';
+
+        return `
+            <tr ${rowClass} data-status="${statusText}">
+                <td style="font-weight: 600;">${category}${impact}</td>
+                <td>${dueDate}</td>
+                <td><span class="badge ${statusClass}">${statusText}</span></td>
+                <td><button class="btn-action" onclick="showToast('${(item.action_required || item.title || '').replace(/'/g, "\\'")}')">View</button></td>
+            </tr>
+        `;
+    }).join('');
 }
 
 function renderHealthChart(data) {

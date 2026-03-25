@@ -22,6 +22,7 @@ from app.services.data_parser import (
     CGST_KEYWORDS, SGST_KEYWORDS, IGST_KEYWORDS, GST_TOTAL_KEYWORDS,
     AMOUNT_STRICT,
 )
+from app.services.ai_extractor import AIExtractor, should_trigger_ai, merge_results
 
 logger = logging.getLogger(__name__)
 
@@ -320,6 +321,7 @@ class InvoiceProcessor:
     def __init__(self):
         self.ocr = OCRService()
         self.parser = DataParser()
+        self.ai_extractor = AIExtractor()
 
     async def process(self, file_path: str, mime_type: str, retry: bool = True) -> dict:
         """
@@ -451,8 +453,8 @@ class InvoiceProcessor:
         penalty = len(flags) * 0.03
         confidence_score = max(0, round(confidence_score - penalty, 2))
 
-        # Step 8: Build output
-        return {
+        # Step 8: Build initial output
+        result = {
             "status": "success",
             "vendor_name": val("vendor_name") or "",
             "vendor_gstin": gstin or "",
@@ -477,3 +479,23 @@ class InvoiceProcessor:
                 "char_count": ocr_result.get("char_count", 0),
             },
         }
+
+        # Step 9: AI fallback — triggered only when parser is uncertain
+        if should_trigger_ai(confidence_score, flags) and self.ai_extractor.available:
+            logger.info(
+                f"AI extraction triggered: confidence={confidence_score}, flags={len(flags)}"
+            )
+            try:
+                ai_result = await self.ai_extractor.extract(raw_text)
+                if ai_result:
+                    result = merge_results(result, ai_result, field_confidences)
+                    logger.info(
+                        f"AI merge complete: "
+                        f"ai_fields={result.get('ai_extraction', {}).get('fields_from_ai', [])} "
+                        f"new_confidence={result.get('confidence_score')}"
+                    )
+            except Exception as e:
+                logger.warning(f"AI extraction failed (non-fatal): {e}")
+                # Parser result stands as-is
+
+        return result

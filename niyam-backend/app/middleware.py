@@ -86,6 +86,7 @@ rate_limiter.add_rule("/api/demo/run", max_requests=30, window_seconds=60)
 rate_limiter.add_rule("/api/upload", max_requests=20, window_seconds=60)
 rate_limiter.add_rule("/api/extract", max_requests=20, window_seconds=60)
 rate_limiter.add_rule("/api/itc-match", max_requests=15, window_seconds=60)
+rate_limiter.add_rule("/api/process-invoice", max_requests=10, window_seconds=60)
 rate_limiter.add_rule("/api/compliance-check", max_requests=20, window_seconds=60)
 rate_limiter.add_rule("/api/export", max_requests=10, window_seconds=60)
 

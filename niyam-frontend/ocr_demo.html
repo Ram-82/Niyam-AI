@@ -174,67 +174,209 @@
 
         uploadZone.onclick = () => fileInput.click();
 
-        fileInput.onchange = async (e) => {
-            if (e.target.files.length > 0) {
-                await processFile();
+        // Drag and drop support
+        uploadZone.ondragover = (e) => { e.preventDefault(); uploadZone.style.borderColor = 'var(--primary-color)'; };
+        uploadZone.ondragleave = () => { uploadZone.style.borderColor = '#cbd5e1'; };
+        uploadZone.ondrop = (e) => {
+            e.preventDefault();
+            uploadZone.style.borderColor = '#cbd5e1';
+            if (e.dataTransfer.files.length > 0) {
+                fileInput.files = e.dataTransfer.files;
+                processFile();
             }
         };
 
+        fileInput.onchange = async () => {
+            if (fileInput.files.length > 0) await processFile();
+        };
+
         async function processFile() {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            const token = localStorage.getItem('niyam_access_token');
+            if (!token) {
+                showError('Please login first. <a href="login.html">Go to login</a>');
+                return;
+            }
+
             uploadZone.style.display = 'none';
             processingState.style.display = 'block';
             resultCard.style.display = 'none';
 
-            const token = localStorage.getItem('niyam_access_token');
+            // 45s timeout for Render free tier cold starts
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 45000);
 
             try {
-                const response = await fetch('/api/ocr/process', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-                const data = await response.json();
+                const formData = new FormData();
+                formData.append('file', file);
 
-                if (data.success) {
-                    displayResults(data.data);
+                console.log(`[Niyam] Sending ${file.name} (${(file.size/1024).toFixed(1)}KB) to ${API_URL}/process-invoice`);
+
+                const response = await fetch(`${API_URL}/process-invoice`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData,
+                    signal: controller.signal,
+                });
+
+                clearTimeout(timeoutId);
+
+                // Safe JSON parsing — server may return HTML on 502
+                const responseText = await response.text();
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (e) {
+                    console.error('Invalid JSON:', responseText.substring(0, 300));
+                    throw new Error(
+                        response.status === 502 ? 'Server is starting up — retry in 30 seconds' :
+                        `Server error (HTTP ${response.status})`
+                    );
                 }
+
+                if (!response.ok) {
+                    throw new Error(data.error || data.detail || data.reason || `HTTP ${response.status}`);
+                }
+
+                console.log('[Niyam] Response:', data.status, 'confidence:', data.confidence_score);
+
+                if (data.status === 'failed') {
+                    throw new Error(
+                        data.reason === 'OCR_FAILED' ? 'Could not read document — try a clearer image or digital PDF' :
+                        data.reason || 'Processing failed'
+                    );
+                }
+
+                displayResults(data);
+
             } catch (error) {
-                console.error('OCR Error:', error);
-                alert('Analysis failed. Check console for details.');
-                uploadZone.style.display = 'block';
+                clearTimeout(timeoutId);
+                console.error('Processing error:', error);
                 processingState.style.display = 'none';
+
+                if (error.name === 'AbortError') {
+                    showError('Request timed out — server may be cold-starting. <button onclick="processFile()" style="margin-left:8px;" class="btn btn-primary" style="padding:4px 12px;font-size:0.85rem;">Retry</button>');
+                } else {
+                    showError(error.message + ' <button onclick="resetUpload()" style="margin-left:8px;padding:4px 12px;font-size:0.85rem;cursor:pointer;border:1px solid #e2e8f0;border-radius:4px;background:white;">Try Again</button>');
+                }
             }
+        }
+
+        function showError(message) {
+            processingState.style.display = 'none';
+            resultCard.style.display = 'block';
+            document.getElementById('docType').innerText = 'Processing Error';
+            document.getElementById('complianceStatus').style.background = '#fee2e2';
+            document.getElementById('complianceStatus').style.color = '#991b1b';
+            document.getElementById('complianceStatus').innerText = 'Error';
+            extractedDataDiv.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-light);">' + message + '</div>';
+        }
+
+        function resetUpload() {
+            uploadZone.style.display = 'block';
+            processingState.style.display = 'none';
+            resultCard.style.display = 'none';
+            fileInput.value = '';
+        }
+
+        function fmtINR(val) {
+            const n = Number(val);
+            if (isNaN(n) || n === 0) return '₹0.00';
+            return '₹' + n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
         function displayResults(data) {
             processingState.style.display = 'none';
             resultCard.style.display = 'block';
-            document.getElementById('docType').innerText = data.document_type;
 
-            extractedDataDiv.innerHTML = '';
-            for (const [key, value] of Object.entries(data.extracted_data)) {
-                if (key === 'confidence_score') continue;
-                const row = document.createElement('div');
-                row.className = 'extracted-row';
-                row.innerHTML = `
-                    <span class="extracted-label">${key.replace('_', ' ').toUpperCase()}</span>
-                    <span class="extracted-value">${value}</span>
-                `;
-                extractedDataDiv.appendChild(row);
+            document.getElementById('docType').innerText = 'Invoice Data';
+
+            // Compliance badge
+            const badge = document.getElementById('complianceStatus');
+            const compliance = data.compliance || {};
+            if (compliance.is_valid === true) {
+                badge.innerText = 'GST Compliant';
+                badge.style.background = '#dcfce7'; badge.style.color = '#166534';
+            } else if (compliance.is_valid === false) {
+                badge.innerText = (compliance.issues || []).length + ' Issue(s)';
+                badge.style.background = '#fee2e2'; badge.style.color = '#991b1b';
+            } else {
+                badge.innerText = 'Processed';
+                badge.style.background = '#e0e7ff'; badge.style.color = '#3730a3';
             }
 
-            // Add a "Confidence" row with specific styling
-            const confRow = document.createElement('div');
-            confRow.className = 'extracted-row';
-            confRow.style.marginTop = '15px';
-            confRow.style.paddingTop = '15px';
-            confRow.style.borderTop = '2px solid #e2e8f0';
-            confRow.innerHTML = `
+            // Build data rows
+            const confidence = Math.round((data.confidence_score || 0) * 100);
+            const confColor = confidence >= 70 ? '#166534' : confidence >= 40 ? '#92400e' : '#991b1b';
+            const gst = data.gst_breakdown || {};
+
+            const fields = [
+                ['Vendor Name', data.vendor_name],
+                ['GSTIN', data.vendor_gstin],
+                ['Invoice Number', data.invoice_number],
+                ['Invoice Date', data.invoice_date],
+                ['Taxable Value', data.taxable_value ? fmtINR(data.taxable_value) : null],
+                ['Total Amount', data.total_amount ? fmtINR(data.total_amount) : null],
+                ['CGST', gst.cgst ? fmtINR(gst.cgst) : null],
+                ['SGST', gst.sgst ? fmtINR(gst.sgst) : null],
+                ['IGST', gst.igst ? fmtINR(gst.igst) : null],
+            ];
+
+            let html = '';
+            for (const [label, value] of fields) {
+                if (!value && value !== 0) continue;
+                html += `<div class="extracted-row">
+                    <span class="extracted-label">${label}</span>
+                    <span class="extracted-value">${value || 'Not detected'}</span>
+                </div>`;
+            }
+
+            // Line items
+            const items = data.line_items || [];
+            if (items.length > 0) {
+                html += '<div style="margin-top:12px;padding-top:12px;border-top:2px solid #e2e8f0;">';
+                html += '<div class="extracted-row"><span class="extracted-label" style="font-weight:700;">LINE ITEMS (' + items.length + ')</span><span></span></div>';
+                items.slice(0, 15).forEach(item => {
+                    html += '<div class="extracted-row"><span class="extracted-label" style="padding-left:12px;">' +
+                        (item.description || '-') + '</span><span class="extracted-value">' +
+                        (item.amount ? fmtINR(item.amount) : '-') + '</span></div>';
+                });
+                html += '</div>';
+            }
+
+            // Compliance issues
+            const issues = (compliance.issues || []);
+            if (issues.length > 0) {
+                html += '<div style="margin-top:12px;padding-top:12px;border-top:2px solid #e2e8f0;">';
+                html += '<div class="extracted-row"><span class="extracted-label" style="font-weight:700;color:#991b1b;">COMPLIANCE ISSUES</span><span></span></div>';
+                issues.forEach(issue => {
+                    const sevColor = issue.severity === 'high' ? '#ef4444' : issue.severity === 'medium' ? '#f59e0b' : '#6b7280';
+                    html += '<div style="padding:6px 0;border-bottom:1px solid #f1f5f9;">' +
+                        '<span style="font-size:0.8rem;color:' + sevColor + ';font-weight:600;">' + (issue.type || '').replace(/_/g, ' ') + '</span>' +
+                        '<br><span style="font-size:0.78rem;color:var(--text-light);">' + (issue.message || '') + '</span></div>';
+                });
+                html += '</div>';
+            }
+
+            // Confidence row
+            html += `<div class="extracted-row" style="margin-top:15px;padding-top:15px;border-top:2px solid #e2e8f0;">
                 <span class="extracted-label">AI CONFIDENCE</span>
-                <span class="extracted-value" style="color: var(--primary-color);">${(data.extracted_data.confidence_score * 100).toFixed(1)}%</span>
-            `;
-            extractedDataDiv.appendChild(confRow);
+                <span class="extracted-value" style="color:${confColor};">${confidence}%</span>
+            </div>`;
+
+            // OCR metadata
+            const ocr = data.ocr_metadata || {};
+            html += `<div class="extracted-row">
+                <span class="extracted-label">OCR METHOD</span>
+                <span class="extracted-value" style="font-size:0.85rem;">${ocr.method || 'auto'} (${ocr.quality || '?'})</span>
+            </div>`;
+
+            // Reset button
+            html += '<div style="margin-top:15px;text-align:center;"><button onclick="resetUpload()" style="padding:8px 20px;font-size:0.85rem;cursor:pointer;border:1px solid #e2e8f0;border-radius:6px;background:white;">Upload Another Invoice</button></div>';
+
+            extractedDataDiv.innerHTML = html;
         }
     </script>
 </body>

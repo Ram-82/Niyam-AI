@@ -40,10 +40,13 @@ app = FastAPI(
 )
 
 # Middleware stack (order matters — outermost first)
+# CORS: allow all origins for MVP. allow_credentials=False is required
+# when using wildcard "*" origin (per CORS spec). Auth endpoints that
+# need credentials should use explicit origin checks.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

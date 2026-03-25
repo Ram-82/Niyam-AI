@@ -99,11 +99,6 @@ async function handleFileUpload(input) {
     const percent = document.getElementById("progress-percent");
     const results = document.getElementById("ocr-results");
 
-    if (!token) {
-        showToast('Please login first');
-        return;
-    }
-
     // Show progress
     progress.style.display = "block";
     results.style.display = "none";
@@ -122,9 +117,13 @@ async function handleFileUpload(input) {
         const formData = new FormData();
         formData.append('file', file);
 
+        // Auth is optional for process-invoice — send token if available
+        const headers = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
         const response = await fetch(`${API_URL}/process-invoice`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
+            headers: headers,
             body: formData,
             signal: controller.signal,
         });

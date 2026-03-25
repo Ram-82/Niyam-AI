@@ -24,12 +24,10 @@ class Settings:
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours (was 7 days — reduced for security)
 
     # ---- CORS ----
-    ALLOWED_ORIGINS: list = [
-        "http://localhost:3000",
-        "http://localhost:5500",
-        "http://127.0.0.1:5500",
-        "https://niyam-ai-zncb.vercel.app",
-    ]
+    # In MVP: allow all origins. When credentials are needed (auth endpoints),
+    # the specific origin must be listed. For public endpoints like process-invoice,
+    # wildcard works fine.
+    ALLOWED_ORIGINS: list = ["*"]
 
     # ---- File Upload ----
     MAX_UPLOAD_SIZE: int = 15 * 1024 * 1024  # 15MB

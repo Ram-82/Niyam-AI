@@ -85,6 +85,9 @@ rate_limiter.add_rule("/api/auth/signup", max_requests=5, window_seconds=60)
 rate_limiter.add_rule("/api/demo/run", max_requests=30, window_seconds=60)
 rate_limiter.add_rule("/api/upload", max_requests=20, window_seconds=60)
 rate_limiter.add_rule("/api/extract", max_requests=20, window_seconds=60)
+rate_limiter.add_rule("/api/itc-match", max_requests=15, window_seconds=60)
+rate_limiter.add_rule("/api/compliance-check", max_requests=20, window_seconds=60)
+rate_limiter.add_rule("/api/export", max_requests=10, window_seconds=60)
 
 
 # ============================================================
@@ -150,6 +153,43 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 def install_error_handlers(app: FastAPI):
     """Install global exception handlers for consistent error shape."""
 
+    from fastapi.exceptions import RequestValidationError
+    from starlette.exceptions import HTTPException as StarletteHTTPException
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(request: Request, exc: RequestValidationError):
+        request_id = getattr(request.state, "request_id", "unknown")
+        errors = []
+        for error in exc.errors():
+            field = " → ".join(str(loc) for loc in error.get("loc", []))
+            errors.append({
+                "field": field,
+                "message": error.get("msg", "Invalid value"),
+                "type": error.get("type", "validation_error"),
+            })
+        logger.warning(f"[{request_id}] Validation error: {errors}")
+        return JSONResponse(
+            status_code=422,
+            content={
+                "error": "Validation failed",
+                "code": "VALIDATION_ERROR",
+                "details": errors,
+                "request_id": request_id,
+            },
+        )
+
+    @app.exception_handler(StarletteHTTPException)
+    async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+        request_id = getattr(request.state, "request_id", "unknown")
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "error": exc.detail or "Request failed",
+                "code": f"HTTP_{exc.status_code}",
+                "request_id": request_id,
+            },
+        )
+
     @app.exception_handler(Exception)
     async def generic_exception_handler(request: Request, exc: Exception):
         request_id = getattr(request.state, "request_id", "unknown")
@@ -160,15 +200,5 @@ def install_error_handlers(app: FastAPI):
                 "error": "Internal server error",
                 "code": "INTERNAL_ERROR",
                 "request_id": request_id,
-            },
-        )
-
-    @app.exception_handler(404)
-    async def not_found_handler(request: Request, exc):
-        return JSONResponse(
-            status_code=404,
-            content={
-                "error": "Resource not found",
-                "code": "NOT_FOUND",
             },
         )

@@ -2,6 +2,11 @@
 // Niyam AI Dashboard - Main JavaScript
 // ============================================================
 
+// Redirect #demo to standalone demo page
+if (window.location.hash === '#demo') {
+    window.location.replace('demo.html');
+}
+
 // Initialize icons
 feather.replace();
 

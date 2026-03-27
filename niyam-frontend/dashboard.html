@@ -42,7 +42,7 @@
 
             <div class="sidebar-group">
                 <div class="sidebar-group-label">Actions</div>
-                <a href="#" class="sidebar-item" onclick="switchView('demo', this); runDemo();" id="sidebar-demo" style="color:#10b981; font-weight:700;"><i data-feather="play-circle"></i>
+                <a href="demo.html" class="sidebar-item" id="sidebar-demo" style="color:#10b981; font-weight:700;"><i data-feather="play-circle"></i>
                     Try Demo</a>
                 <a href="#" class="sidebar-item" onclick="switchView('compliance-flow', this)"><i data-feather="zap"></i>
                     Compliance Flow</a>
@@ -1453,72 +1453,7 @@
                 </div>
             </section>
 
-            <!-- View: Demo -->
-            <section id="view-demo" class="content-view">
-                <div class="welcome-bar">
-                    <div>
-                        <h1>Niyam AI — Live Demo</h1>
-                        <p style="color: var(--text-light);">Full pipeline on sample data. No signup needed.</p>
-                    </div>
-                </div>
-
-                <!-- Loading -->
-                <div id="demo-loading" class="cf-loading">
-                    <div class="cf-spinner"></div>
-                    <p>Running full pipeline on demo dataset...</p>
-                </div>
-
-                <!-- Results container -->
-                <div id="demo-results" style="display:none;">
-                    <!-- Readiness Banner -->
-                    <div id="demo-readiness" class="cf-readiness-banner" style="margin-bottom:20px;"></div>
-
-                    <!-- Data Summary -->
-                    <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:12px; margin-bottom:20px;" id="demo-summary-cards"></div>
-
-                    <!-- Top Actions -->
-                    <div class="card" style="margin-bottom:20px;">
-                        <h3 style="margin-bottom:16px;">Top Priority Actions</h3>
-                        <div id="demo-top-actions"></div>
-                    </div>
-
-                    <!-- Two columns: Financials + Compliance -->
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
-                        <div class="card">
-                            <h3 style="margin-bottom:16px;">Financial Summary</h3>
-                            <div id="demo-financials"></div>
-                        </div>
-                        <div class="card">
-                            <h3 style="margin-bottom:16px;">Compliance Overview</h3>
-                            <div id="demo-compliance-overview"></div>
-                        </div>
-                    </div>
-
-                    <!-- Invoice Records -->
-                    <div class="card" style="margin-bottom:20px;">
-                        <h3 style="margin-bottom:16px;">Invoice Records</h3>
-                        <div id="demo-invoices"></div>
-                    </div>
-
-                    <!-- ITC Results -->
-                    <div class="card" style="margin-bottom:20px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                            <h3>ITC Match Results</h3>
-                            <div id="demo-itc-financials" style="display:flex; gap:16px;"></div>
-                        </div>
-                        <div id="demo-itc-matches"></div>
-                    </div>
-
-                    <!-- Compliance Flags -->
-                    <div class="card" style="margin-bottom:20px;">
-                        <h3 style="margin-bottom:16px;">Compliance Flags</h3>
-                        <div id="demo-flags"></div>
-                    </div>
-
-                    <!-- Elapsed -->
-                    <p id="demo-elapsed" style="text-align:center; color:var(--text-light); font-size:0.8rem; margin-top:20px;"></p>
-                </div>
-            </section>
+            <!-- Demo is now on its own page: demo.html -->
 
             <!-- View: Compliance Flow -->
             <section id="view-compliance-flow" class="content-view">
@@ -2004,7 +1939,6 @@
         </div>
     </div>
 
-    <script src="demo.js"></script>
     <script src="compliance-flow.js"></script>
     <script src="dashboard.js"></script>
 </body>

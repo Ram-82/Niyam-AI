@@ -1048,6 +1048,10 @@ async function fetchDashboardData() {
 
     // Fetch analytics trends for Reports charts
     fetchAnalyticsTrends();
+
+    // Fetch TDS and ROC deadlines
+    fetchTDSDeadlines();
+    fetchROCDeadlines();
 }
 
 async function fetchAnalyticsTrends() {
@@ -1235,6 +1239,235 @@ function renderHealthChart(data) {
             }
         }
     });
+}
+
+// ============================================================
+// TDS Data Fetch
+// ============================================================
+async function fetchTDSDeadlines() {
+    if (!NiyamAuth.isAuthenticated()) return;
+    try {
+        const response = await NiyamAuth.niyamFetch(`${API_URL}/tds/deadlines`);
+        const result = await response.json();
+        if (result.success && result.data) {
+            renderTDSData(result.data);
+        }
+    } catch (error) {
+        console.error('Error fetching TDS deadlines:', error);
+    }
+}
+
+function renderTDSData(data) {
+    const summary = data.summary || {};
+    const deadlines = data.deadlines || [];
+    const flags = data.flags || [];
+
+    // Update metric cards
+    const totalEl = document.getElementById('tds-total');
+    const totalSub = document.getElementById('tds-total-sub');
+    const compEl = document.getElementById('tds-completed');
+    const compSub = document.getElementById('tds-completed-sub');
+    const overdueEl = document.getElementById('tds-overdue');
+    const overdueSub = document.getElementById('tds-overdue-sub');
+
+    if (totalEl) totalEl.textContent = summary.total || 0;
+    if (totalSub) totalSub.textContent = `${summary.upcoming || 0} upcoming`;
+    if (compEl) compEl.textContent = summary.completed || 0;
+    if (compSub) compSub.textContent = 'Filed this year';
+    if (overdueEl) overdueEl.textContent = summary.overdue || 0;
+    if (overdueSub) overdueSub.textContent = summary.overdue > 0 ? 'Action required!' : 'All on track';
+
+    // Update deadline table
+    const tbody = document.getElementById('tds-deadlines-body');
+    if (tbody && deadlines.length > 0) {
+        const relevant = deadlines.filter(d => d.status !== 'upcoming' || (d.days_until && d.days_until <= 30));
+        const toShow = relevant.length > 0 ? relevant.slice(0, 10) : deadlines.slice(0, 10);
+
+        tbody.innerHTML = toShow.map(dl => {
+            let badgeStyle = 'background: var(--text-light); color: white;';
+            let statusText = dl.status || 'upcoming';
+            if (dl.status === 'completed') { badgeStyle = 'background: var(--success); color: white;'; statusText = 'Filed'; }
+            else if (dl.status === 'overdue') { badgeStyle = 'background: var(--error); color: white;'; statusText = `${dl.days_late}d overdue`; }
+            else if (dl.status === 'due_soon') { badgeStyle = 'background: var(--warning); color: white;'; statusText = `${dl.days_until}d left`; }
+            else { badgeStyle = 'background: #3b82f6; color: white;'; statusText = 'Upcoming'; }
+
+            const markBtn = dl.status !== 'completed'
+                ? `<button class="btn-action" onclick="markTDSFiled('${escapeHtml(dl.id)}')">Mark Filed</button>`
+                : '<span style="color:var(--success); font-size:0.8rem;">Done</span>';
+
+            return `<tr>
+                <td style="font-weight:600;">${escapeHtml(dl.subtype || dl.type)}</td>
+                <td>${escapeHtml(dl.due_date || '-')}</td>
+                <td><span class="badge" style="${badgeStyle}">${escapeHtml(statusText)}</span></td>
+                <td>${markBtn}</td>
+            </tr>`;
+        }).join('');
+    } else if (tbody) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-light); padding:30px;">No TDS deadlines found.</td></tr>';
+    }
+
+    // Update alerts
+    const alertsContainer = document.getElementById('tds-alerts-container');
+    if (alertsContainer && flags.length > 0) {
+        alertsContainer.innerHTML = flags.slice(0, 5).map(f => {
+            const sevColor = f.severity === 'critical' ? 'var(--error)' : f.severity === 'error' ? '#f59e0b' : '#3b82f6';
+            const bgColor = f.severity === 'critical' ? '#fff5f5' : f.severity === 'error' ? '#fffbeb' : '#eff6ff';
+            return `<div style="display: flex; align-items: start; gap: 12px; padding: 10px; background: ${bgColor}; border-radius: 8px;">
+                <i data-feather="alert-circle" style="color: ${sevColor}; width: 20px; flex-shrink:0;"></i>
+                <div>
+                    <p style="font-weight: 600; font-size: 0.9rem;">${escapeHtml(f.message)}</p>
+                    ${f.action_required ? '<p style="font-size: 0.75rem; color: var(--text-light);">' + escapeHtml(f.action_required) + '</p>' : ''}
+                </div>
+            </div>`;
+        }).join('');
+        if (window.feather) feather.replace();
+    } else if (alertsContainer) {
+        alertsContainer.innerHTML = '<p style="font-size: 0.85rem; color: var(--text-light);">No alerts — all TDS deadlines on track.</p>';
+    }
+
+    if (window.feather) feather.replace();
+}
+
+async function markTDSFiled(deadlineId) {
+    try {
+        const response = await NiyamAuth.niyamFetch(`${API_URL}/tds/deadlines/mark-filed`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deadline_id: deadlineId }),
+        });
+        const result = await response.json();
+        if (result.success) {
+            showToast('TDS deadline marked as filed!');
+            fetchTDSDeadlines();
+        } else {
+            showToast(result.detail || 'Failed to mark as filed');
+        }
+    } catch (error) {
+        showToast('Error: ' + error.message);
+    }
+}
+
+// ============================================================
+// ROC Data Fetch
+// ============================================================
+async function fetchROCDeadlines() {
+    if (!NiyamAuth.isAuthenticated()) return;
+    try {
+        const response = await NiyamAuth.niyamFetch(`${API_URL}/roc/deadlines`);
+        const result = await response.json();
+        if (result.success && result.data) {
+            renderROCData(result.data);
+        }
+    } catch (error) {
+        console.error('Error fetching ROC deadlines:', error);
+    }
+}
+
+function renderROCData(data) {
+    const summary = data.summary || {};
+    const deadlines = data.deadlines || [];
+
+    // KYC card
+    const kycDl = deadlines.find(d => (d.subtype || '').includes('DIR-3'));
+    const kycVal = document.getElementById('roc-kyc-value');
+    const kycSub = document.getElementById('roc-kyc-sub');
+    const kycCard = document.getElementById('roc-kyc-card');
+    if (kycVal) {
+        if (kycDl && kycDl.status === 'completed') {
+            kycVal.textContent = 'Verified';
+            if (kycSub) { kycSub.textContent = 'DIR-3 KYC Completed'; kycSub.style.color = 'var(--success)'; }
+            if (kycCard) kycCard.classList.add('status-border-success');
+        } else {
+            kycVal.textContent = 'Pending';
+            if (kycSub) { kycSub.textContent = kycDl ? `Due: ${kycDl.due_date}` : 'DIR-3 KYC required'; kycSub.style.color = 'var(--warning)'; }
+        }
+    }
+
+    // Filing card
+    const filingVal = document.getElementById('roc-filing-value');
+    const filingSub = document.getElementById('roc-filing-sub');
+    const filingCard = document.getElementById('roc-filing-card');
+    const annualDls = deadlines.filter(d => (d.subtype || '').match(/AOC-4|MGT-7/));
+    const annualPending = annualDls.filter(d => d.status !== 'completed');
+    if (filingVal) {
+        if (annualPending.length === 0 && annualDls.length > 0) {
+            filingVal.textContent = 'All Filed';
+            if (filingSub) { filingSub.textContent = 'AOC-4 & MGT-7 completed'; filingSub.style.color = 'var(--success)'; }
+            if (filingCard) { filingCard.classList.remove('status-border-error'); filingCard.classList.add('status-border-success'); }
+        } else if (annualPending.length > 0) {
+            filingVal.textContent = 'Due Soon';
+            if (filingSub) { filingSub.textContent = annualPending.map(d => d.subtype).join(' & ') + ' Pending'; filingSub.style.color = 'var(--error)'; }
+            if (filingCard) filingCard.classList.add('status-border-error');
+        } else {
+            filingVal.textContent = '--';
+            if (filingSub) filingSub.textContent = 'No filings found';
+        }
+    }
+
+    // Disqualification card
+    const disqVal = document.getElementById('roc-disq-value');
+    const disqSub = document.getElementById('roc-disq-sub');
+    const disqCard = document.getElementById('roc-disq-card');
+    if (disqVal) {
+        if (summary.disqualification_risk) {
+            disqVal.textContent = 'HIGH';
+            disqVal.style.color = 'var(--error)';
+            if (disqSub) { disqSub.textContent = 'Overdue >1 year — risk of DIN deactivation'; disqSub.style.color = 'var(--error)'; }
+            if (disqCard) disqCard.classList.add('status-border-error');
+        } else {
+            disqVal.textContent = 'Near Zero';
+            disqVal.style.color = 'var(--success)';
+            if (disqSub) { disqSub.textContent = 'Active DIN Status'; disqSub.style.color = 'var(--success)'; }
+            if (disqCard) disqCard.classList.add('status-border-success');
+        }
+    }
+
+    // Checklist
+    const checklist = document.getElementById('roc-checklist');
+    if (checklist && deadlines.length > 0) {
+        checklist.innerHTML = deadlines.map(dl => {
+            const isCompleted = dl.status === 'completed';
+            const bg = isCompleted ? '#f0fdf4' : '#f8fafc';
+            const badgeBg = isCompleted ? 'var(--success)' : dl.status === 'overdue' ? 'var(--error)' : 'var(--warning)';
+            const statusText = isCompleted ? 'Completed' : dl.status === 'overdue' ? `${dl.days_late}d Overdue` : 'Pending';
+            const desc = dl.description || dl.subtype;
+            const dueInfo = dl.due_date ? `Due: ${dl.due_date}` : '';
+            const penaltyInfo = dl.accrued_penalty ? ` | Penalty: ₹${dl.accrued_penalty.toLocaleString('en-IN')}` : '';
+
+            const markBtn = !isCompleted
+                ? `<button class="btn-action" style="font-size:0.75rem; margin-top:6px;" onclick="markROCFiled('${escapeHtml(dl.id)}')">Mark Filed</button>`
+                : '';
+
+            return `<div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: ${bg}; border-radius: 8px;">
+                <div>
+                    <p style="font-weight: 600;">${escapeHtml(dl.subtype || 'Filing')}</p>
+                    <p style="font-size: 0.75rem; color: var(--text-light);">${escapeHtml(desc)}</p>
+                    <p style="font-size: 0.7rem; color: var(--text-light);">${escapeHtml(dueInfo)}${penaltyInfo ? escapeHtml(penaltyInfo) : ''}</p>
+                    ${markBtn}
+                </div>
+                <span class="badge" style="background: ${badgeBg}; color: white;">${escapeHtml(statusText)}</span>
+            </div>`;
+        }).join('');
+    }
+}
+
+async function markROCFiled(deadlineId) {
+    try {
+        const response = await NiyamAuth.niyamFetch(`${API_URL}/roc/deadlines/mark-filed`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deadline_id: deadlineId }),
+        });
+        const result = await response.json();
+        if (result.success) {
+            showToast('ROC deadline marked as filed!');
+            fetchROCDeadlines();
+        } else {
+            showToast(result.detail || 'Failed to mark as filed');
+        }
+    } catch (error) {
+        showToast('Error: ' + error.message);
+    }
 }
 
 // ============================================================

@@ -17,12 +17,13 @@ def calculate_gst_penalty(
     filing_type: str,
     due_date: str,
     today: date = None,
+    is_nil_return: bool = False,
 ) -> ComplianceFlag:
     """
     Calculate GST late filing penalty.
 
     GSTR-3B/GSTR-1: ₹50/day (₹25 CGST + ₹25 SGST) up to ₹5,000
-    Nil return: ₹20/day up to ₹500
+    Nil return: ₹20/day (₹10 CGST + ₹10 SGST) up to ₹500
     """
     if today is None:
         today = date.today()
@@ -36,21 +37,29 @@ def calculate_gst_penalty(
         return None  # not late yet
 
     days_late = (today - due).days
-    rate_per_day = 50.0  # standard rate
-    max_penalty = 5000.0
+
+    if is_nil_return:
+        rate_per_day = 20.0   # ₹10 CGST + ₹10 SGST for nil returns
+        max_penalty = 500.0
+    else:
+        rate_per_day = 50.0   # ₹25 CGST + ₹25 SGST for regular returns
+        max_penalty = 5000.0
 
     penalty = min(days_late * rate_per_day, max_penalty)
+
+    return_type = "nil return" if is_nil_return else filing_type
 
     return ComplianceFlag(
         rule_id="gst_late_penalty",
         category="gst",
         severity=Severity.CRITICAL if days_late > 15 else Severity.ERROR,
-        message=f"{filing_type} is {days_late} days late — penalty ₹{penalty:,.0f}",
+        message=f"{return_type} is {days_late} days late — penalty ₹{penalty:,.0f}",
         action_required=f"File {filing_type} immediately to avoid further penalty accrual",
         impact_amount=penalty,
         due_date=due_date,
         metadata={
             "filing_type": filing_type,
+            "is_nil_return": is_nil_return,
             "days_late": days_late,
             "rate_per_day": rate_per_day,
             "max_penalty": max_penalty,

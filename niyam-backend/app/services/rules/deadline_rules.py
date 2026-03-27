@@ -22,10 +22,24 @@ GST_DEADLINES = [
     ("GSTR-9", "Annual return", 31, [12], "https://gst.gov.in"),  # Due Dec 31 for prev FY
 ]
 
-TDS_DEADLINES = [
+# TDS monthly payment deadlines (calendar year based)
+TDS_PAYMENT_DEADLINES = [
     ("TDS-Payment", "Monthly TDS deposit", 7, list(range(1, 13)), "https://incometax.gov.in"),
-    ("24Q", "Quarterly TDS return (salary)", 31, [7, 10, 1, 5], "https://incometax.gov.in"),
-    ("26Q", "Quarterly TDS return (non-salary)", 31, [7, 10, 1, 5], "https://incometax.gov.in"),
+]
+
+# TDS quarterly return deadlines: (subtype, desc, day, quarter_label, due_month_offset, portal)
+# due_month_offset: months after FY start (April) when the return is due
+# Q1 (Apr-Jun) → due Jul (offset 3), Q2 (Jul-Sep) → due Oct (offset 6),
+# Q3 (Oct-Dec) → due Jan (offset 9), Q4 (Jan-Mar) → due May (offset 13)
+TDS_QUARTERLY_DEADLINES = [
+    ("24Q", "Quarterly TDS return (salary)", 31, "Q1", 3, "https://incometax.gov.in"),
+    ("24Q", "Quarterly TDS return (salary)", 31, "Q2", 6, "https://incometax.gov.in"),
+    ("24Q", "Quarterly TDS return (salary)", 31, "Q3", 9, "https://incometax.gov.in"),
+    ("24Q", "Quarterly TDS return (salary)", 31, "Q4", 13, "https://incometax.gov.in"),
+    ("26Q", "Quarterly TDS return (non-salary)", 31, "Q1", 3, "https://incometax.gov.in"),
+    ("26Q", "Quarterly TDS return (non-salary)", 31, "Q2", 6, "https://incometax.gov.in"),
+    ("26Q", "Quarterly TDS return (non-salary)", 31, "Q3", 9, "https://incometax.gov.in"),
+    ("26Q", "Quarterly TDS return (non-salary)", 31, "Q4", 13, "https://incometax.gov.in"),
 ]
 
 ROC_DEADLINES = [
@@ -63,7 +77,8 @@ def generate_deadlines_for_year(year: int) -> List[dict]:
                 "penalty_rate": 50.0,  # ₹50/day for GST late filing
             })
 
-    for subtype, desc, day, months, portal in TDS_DEADLINES:
+    # TDS monthly payment deadlines
+    for subtype, desc, day, months, portal in TDS_PAYMENT_DEADLINES:
         for month in months:
             try:
                 due = date(year, month, min(day, 28))
@@ -77,6 +92,28 @@ def generate_deadlines_for_year(year: int) -> List[dict]:
                 "filing_portal": portal,
                 "penalty_rate": None,  # TDS uses interest-based penalty
             })
+
+    # TDS quarterly return deadlines (fiscal year aware)
+    # For a given calendar year, generate deadlines for the fiscal year
+    # starting April of that year (FY year/year+1).
+    fy_start_year = year
+    for subtype, desc, day, quarter, month_offset, portal in TDS_QUARTERLY_DEADLINES:
+        # Calculate the actual due month/year from FY start
+        due_month = 4 + month_offset  # April = month 4
+        due_year = fy_start_year + (due_month - 1) // 12
+        due_month = ((due_month - 1) % 12) + 1
+        try:
+            due = date(due_year, due_month, min(day, 28))
+        except ValueError:
+            due = date(due_year, due_month, 28)
+        deadlines.append({
+            "type": "tds",
+            "subtype": f"{subtype} ({quarter})",
+            "due_date": due.isoformat(),
+            "description": f"{desc} — {quarter} FY {fy_start_year}-{(fy_start_year + 1) % 100:02d}",
+            "filing_portal": portal,
+            "penalty_rate": None,
+        })
 
     for subtype, desc, day, months, portal in ROC_DEADLINES:
         for month in months:

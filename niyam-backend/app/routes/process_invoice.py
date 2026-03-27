@@ -7,6 +7,7 @@ POST /api/process-invoice
 
 This is the production endpoint. Upload + OCR + Parse + Validate in one call.
 Auth: OPTIONAL — works with or without Bearer token.
+When authenticated, persists document + invoice records to DB.
 """
 
 import asyncio
@@ -15,7 +16,7 @@ import uuid
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 from fastapi import APIRouter, UploadFile, File, Request, HTTPException, status
 
@@ -50,6 +51,93 @@ def _try_get_user_id(request: Request) -> Optional[str]:
         return payload.get("sub")
     except Exception:
         return None
+
+
+def _get_db():
+    """Get database client (Supabase or MockDB)."""
+    if settings.ENVIRONMENT == "production":
+        from app.database import get_db_client
+        client = get_db_client()
+        if not client:
+            raise HTTPException(status_code=503, detail="Database unavailable")
+        return client, False
+    else:
+        from app.utils.mock_db import MockDB
+        return MockDB(), True
+
+
+def _get_business_id(db, is_mock: bool, user_id: str) -> Optional[str]:
+    """Look up business_id for a user. Returns None on failure."""
+    try:
+        if is_mock:
+            user = db.get_user_by_id(user_id)
+            return user["business_id"] if user else None
+        else:
+            resp = db.table("users").select("business_id").eq("id", user_id).single().execute()
+            return resp.data.get("business_id") if resp.data else None
+    except Exception as e:
+        logger.warning(f"Could not look up business_id for user={user_id[:8]}: {e}")
+        return None
+
+
+def _save_document_record(db, is_mock: bool, doc_id: str, business_id: str,
+                           user_id: str, filename: str, file_size: int,
+                           content_type: str, now: str) -> None:
+    """Persist a document record to the DB."""
+    from app.models.document import DocumentType, DocumentStatus
+    doc_record = {
+        "id": doc_id,
+        "business_id": business_id,
+        "uploaded_by": user_id,
+        "filename": filename,
+        "file_path": None,          # file is temp — not kept on disk
+        "file_size": file_size,
+        "mime_type": content_type,
+        "document_type": DocumentType.PURCHASE_INVOICE.value,
+        "status": DocumentStatus.EXTRACTED.value,
+        "raw_text": None,
+        "created_at": now,
+        "processed_at": now,
+    }
+    if is_mock:
+        db.create_document(doc_record)
+    else:
+        db.table("documents").insert(doc_record).execute()
+
+
+def _save_invoice_record(db, is_mock: bool, invoice_id: str, doc_id: str,
+                          business_id: str, result: dict, now: str) -> None:
+    """Persist a normalized invoice record derived from the processor result."""
+    gst = result.get("gst_breakdown", {})
+    flags = result.get("flags", [])
+    confidence = result.get("confidence_score", 0.0)
+    needs_review = confidence < 0.7 or bool(flags)
+
+    invoice_record = {
+        "id": invoice_id,
+        "business_id": business_id,
+        "document_id": doc_id,
+        "source": "ocr",
+        "invoice_number": result.get("invoice_number") or None,
+        "invoice_date": result.get("invoice_date") or None,
+        "vendor_name": result.get("vendor_name") or None,
+        "vendor_gstin": result.get("vendor_gstin") or None,
+        "taxable_value": round(float(result.get("taxable_value") or 0), 2),
+        "cgst": round(float(gst.get("cgst") or 0), 2),
+        "sgst": round(float(gst.get("sgst") or 0), 2),
+        "igst": round(float(gst.get("igst") or 0), 2),
+        "total_amount": round(float(result.get("total_amount") or 0), 2),
+        "hsn_codes": result.get("hsn_codes") or [],
+        "invoice_type": "purchase",
+        "confidence": confidence,
+        "needs_review": needs_review,
+        "review_notes": ", ".join(flags) if flags else None,
+        "created_at": now,
+    }
+    if is_mock:
+        db.create_invoice(invoice_record)
+    else:
+        db.table("invoices").insert(invoice_record).execute()
 
 
 @router.post("/process-invoice", response_model=dict)
@@ -100,6 +188,7 @@ async def process_invoice(
     # Save temporarily
     doc_id = str(uuid.uuid4())
     ext = ALLOWED_MIME[content_type]
+    original_filename = file.filename or f"document{ext}"
     safe_filename = f"{doc_id}{ext}"
     file_path = UPLOAD_DIR / safe_filename
 
@@ -109,7 +198,7 @@ async def process_invoice(
 
         logger.info(
             f"process-invoice start user={uid_log} "
-            f"file={file.filename!r} size={file_size} type={content_type}"
+            f"file={original_filename!r} size={file_size} type={content_type}"
         )
 
         # Run the processing pipeline with timeout
@@ -132,6 +221,39 @@ async def process_invoice(
             f"status={result.get('status')} confidence={result.get('confidence_score', 0)} "
             f"flags={result.get('flags', [])}"
         )
+
+        # Persist to DB when user is authenticated and processing succeeded
+        invoice_id = None
+        saved = False
+        if user_id and result.get("status") == "success":
+            try:
+                db, is_mock = _get_db()
+                business_id = _get_business_id(db, is_mock, user_id)
+                if business_id:
+                    invoice_id = str(uuid.uuid4())
+                    now = datetime.now(timezone.utc).isoformat()
+                    _save_document_record(
+                        db, is_mock, doc_id, business_id,
+                        user_id, original_filename, file_size, content_type, now,
+                    )
+                    _save_invoice_record(
+                        db, is_mock, invoice_id, doc_id,
+                        business_id, result, now,
+                    )
+                    saved = True
+                    logger.info(
+                        f"process-invoice saved doc={doc_id} invoice={invoice_id} "
+                        f"business={business_id[:8]}"
+                    )
+            except Exception as e:
+                # Storage failure is non-fatal — still return extraction result
+                logger.error(f"process-invoice storage failed (non-fatal): {e}", exc_info=True)
+
+        # Attach storage IDs to response
+        result["document_id"] = doc_id
+        if invoice_id:
+            result["invoice_id"] = invoice_id
+        result["saved"] = saved
 
         return result
 

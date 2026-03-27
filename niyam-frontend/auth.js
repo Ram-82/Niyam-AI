@@ -158,3 +158,18 @@ const NiyamAuth = (() => {
         logout,
     };
 })();
+
+/**
+ * Escape HTML entities to prevent XSS when inserting API data into innerHTML.
+ * Use this for any user-controllable or API-sourced string inserted into HTML.
+ */
+function escapeHtml(str) {
+    if (str == null) return '';
+    const s = String(str);
+    return s
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}

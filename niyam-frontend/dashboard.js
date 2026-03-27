@@ -186,10 +186,10 @@ function displayInvoiceResults(data) {
     const resultsContainer = document.getElementById("ocr-results");
     if (!resultsContainer) return;
 
-    const vendor = data.vendor_name || 'Not detected';
-    const gstin = data.vendor_gstin || 'Not detected';
-    const invoiceNum = data.invoice_number || 'Not detected';
-    const invoiceDate = data.invoice_date || 'Not detected';
+    const vendor = escapeHtml(data.vendor_name || 'Not detected');
+    const gstin = escapeHtml(data.vendor_gstin || 'Not detected');
+    const invoiceNum = escapeHtml(data.invoice_number || 'Not detected');
+    const invoiceDate = escapeHtml(data.invoice_date || 'Not detected');
     const total = data.total_amount ? _fmtINR(data.total_amount) : 'Not detected';
     const taxable = data.taxable_value ? _fmtINR(data.taxable_value) : 'Not detected';
     const gst = data.gst_breakdown || {};
@@ -217,9 +217,9 @@ function displayInvoiceResults(data) {
             compIssues.map(issue => {
                 const sevColor = issue.severity === 'high' ? '#ef4444' : issue.severity === 'medium' ? '#f59e0b' : '#6b7280';
                 return '<div style="padding:8px 10px;margin-bottom:6px;background:#f8fafc;border-radius:6px;border-left:3px solid ' + sevColor + ';">' +
-                    '<p style="font-size:0.8rem;font-weight:600;color:' + sevColor + ';">' + (issue.type || '').replace(/_/g, ' ') + '</p>' +
-                    '<p style="font-size:0.78rem;color:var(--text-light);">' + (issue.message || '') + '</p>' +
-                    (issue.impact ? '<p style="font-size:0.75rem;color:#64748b;margin-top:4px;">' + issue.impact + '</p>' : '') +
+                    '<p style="font-size:0.8rem;font-weight:600;color:' + sevColor + ';">' + escapeHtml((issue.type || '').replace(/_/g, ' ')) + '</p>' +
+                    '<p style="font-size:0.78rem;color:var(--text-light);">' + escapeHtml(issue.message || '') + '</p>' +
+                    (issue.impact ? '<p style="font-size:0.75rem;color:#64748b;margin-top:4px;">' + escapeHtml(issue.impact) + '</p>' : '') +
                     '</div>';
             }).join('') +
             '</div>';
@@ -236,8 +236,8 @@ function displayInvoiceResults(data) {
             '<th style="padding:6px;">Description</th><th style="padding:6px;">Qty</th><th style="padding:6px;">Rate</th><th style="padding:6px;">Amount</th></tr></thead><tbody>' +
             items.slice(0, 20).map(item =>
                 '<tr style="border-bottom:1px solid #f1f5f9;">' +
-                '<td style="padding:6px;">' + (item.description || '-') + '</td>' +
-                '<td style="padding:6px;">' + (item.quantity || '-') + '</td>' +
+                '<td style="padding:6px;">' + escapeHtml(item.description || '-') + '</td>' +
+                '<td style="padding:6px;">' + escapeHtml(item.quantity || '-') + '</td>' +
                 '<td style="padding:6px;">' + (item.rate ? _fmtINR(item.rate) : '-') + '</td>' +
                 '<td style="padding:6px;">' + (item.amount ? _fmtINR(item.amount) : '-') + '</td></tr>'
             ).join('') +
@@ -251,7 +251,7 @@ function displayInvoiceResults(data) {
         const itcBg = itc.eligible ? '#dcfce7' : '#fee2e2';
         itcHtml = '<div style="margin-top:15px;padding:10px;background:' + itcBg + ';border-radius:8px;">' +
             '<p style="font-size:0.85rem;font-weight:600;color:' + itcColor + ';">ITC ' + (itc.eligible ? 'Eligible' : 'At Risk') + ': ' + _fmtINR(itc.eligible ? itc.itc_amount : (itc.itc_at_risk || 0)) + '</p>' +
-            (itc.reasons || []).map(r => '<p style="font-size:0.75rem;color:#64748b;">- ' + r + '</p>').join('') +
+            (itc.reasons || []).map(r => '<p style="font-size:0.75rem;color:#64748b;">- ' + escapeHtml(r) + '</p>').join('') +
             '</div>';
     }
 
@@ -488,11 +488,11 @@ function renderInvoices() {
 
     container.innerHTML = invoices.map(inv => `
         <tr>
-            <td>${inv.date}</td>
-            <td>${inv.desc}</td>
-            <td>${inv.amount}</td>
-            <td><span class="badge" style="background: var(--success); color: white;">${inv.status}</span></td>
-            <td><button class="btn btn-outline" style="font-size: 0.7rem; padding: 4px 8px;" onclick="showToast('Downloading ${inv.id}...')">PDF</button></td>
+            <td>${escapeHtml(inv.date)}</td>
+            <td>${escapeHtml(inv.desc)}</td>
+            <td>${escapeHtml(inv.amount)}</td>
+            <td><span class="badge" style="background: var(--success); color: white;">${escapeHtml(inv.status)}</span></td>
+            <td><button class="btn btn-outline" style="font-size: 0.7rem; padding: 4px 8px;" onclick="showToast('Downloading ${escapeHtml(inv.id)}...')">PDF</button></td>
         </tr>
     `).join('');
 }
@@ -799,10 +799,13 @@ function updateComplianceMetrics(period) {
     if (!data) return;
 
     let totalPercentage = 0;
-    for (let i = 0; i < data.cashFlow.length; i++) {
-        totalPercentage += (data.complianceCosts[i] / data.cashFlow[i]) * 100;
+    const len = data.cashFlow ? data.cashFlow.length : 0;
+    for (let i = 0; i < len; i++) {
+        const cf = data.cashFlow[i] || 0;
+        const cc = data.complianceCosts[i] || 0;
+        totalPercentage += cf > 0 ? (cc / cf) * 100 : 0;
     }
-    const avgPercentage = (totalPercentage / data.cashFlow.length).toFixed(1);
+    const avgPercentage = len > 0 ? (totalPercentage / len).toFixed(1) : '0.0';
 
     let highestImpactIndex = 0;
     let lowestScore = data.impactScore[0];
@@ -939,12 +942,12 @@ function displayITCResults(data) {
         const truncAction = action.length > 60 ? action.substring(0, 57) + '...' : action;
 
         return `<tr>
-            <td style="font-weight:600;">${r.invoice_number || '-'}</td>
-            <td style="font-size:0.8rem;">${r.vendor_gstin || '-'}</td>
+            <td style="font-weight:600;">${escapeHtml(r.invoice_number || '-')}</td>
+            <td style="font-size:0.8rem;">${escapeHtml(r.vendor_gstin || '-')}</td>
             <td>${fmtINR(eligible)}</td>
             <td style="color: ${atRisk > 0 ? 'var(--error)' : 'inherit'};">${fmtINR(atRisk)}</td>
-            <td><span class="badge" style="${badgeStyle}">${matchType}</span></td>
-            <td style="font-size:0.8rem;" title="${action.replace(/"/g, '&quot;')}">${truncAction}</td>
+            <td><span class="badge" style="${badgeStyle}">${escapeHtml(matchType)}</span></td>
+            <td style="font-size:0.8rem;" title="${escapeHtml(action)}">${escapeHtml(truncAction)}</td>
         </tr>`;
     }).join('');
 }

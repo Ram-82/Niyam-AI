@@ -42,7 +42,7 @@ DEMO_BUSINESS = {
     "state": "Maharashtra",
 }
 
-DEMO_TODAY = date(2026, 3, 23)
+DEMO_TODAY = date.today()
 
 DEMO_INVOICES = [
     # Invoice 1: Clean — exact match with 2B

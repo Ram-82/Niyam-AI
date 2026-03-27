@@ -55,6 +55,19 @@
                 <div class="form-group"><label for="phone">Phone Number (Optional)</label><input type="tel" id="phone"
                         placeholder="+91 98765 43210"></div>
 
+                <div class="form-group">
+                    <label for="gstin">GSTIN (Optional)</label>
+                    <input type="text" id="gstin" placeholder="29ABCDE1234F1Z5" maxlength="15"
+                        style="text-transform: uppercase;">
+                    <small id="gstin-hint" style="display:none; font-size:0.75rem; margin-top:4px;"></small>
+                </div>
+                <div class="form-group">
+                    <label for="pan">PAN (Optional)</label>
+                    <input type="text" id="pan" placeholder="ABCDE1234F" maxlength="10"
+                        style="text-transform: uppercase;">
+                    <small id="pan-hint" style="display:none; font-size:0.75rem; margin-top:4px;"></small>
+                </div>
+
                 <div style="margin-bottom: var(--space-3); display: flex; align-items: flex-start; gap: 10px;">
                     <input type="checkbox" id="terms" style="width: auto; margin-top: 4px;" required>
                     <label for="terms" style="display: inline; font-size: 0.8rem;">I agree to the <a href="#"
@@ -75,17 +88,113 @@
     <script>
         feather.replace();
         const API_URL = CONFIG.API_URL;
+
+        // GSTIN format: 2 digits + 5 letters + 4 digits + 1 letter + 1 alphanumeric + Z + 1 alphanumeric
+        const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/;
+        // PAN format: 3 letters + entity char + 1 letter + 4 digits + 1 letter
+        const PAN_RE = /^[A-Z]{3}[ABCFGHLJPT][A-Z][0-9]{4}[A-Z]$/;
+
+        // Live validation hints
+        document.getElementById('gstin').addEventListener('input', function () {
+            const hint = document.getElementById('gstin-hint');
+            const val = this.value.toUpperCase().trim();
+            if (!val) { hint.style.display = 'none'; return; }
+            if (val.length === 15 && GSTIN_RE.test(val)) {
+                const sc = parseInt(val.slice(0, 2), 10);
+                if (sc >= 1 && sc <= 37) {
+                    hint.style.display = 'block'; hint.style.color = '#16a34a'; hint.textContent = 'Valid GSTIN format';
+                } else {
+                    hint.style.display = 'block'; hint.style.color = '#ef4444'; hint.textContent = 'Invalid state code (01-37)';
+                }
+            } else {
+                hint.style.display = 'block'; hint.style.color = '#ef4444';
+                hint.textContent = val.length < 15 ? `${15 - val.length} more characters needed` : 'Invalid GSTIN format';
+            }
+        });
+
+        document.getElementById('pan').addEventListener('input', function () {
+            const hint = document.getElementById('pan-hint');
+            const val = this.value.toUpperCase().trim();
+            if (!val) { hint.style.display = 'none'; return; }
+            if (val.length === 10 && PAN_RE.test(val)) {
+                hint.style.display = 'block'; hint.style.color = '#16a34a'; hint.textContent = 'Valid PAN format';
+            } else {
+                hint.style.display = 'block'; hint.style.color = '#ef4444';
+                hint.textContent = val.length < 10 ? `${10 - val.length} more characters needed` : 'Invalid PAN format (e.g. ABCDE1234F)';
+            }
+        });
+
         document.getElementById('signup-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const fullName = document.getElementById('name').value; const businessName = document.getElementById('business').value; const email = document.getElementById('email').value; const password = document.getElementById('password').value; const phone = document.getElementById('phone').value;
-            const errorDiv = document.getElementById('error-message'); const signupBtn = document.getElementById('signup-btn'); errorDiv.style.display = 'none'; errorDiv.innerText = '';
+            const fullName = document.getElementById('name').value;
+            const businessName = document.getElementById('business').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const phone = document.getElementById('phone').value;
+            const gstin = document.getElementById('gstin').value.toUpperCase().trim();
+            const pan = document.getElementById('pan').value.toUpperCase().trim();
+            const errorDiv = document.getElementById('error-message');
+            const signupBtn = document.getElementById('signup-btn');
+            errorDiv.style.display = 'none'; errorDiv.innerText = '';
+
+            // Client-side validation
+            if (gstin && !GSTIN_RE.test(gstin)) {
+                errorDiv.innerText = 'Invalid GSTIN format. Expected 15-character format like 29ABCDE1234F1Z5';
+                errorDiv.style.display = 'block'; return;
+            }
+            if (gstin) {
+                const sc = parseInt(gstin.slice(0, 2), 10);
+                if (sc < 1 || sc > 37) {
+                    errorDiv.innerText = 'Invalid GSTIN: state code must be between 01 and 37';
+                    errorDiv.style.display = 'block'; return;
+                }
+            }
+            if (pan && !PAN_RE.test(pan)) {
+                errorDiv.innerText = 'Invalid PAN format. Expected 10-character format like ABCDE1234F';
+                errorDiv.style.display = 'block'; return;
+            }
+            if (gstin && pan && gstin.slice(2, 12) !== pan) {
+                errorDiv.innerText = 'GSTIN and PAN do not match. Characters 3-12 of GSTIN must equal your PAN.';
+                errorDiv.style.display = 'block'; return;
+            }
+
             signupBtn.innerText = 'Creating Account...'; signupBtn.disabled = true;
             try {
-                const response = await fetch(`${API_URL}/auth/signup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ full_name: fullName, business_name: businessName, email: email, password: password, phone: phone || null }) });
+                const response = await fetch(`${API_URL}/auth/signup`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        full_name: fullName, business_name: businessName,
+                        email: email, password: password,
+                        phone: phone || null,
+                        gstin: gstin || null,
+                        pan: pan || null,
+                    })
+                });
                 const data = await response.json();
-                if (!response.ok) { let errorMessage = 'Registration failed'; if (data.detail) { if (typeof data.detail === 'string') { errorMessage = data.detail; } else if (Array.isArray(data.detail)) { errorMessage = data.detail.map(err => err.msg || JSON.stringify(err)).join('\n'); } else { errorMessage = JSON.stringify(data.detail); } } throw new Error(errorMessage); }
-                if (data.success) { localStorage.setItem('niyam_access_token', data.data.access_token); localStorage.setItem('niyam_refresh_token', data.data.refresh_token); localStorage.setItem('niyam_user_name', data.data.user_name); localStorage.setItem('niyam_business_name', data.data.business_name); window.location.href = 'dashboard.html'; }
-            } catch (error) { console.error('Signup error:', error); errorDiv.innerText = error.message; errorDiv.style.display = 'block'; } finally { signupBtn.innerText = 'Create Account'; signupBtn.disabled = false; }
+                if (!response.ok) {
+                    let errorMessage = 'Registration failed';
+                    if (data.detail) {
+                        if (typeof data.detail === 'string') { errorMessage = data.detail; }
+                        else if (Array.isArray(data.detail)) { errorMessage = data.detail.map(err => err.msg || JSON.stringify(err)).join('\n'); }
+                        else { errorMessage = JSON.stringify(data.detail); }
+                    }
+                    throw new Error(errorMessage);
+                }
+                if (data.success) {
+                    localStorage.setItem('niyam_access_token', data.data.access_token);
+                    localStorage.setItem('niyam_refresh_token', data.data.refresh_token);
+                    localStorage.setItem('niyam_user_name', data.data.user_name);
+                    localStorage.setItem('niyam_business_name', data.data.business_name);
+                    window.location.href = 'dashboard.html';
+                }
+            } catch (error) {
+                console.error('Signup error:', error);
+                errorDiv.innerText = error.message;
+                errorDiv.style.display = 'block';
+            } finally {
+                signupBtn.innerText = 'Create Account'; signupBtn.disabled = false;
+            }
         });
     </script>
 </body>

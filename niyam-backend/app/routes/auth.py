@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.models.user import UserCreate, UserLogin, UserResponse, BusinessResponse
 from app.services.auth_service import AuthService
-from app.utils.security import verify_token
+from app.utils.security import verify_token, blacklist_token
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 security = HTTPBearer()
@@ -77,10 +77,20 @@ async def get_current_user(
 async def logout(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    """Logout user (invalidate token on frontend)"""
+    """Logout user — blacklists the access token so it cannot be reused."""
+    token = credentials.credentials
+    try:
+        # Decode without blacklist check to get expiry for TTL
+        payload = verify_token(token)
+        expires_at = payload.get("exp")
+        blacklist_token(token, expires_at)
+    except HTTPException:
+        # Token already expired or invalid — blacklist it anyway
+        blacklist_token(token)
+
     return {
         "success": True,
-        "message": "Logout successful"
+        "message": "Logout successful. Token has been invalidated."
     }
 
 @router.post("/refresh", response_model=dict)

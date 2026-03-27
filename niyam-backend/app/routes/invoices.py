@@ -212,4 +212,12 @@ async def update_invoice(
         f"user={user_id[:8]}"
     )
 
+    # Audit log
+    from app.services.audit_service import audit_log
+    audit_log(
+        business_id, user_id, "invoice_corrected",
+        resource_type="invoice", resource_id=invoice_id,
+        details={"corrected_fields": list(updates.keys())},
+    )
+
     return {"success": True, "data": invoice}

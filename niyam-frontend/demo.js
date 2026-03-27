@@ -9,19 +9,6 @@
 
     let demoLoaded = false;
 
-    // Auto-trigger demo if arriving via #demo hash (from landing page)
-    document.addEventListener('DOMContentLoaded', () => {
-        if (window.location.hash === '#demo') {
-            // Skip auth check for demo mode
-            window._demoMode = true;
-            setTimeout(() => {
-                const sidebarItem = $('sidebar-demo');
-                if (typeof switchView === 'function') switchView('demo', sidebarItem);
-                runDemo();
-            }, 200);
-        }
-    });
-
     window.runDemo = async function () {
         if (demoLoaded) return; // don't re-fetch if already loaded
 

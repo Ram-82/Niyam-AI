@@ -1118,8 +1118,8 @@ function displayITCResults(data) {
 // Authentication Check & Dashboard Data Fetch
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
-    // Allow demo mode to bypass auth
-    if (!NiyamAuth.isAuthenticated() && !window._demoMode && window.location.hash !== '#demo') {
+    // Require authentication — demo is now on its own page (demo.html)
+    if (!NiyamAuth.isAuthenticated()) {
         window.location.href = 'login.html';
         return;
     }

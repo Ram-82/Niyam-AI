@@ -61,13 +61,29 @@ document.addEventListener('DOMContentLoaded', function () {
             center: 'title',
             right: 'dayGridMonth,timeGridWeek,listMonth'
         },
-        events: [
-            { title: 'GSTR-1 Filing', start: '2025-06-11', color: '#2563eb', extendedProps: { description: 'Monthly GSTR-1 return for sales' } },
-            { title: 'ROC Annual Return', start: '2025-06-15', color: '#ef4444', extendedProps: { description: 'Annual return for internal records' } },
-            { title: 'GSTR-3B Filing', start: '2025-06-20', color: '#2563eb', extendedProps: { description: 'Summary return for GST payment' } },
-            { title: 'TDS Payment', start: '2025-06-07', color: '#10b981', extendedProps: { description: 'Monthly TDS deposit for salary/rent' } },
-            { title: 'Income Tax Audit', start: '2025-06-30', color: '#f59e0b', extendedProps: { description: 'Final tax audit submission' } }
-        ],
+        events: (function() {
+            // Generate statutory deadlines dynamically based on current month
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = now.getMonth(); // 0-indexed
+            const pad = n => String(n).padStart(2, '0');
+            const dt = (mo, d) => `${y}-${pad(mo)}-${pad(d)}`;
+
+            // Current month deadlines
+            const cm = m + 1; // 1-indexed
+            const nm = m + 2 > 12 ? 1 : m + 2; // next month
+            const ny = nm === 1 ? y + 1 : y;
+
+            return [
+                { title: 'TDS Payment', start: dt(cm, 7), color: '#10b981', extendedProps: { description: 'Monthly TDS deposit (Section 194)' } },
+                { title: 'GSTR-1 Filing', start: dt(cm, 11), color: '#2563eb', extendedProps: { description: 'Monthly GSTR-1 return for sales' } },
+                { title: 'GSTR-3B Filing', start: dt(cm, 20), color: '#2563eb', extendedProps: { description: 'Summary return + GST payment' } },
+                // Next month
+                { title: 'TDS Payment', start: `${ny}-${pad(nm)}-07`, color: '#10b981', extendedProps: { description: 'Monthly TDS deposit (Section 194)' } },
+                { title: 'GSTR-1 Filing', start: `${ny}-${pad(nm)}-11`, color: '#2563eb', extendedProps: { description: 'Monthly GSTR-1 return for sales' } },
+                { title: 'GSTR-3B Filing', start: `${ny}-${pad(nm)}-20`, color: '#2563eb', extendedProps: { description: 'Summary return + GST payment' } },
+            ];
+        })(),
         eventClick: function (info) {
             showEventDetails(info.event.title, info.event.startStr, info.event.extendedProps.description);
         }
@@ -314,16 +330,16 @@ if (chatForm) {
         chatInput.value = "";
 
         setTimeout(() => {
-            let response = "I'm Niyam AI. I can help with GST, TDS, ROC, or general compliance. What specific area are you inquiring about?";
+            let response = "I'm Niyam AI assistant. I can help with GST, TDS, ROC, or general compliance questions. What area are you inquiring about?";
 
             const intentMap = {
-                "gst": "Your GST health is excellent! June liability is ₹42,500. You have ₹1.12 Lakhs available ITC.",
-                "tds": "Your next TDS payment (Section 194I) of ₹45,200 is due on Jan 07. Use the TDS calculator for interest estimates.",
-                "roc": "ROC filing for AOC-4 and MGT-7 is pending. DIR-3 KYC is verified. Need help with the MCA portal?",
-                "bank": "You can connect HDFC or ICICI bank in the 'Connect Bank' section to sync your statements.",
-                "deadline": "The most urgent deadline is TDS payment on Jan 07, followed by GSTR-1 on Jan 11.",
-                "support": "Our experts are available for premium consultation. Would you like to book a CA session?",
-                "help": "I can assist with: GST reconciliation, TDS interest calculation, ROC filing status, and document extraction."
+                "gst": "To see your GST data, upload invoices on the Dashboard tab. I can help with GSTR-1 (due 11th monthly), GSTR-3B (due 20th monthly), and ITC reconciliation via the GST/ITC tab.",
+                "tds": "TDS payments are due by the 7th of each month. Quarterly returns (24Q/26Q) are due 31st of Jul, Oct, Jan, May. Use the TDS section for deadline tracking.",
+                "roc": "ROC filings include AOC-4 (due Oct 30), MGT-7 (due Nov 29), and DIR-3-KYC (due Sep 30). Check the Calendar for your deadlines.",
+                "bank": "Bank statement import is coming soon. For now, you can upload invoices to track your compliance.",
+                "deadline": "Check the Calendar tab for all upcoming deadlines. Key monthly dates: TDS (7th), GSTR-1 (11th), GSTR-3B (20th).",
+                "support": "For professional help, consult a Chartered Accountant. Niyam AI helps organize your data for faster CA reviews.",
+                "help": "I can help with: uploading invoices, GST compliance checks, ITC reconciliation (GST/ITC tab), and deadline tracking (Calendar tab)."
             };
 
             for (const [key, value] of Object.entries(intentMap)) {
@@ -356,7 +372,7 @@ function filterTable(status) {
     showToast(`Filtering for ${status} items...`);
 }
 
-function showHealthBreakdown() { showToast("Health: GST 100%, TDS 70%, ROC 0%"); }
+function showHealthBreakdown() { showToast("Upload invoices to see your compliance health breakdown."); }
 
 // ============================================================
 // Toast Notifications
@@ -509,24 +525,30 @@ function searchSupport(query) {
 // ============================================================
 // Reports & Analytics Charts
 // ============================================================
+// NOTE: Chart data below is SAMPLE/PLACEHOLDER data for UI demonstration.
+// Real data will populate from processed invoices once the reporting API is wired.
+// TODO: Replace with fetch from /api/analytics/trends once backend endpoint exists.
 let currentChartData = {
     '6M': {
         labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-        taxLiability: [58000, 62000, 52000, 68000, 62000, 55000],
-        cashFlow: [450000, 480000, 420000, 510000, 490000, 530000],
-        itcAvailable: [32000, 28000, 35000, 41000, 38000, 42000]
+        taxLiability: [0, 0, 0, 0, 0, 0],
+        cashFlow: [0, 0, 0, 0, 0, 0],
+        itcAvailable: [0, 0, 0, 0, 0, 0],
+        _isSampleData: true
     },
     '1Y': {
         labels: ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-        taxLiability: [45000, 48000, 52000, 60000, 58000, 65000, 58000, 62000, 52000, 68000, 62000, 55000],
-        cashFlow: [410000, 430000, 460000, 480000, 450000, 520000, 450000, 480000, 420000, 510000, 490000, 530000],
-        itcAvailable: [25000, 27000, 30000, 32000, 31000, 35000, 32000, 28000, 35000, 41000, 38000, 42000]
+        taxLiability: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        cashFlow: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        itcAvailable: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        _isSampleData: true
     },
     'QTD': {
         labels: ['Apr', 'May', 'Jun'],
-        taxLiability: [68000, 62000, 55000],
-        cashFlow: [510000, 490000, 530000],
-        itcAvailable: [41000, 38000, 42000]
+        taxLiability: [0, 0, 0],
+        cashFlow: [0, 0, 0],
+        itcAvailable: [0, 0, 0],
+        _isSampleData: true
     }
 };
 
@@ -607,24 +629,26 @@ function initCharts() {
     cashFlowGradient.addColorStop(0, 'rgba(16, 185, 129, 0.3)');
     cashFlowGradient.addColorStop(1, 'rgba(16, 185, 129, 0.05)');
 
+    // Compliance chart — zeroed out until real analytics API is wired
+    // TODO: Replace with fetch from /api/analytics/compliance-trends
     window.complianceChartData = {
         '6M': {
             labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-            cashFlow: [720000, 680000, 750000, 710000, 730000, 690000],
-            complianceCosts: [62000, 58000, 75000, 68000, 72000, 65000],
-            impactScore: [78, 82, 75, 85, 80, 88]
+            cashFlow: [0, 0, 0, 0, 0, 0],
+            complianceCosts: [0, 0, 0, 0, 0, 0],
+            impactScore: [0, 0, 0, 0, 0, 0]
         },
         '1Y': {
             labels: ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-            cashFlow: [690000, 710000, 695000, 725000, 705000, 740000, 720000, 680000, 750000, 710000, 730000, 690000],
-            complianceCosts: [58000, 62000, 59000, 70000, 64000, 73000, 62000, 58000, 75000, 68000, 72000, 65000],
-            impactScore: [80, 78, 82, 76, 81, 77, 78, 82, 75, 85, 80, 88]
+            cashFlow: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            complianceCosts: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            impactScore: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         },
         'YTD': {
             labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-            cashFlow: [720000, 680000, 750000, 710000, 730000, 690000],
-            complianceCosts: [62000, 58000, 75000, 68000, 72000, 65000],
-            impactScore: [78, 82, 75, 85, 80, 88]
+            cashFlow: [0, 0, 0, 0, 0, 0],
+            complianceCosts: [0, 0, 0, 0, 0, 0],
+            impactScore: [0, 0, 0, 0, 0, 0]
         }
     };
 

@@ -93,7 +93,6 @@ async function handleFileUpload(input) {
     if (!input.files || !input.files[0]) return;
 
     const file = input.files[0];
-    const token = localStorage.getItem('niyam_access_token');
     const progress = document.getElementById("upload-progress");
     const bar = document.getElementById("progress-bar-inner");
     const percent = document.getElementById("progress-percent");
@@ -117,13 +116,8 @@ async function handleFileUpload(input) {
         const formData = new FormData();
         formData.append('file', file);
 
-        // Auth is optional for process-invoice — send token if available
-        const headers = {};
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-
-        const response = await fetch(`${API_URL}/process-invoice`, {
+        const response = await NiyamAuth.niyamFetch(`${API_URL}/process-invoice`, {
             method: 'POST',
-            headers: headers,
             body: formData,
             signal: controller.signal,
         });
@@ -848,8 +842,7 @@ function loadSample2B() {
 }
 
 async function runITCMatch() {
-    const token = localStorage.getItem('niyam_access_token');
-    if (!token) {
+    if (!NiyamAuth.isAuthenticated()) {
         showToast('Please login first');
         return;
     }
@@ -873,10 +866,9 @@ async function runITCMatch() {
     showToast('Running ITC reconciliation...');
 
     try {
-        const response = await fetch(`${API_URL}/itc-match`, {
+        const response = await NiyamAuth.niyamFetch(`${API_URL}/itc-match`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
@@ -961,10 +953,8 @@ function displayITCResults(data) {
 // Authentication Check & Dashboard Data Fetch
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
-    const token = localStorage.getItem('niyam_access_token');
-
     // Allow demo mode to bypass auth
-    if (!token && !window._demoMode && window.location.hash !== '#demo') {
+    if (!NiyamAuth.isAuthenticated() && !window._demoMode && window.location.hash !== '#demo') {
         window.location.href = 'login.html';
         return;
     }
@@ -988,12 +978,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function fetchDashboardData() {
-    const token = localStorage.getItem('niyam_access_token');
     setSectionLoading('view-dashboard', true);
     try {
-        const response = await fetch(`${API_URL}/dashboard/summary`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const response = await NiyamAuth.niyamFetch(`${API_URL}/dashboard/summary`);
         const data = await response.json();
         if (data.success && data.data) {
             updateDashboardUI(data.data);
@@ -1158,12 +1145,7 @@ function renderHealthChart(data) {
 // Logout
 // ============================================================
 function logout() {
-    localStorage.removeItem('niyam_access_token');
-    localStorage.removeItem('niyam_refresh_token');
-    localStorage.removeItem('niyam_user_name');
-    localStorage.removeItem('niyam_business_name');
-    localStorage.removeItem('niyam_user_business');
-    window.location.href = 'login.html';
+    NiyamAuth.logout();
 }
 
 // ============================================================

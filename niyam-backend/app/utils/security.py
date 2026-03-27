@@ -1,5 +1,5 @@
 from jose import jwt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 from passlib.context import CryptContext
 from fastapi import HTTPException, status
@@ -21,9 +21,9 @@ def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta]
     to_encode = data.copy()
     
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     
     to_encode.update({"exp": expire, "type": "access"})
     encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
@@ -32,20 +32,35 @@ def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta]
 def create_refresh_token(data: Dict[str, Any]) -> str:
     """Create JWT refresh token"""
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(days=30)  # Refresh tokens last 30 days
+    expire = datetime.now(timezone.utc) + timedelta(days=30)  # Refresh tokens last 30 days
     to_encode.update({"exp": expire, "type": "refresh"})
     encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
     return encoded_jwt
 
+def blacklist_token(token: str, expires_at: Optional[float] = None):
+    """Add a token to the blacklist so it can no longer be used."""
+    from app.utils.token_blacklist import token_blacklist
+    token_blacklist.add(token, expires_at)
+
+
 def verify_token(token: str, is_refresh: bool = False) -> Dict[str, Any]:
-    """Verify JWT token and return payload"""
+    """Verify JWT token and return payload. Rejects blacklisted tokens."""
+    from app.utils.token_blacklist import token_blacklist
+
+    # Check blacklist before decoding
+    if token_blacklist.is_blacklisted(token):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked"
+        )
+
     try:
         payload = jwt.decode(
-            token, 
-            settings.JWT_SECRET_KEY, 
+            token,
+            settings.JWT_SECRET_KEY,
             algorithms=[settings.JWT_ALGORITHM]
         )
-        
+
         # Check token type
         token_type = payload.get("type")
         if is_refresh and token_type != "refresh":
@@ -58,16 +73,16 @@ def verify_token(token: str, is_refresh: bool = False) -> Dict[str, Any]:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token type"
             )
-        
+
         user_id: str = payload.get("sub")
         if user_id is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token"
             )
-        
+
         return payload
-        
+
     except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

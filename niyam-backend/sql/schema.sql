@@ -62,8 +62,11 @@ create table public.gst_filings (
     filed_on timestamp with time zone,
     status text default 'pending',
     reconciliation_status text default 'pending',
+    total_taxable_value numeric default 0,
     total_tax_liability numeric default 0,
     itc_available numeric default 0,
+    itc_claimed numeric default 0,
+    payment_made numeric default 0,
     challan_number text
 );
 
@@ -175,47 +178,132 @@ alter table public.invoices enable row level security;
 alter table public.compliance_flags enable row level security;
 alter table public.itc_matches enable row level security;
 
--- RLS Policies: users can only access their own data
--- Note: Since we use custom JWT (not Supabase Auth), these policies
--- use the service role key for all backend operations. RLS protects
--- against direct client access only.
+-- ============================================================
+-- RLS Policies: tenant isolation
+-- ============================================================
+-- Since we use a service-role key (bypasses RLS), the primary
+-- enforcement is at the application layer. These policies serve
+-- as a defense-in-depth safety net for any direct client access.
+--
+-- For business-scoped tables, we use business_id matching.
+-- For user-scoped tables, we use the user's own id.
+--
+-- The backend sets request.jwt.claims via set_config() before
+-- queries when using anon key. With service key, these are
+-- bypassed — so app-layer filtering is the primary control.
+-- ============================================================
 
-create policy "Users can view their own profile"
+-- Helper function to extract user_id from JWT claims
+create or replace function auth.current_user_id()
+returns uuid as $$
+  select coalesce(
+    current_setting('request.jwt.claims', true)::json->>'sub',
+    '00000000-0000-0000-0000-000000000000'
+  )::uuid;
+$$ language sql stable;
+
+-- Helper function to get current user's business_id
+create or replace function auth.current_business_id()
+returns uuid as $$
+  select business_id from public.users where id = auth.current_user_id();
+$$ language sql stable;
+
+-- Users: can only see their own profile
+create policy "Users can view own profile"
 on public.users for select
-using (true);  -- Backend uses service key; restrict at app layer
+using (id = auth.current_user_id());
 
-create policy "Users can view their own business"
+create policy "Users can update own profile"
+on public.users for update
+using (id = auth.current_user_id());
+
+-- Businesses: can only see their own business
+create policy "Users can view own business"
 on public.businesses for select
-using (true);
+using (id = auth.current_business_id());
 
-create policy "Users can view their own deadlines"
+create policy "Users can update own business"
+on public.businesses for update
+using (id = auth.current_business_id());
+
+-- Compliance deadlines: business-scoped
+create policy "Users can view own deadlines"
 on public.compliance_deadlines for select
-using (true);
+using (business_id = auth.current_business_id());
 
-create policy "Users can manage their own deadlines"
-on public.compliance_deadlines for all
-using (true);
+create policy "Users can manage own deadlines"
+on public.compliance_deadlines for insert
+with check (business_id = auth.current_business_id());
 
-create policy "Users can view their own GST filings"
+create policy "Users can update own deadlines"
+on public.compliance_deadlines for update
+using (business_id = auth.current_business_id());
+
+create policy "Users can delete own deadlines"
+on public.compliance_deadlines for delete
+using (business_id = auth.current_business_id());
+
+-- GST filings: business-scoped
+create policy "Users can view own GST filings"
 on public.gst_filings for select
-using (true);
+using (business_id = auth.current_business_id());
 
-create policy "Users can manage their own GST filings"
-on public.gst_filings for all
-using (true);
+create policy "Users can manage own GST filings"
+on public.gst_filings for insert
+with check (business_id = auth.current_business_id());
 
-create policy "Users can manage their own documents"
-on public.documents for all
-using (true);
+create policy "Users can update own GST filings"
+on public.gst_filings for update
+using (business_id = auth.current_business_id());
 
-create policy "Users can manage their own invoices"
-on public.invoices for all
-using (true);
+-- Documents: business-scoped
+create policy "Users can view own documents"
+on public.documents for select
+using (business_id = auth.current_business_id());
 
-create policy "Users can manage their own compliance flags"
-on public.compliance_flags for all
-using (true);
+create policy "Users can upload own documents"
+on public.documents for insert
+with check (business_id = auth.current_business_id());
 
-create policy "Users can manage their own ITC matches"
-on public.itc_matches for all
-using (true);
+create policy "Users can update own documents"
+on public.documents for update
+using (business_id = auth.current_business_id());
+
+-- Invoices: business-scoped
+create policy "Users can view own invoices"
+on public.invoices for select
+using (business_id = auth.current_business_id());
+
+create policy "Users can manage own invoices"
+on public.invoices for insert
+with check (business_id = auth.current_business_id());
+
+create policy "Users can update own invoices"
+on public.invoices for update
+using (business_id = auth.current_business_id());
+
+-- Compliance flags: business-scoped
+create policy "Users can view own compliance flags"
+on public.compliance_flags for select
+using (business_id = auth.current_business_id());
+
+create policy "Users can manage own compliance flags"
+on public.compliance_flags for insert
+with check (business_id = auth.current_business_id());
+
+create policy "Users can update own compliance flags"
+on public.compliance_flags for update
+using (business_id = auth.current_business_id());
+
+-- ITC matches: business-scoped
+create policy "Users can view own ITC matches"
+on public.itc_matches for select
+using (business_id = auth.current_business_id());
+
+create policy "Users can manage own ITC matches"
+on public.itc_matches for insert
+with check (business_id = auth.current_business_id());
+
+create policy "Users can update own ITC matches"
+on public.itc_matches for update
+using (business_id = auth.current_business_id());

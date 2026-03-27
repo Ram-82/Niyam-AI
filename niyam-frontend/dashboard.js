@@ -1166,6 +1166,84 @@ async function fetchDashboardData() {
     // Fetch TDS and ROC deadlines
     fetchTDSDeadlines();
     fetchROCDeadlines();
+
+    // Fetch recent activity
+    fetchActivityFeed();
+}
+
+async function fetchActivityFeed() {
+    if (!NiyamAuth.isAuthenticated()) return;
+    try {
+        const response = await NiyamAuth.niyamFetch(`${API_URL}/audit-log?page_size=15`);
+        const result = await response.json();
+        if (result.success && result.data) {
+            renderActivityFeed(result.data);
+        }
+    } catch (error) {
+        console.error('Error fetching activity feed:', error);
+    }
+}
+
+function renderActivityFeed(data) {
+    const feed = document.getElementById('activity-feed');
+    const countEl = document.getElementById('activity-count');
+    if (!feed) return;
+
+    const entries = data.entries || [];
+    if (countEl) countEl.textContent = `${data.total || 0} total events`;
+
+    if (entries.length === 0) {
+        feed.innerHTML = '<p style="font-size:0.85rem; color:var(--text-light); padding:20px 0; text-align:center;">No activity yet. Upload an invoice to get started.</p>';
+        return;
+    }
+
+    const iconMap = {
+        'invoice_uploaded': 'upload',
+        'invoice_corrected': 'edit-2',
+        'tds_deadline_filed': 'check-circle',
+        'roc_deadline_filed': 'check-circle',
+        'user_signup': 'user-plus',
+        'user_login': 'log-in',
+    };
+    const colorMap = {
+        'invoice_uploaded': '#2563eb',
+        'invoice_corrected': '#f59e0b',
+        'tds_deadline_filed': '#10b981',
+        'roc_deadline_filed': '#10b981',
+        'user_signup': '#8b5cf6',
+        'user_login': '#6b7280',
+    };
+
+    feed.innerHTML = entries.map(entry => {
+        const action = entry.action || '';
+        const label = escapeHtml(entry.action_label || action.replace(/_/g, ' '));
+        const icon = iconMap[action] || 'activity';
+        const color = colorMap[action] || '#6b7280';
+        const details = entry.details || {};
+        const ts = entry.timestamp || '';
+        const timeStr = ts ? new Date(ts).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+
+        let subtitle = '';
+        if (action === 'invoice_uploaded' && details.filename) {
+            subtitle = escapeHtml(details.filename);
+            if (details.total_amount) subtitle += ' — ' + _fmtINR(details.total_amount);
+        } else if (action === 'invoice_corrected' && details.corrected_fields) {
+            subtitle = 'Fields: ' + escapeHtml(details.corrected_fields.join(', '));
+        } else if (action === 'tds_deadline_filed' && details.challan_number) {
+            subtitle = 'Challan: ' + escapeHtml(details.challan_number);
+        }
+
+        return `<div style="display:flex; gap:12px; align-items:flex-start; padding:8px 0; border-bottom:1px solid #f8fafc;">
+            <i data-feather="${icon}" style="width:16px; height:16px; color:${color}; flex-shrink:0; margin-top:2px;"></i>
+            <div style="flex:1; min-width:0;">
+                <p style="font-size:0.85rem; font-weight:500;">${label}</p>
+                ${subtitle ? '<p style="font-size:0.75rem; color:var(--text-light); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + subtitle + '</p>' : ''}
+            </div>
+            <span style="font-size:0.7rem; color:var(--text-light); white-space:nowrap;">${escapeHtml(timeStr)}</span>
+        </div>`;
+    }).join('');
+
+    if (window.feather) feather.replace();
 }
 
 async function fetchAnalyticsTrends() {

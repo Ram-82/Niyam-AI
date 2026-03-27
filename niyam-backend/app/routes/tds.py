@@ -228,6 +228,13 @@ async def mark_tds_filed(
 
     logger.info(f"TDS deadline marked filed id={body.deadline_id} user={user_id[:8]}")
 
+    from app.services.audit_service import audit_log
+    audit_log(
+        business_id, user_id, "tds_deadline_filed",
+        resource_type="deadline", resource_id=body.deadline_id,
+        details={"challan_number": body.challan_number, "amount_paid": body.amount_paid},
+    )
+
     return {"success": True, "message": "Deadline marked as filed"}
 
 

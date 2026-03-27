@@ -225,6 +225,13 @@ async def mark_roc_filed(
 
     logger.info(f"ROC deadline marked filed id={body.deadline_id} user={user_id[:8]}")
 
+    from app.services.audit_service import audit_log
+    audit_log(
+        business_id, user_id, "roc_deadline_filed",
+        resource_type="deadline", resource_id=body.deadline_id,
+        details={"srn_number": body.srn_number},
+    )
+
     return {"success": True, "message": "Deadline marked as filed"}
 
 

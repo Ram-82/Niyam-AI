@@ -245,6 +245,19 @@ async def process_invoice(
                         f"process-invoice saved doc={doc_id} invoice={invoice_id} "
                         f"business={business_id[:8]}"
                     )
+                    # Audit log
+                    from app.services.audit_service import audit_log
+                    audit_log(
+                        business_id, user_id, "invoice_uploaded",
+                        resource_type="invoice", resource_id=invoice_id,
+                        details={
+                            "filename": original_filename,
+                            "confidence": result.get("confidence_score", 0),
+                            "vendor": result.get("vendor_name", ""),
+                            "total_amount": result.get("total_amount", 0),
+                            "flags_count": len(result.get("flags", [])),
+                        },
+                    )
             except Exception as e:
                 # Storage failure is non-fatal — still return extraction result
                 logger.error(f"process-invoice storage failed (non-fatal): {e}", exc_info=True)

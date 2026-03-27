@@ -26,12 +26,14 @@ class MockDB:
         self.documents_file = os.path.join(data_dir, "documents.json")
         self.invoices_file = os.path.join(data_dir, "invoices.json")
         self.deadlines_file = os.path.join(data_dir, "deadlines.json")
+        self.audit_log_file = os.path.join(data_dir, "audit_log.json")
 
         self._ensure_file(self.users_file)
         self._ensure_file(self.businesses_file)
         self._ensure_file(self.documents_file)
         self._ensure_file(self.invoices_file)
         self._ensure_file(self.deadlines_file)
+        self._ensure_file(self.audit_log_file)
 
     def _ensure_file(self, filepath: str):
         if not os.path.exists(filepath):
@@ -181,3 +183,20 @@ class MockDB:
                         dl["filed_at"] = filed_at
                     break
         self._read_modify_write(self.deadlines_file, _update)
+
+    # Audit log operations
+    def append_audit_log(self, entry: Dict) -> Dict:
+        def _append(logs):
+            logs.append(entry)
+            # Keep only last 1000 entries per file to prevent bloat
+            if len(logs) > 1000:
+                del logs[:len(logs) - 1000]
+        self._read_modify_write(self.audit_log_file, _append)
+        return entry
+
+    def get_audit_logs(self, business_id: str, limit: int = 50, offset: int = 0) -> List[Dict]:
+        logs = self._read_file(self.audit_log_file)
+        filtered = [l for l in logs if l.get("business_id") == business_id]
+        # Most recent first
+        filtered.sort(key=lambda l: l.get("timestamp", ""), reverse=True)
+        return filtered[offset:offset + limit]

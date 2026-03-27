@@ -13,6 +13,13 @@ async def signup(user_data: UserCreate):
     try:
         auth_service = AuthService()
         result = await auth_service.register_user(user_data)
+        # Audit log
+        from app.services.audit_service import audit_log
+        audit_log(
+            result.get("business_id", ""), result.get("user_id", ""),
+            "user_signup", resource_type="user", resource_id=result.get("user_id"),
+            details={"email": user_data.email, "business_name": user_data.business_name},
+        )
         return {
             "success": True,
             "message": "User registered successfully",
@@ -34,6 +41,11 @@ async def login(credentials: UserLogin):
         result = await auth_service.authenticate_user(
             email=credentials.email,
             password=credentials.password
+        )
+        from app.services.audit_service import audit_log
+        audit_log(
+            result.get("business_id", ""), result.get("user_id", ""),
+            "user_login", resource_type="user", resource_id=result.get("user_id"),
         )
         return {
             "success": True,

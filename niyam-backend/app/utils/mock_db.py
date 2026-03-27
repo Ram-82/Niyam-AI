@@ -25,11 +25,13 @@ class MockDB:
         self.businesses_file = os.path.join(data_dir, "businesses.json")
         self.documents_file = os.path.join(data_dir, "documents.json")
         self.invoices_file = os.path.join(data_dir, "invoices.json")
+        self.deadlines_file = os.path.join(data_dir, "deadlines.json")
 
         self._ensure_file(self.users_file)
         self._ensure_file(self.businesses_file)
         self._ensure_file(self.documents_file)
         self._ensure_file(self.invoices_file)
+        self._ensure_file(self.deadlines_file)
 
     def _ensure_file(self, filepath: str):
         if not os.path.exists(filepath):
@@ -149,3 +151,33 @@ class MockDB:
     def get_invoices_by_business(self, business_id: str) -> List[Dict]:
         invoices = self._read_file(self.invoices_file)
         return [inv for inv in invoices if inv.get("business_id") == business_id]
+
+    # Deadline operations
+    def get_deadlines_by_business(self, business_id: str, dl_type: str = None) -> List[Dict]:
+        deadlines = self._read_file(self.deadlines_file)
+        results = [dl for dl in deadlines if dl.get("business_id") == business_id]
+        if dl_type:
+            results = [dl for dl in results if dl.get("type") == dl_type]
+        return results
+
+    def upsert_deadline(self, deadline_data: Dict) -> Dict:
+        """Insert or update a deadline by id."""
+        dl_id = deadline_data.get("id")
+        def _upsert(deadlines):
+            for i, dl in enumerate(deadlines):
+                if dl.get("id") == dl_id:
+                    deadlines[i] = deadline_data
+                    return
+            deadlines.append(deadline_data)
+        self._read_modify_write(self.deadlines_file, _upsert)
+        return deadline_data
+
+    def update_deadline_status(self, dl_id: str, new_status: str, filed_at: str = None):
+        def _update(deadlines):
+            for dl in deadlines:
+                if dl.get("id") == dl_id:
+                    dl["status"] = new_status
+                    if filed_at:
+                        dl["filed_at"] = filed_at
+                    break
+        self._read_modify_write(self.deadlines_file, _update)

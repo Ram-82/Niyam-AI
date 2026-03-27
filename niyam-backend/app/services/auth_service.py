@@ -12,6 +12,8 @@ from app.utils.security import (
     create_access_token,
     create_refresh_token,
     verify_token,
+    validate_gstin,
+    validate_pan,
 )
 
 logger = logging.getLogger(__name__)
@@ -45,6 +47,35 @@ class AuthService:
     # Registration
     # ------------------------------------------------------------------
     async def register_user(self, user_data: UserCreate) -> Dict:
+        # Validate GSTIN if provided
+        if user_data.gstin:
+            gstin = user_data.gstin.upper().strip()
+            if not validate_gstin(gstin):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid GSTIN format. Expected: 15-character alphanumeric (e.g. 29ABCDE1234F1Z5)",
+                )
+            user_data.gstin = gstin
+
+        # Validate PAN if provided
+        if user_data.pan:
+            pan = user_data.pan.upper().strip()
+            if not validate_pan(pan):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid PAN format. Expected: 10-character alphanumeric (e.g. ABCDE1234F)",
+                )
+            user_data.pan = pan
+
+        # Cross-validate: GSTIN chars 3-12 must match PAN if both provided
+        if user_data.gstin and user_data.pan:
+            gstin_pan = user_data.gstin[2:12]
+            if gstin_pan != user_data.pan:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="GSTIN and PAN do not match. Characters 3-12 of GSTIN must equal PAN.",
+                )
+
         if self.use_mock:
             return self._register_user_mock(user_data)
         return self._register_user_db(user_data)

@@ -166,9 +166,14 @@ async function handleFileUpload(input) {
         setTimeout(() => {
             progress.style.display = "none";
             if (data.status === "success") {
+                window._lastInvoiceResult = data;
                 displayInvoiceResults(data);
                 results.style.display = "block";
-                showToast("Invoice processed successfully!");
+                if (data.saved) {
+                    showToast("Invoice processed and saved!");
+                } else {
+                    showToast("Invoice processed successfully!");
+                }
             } else if (data.status === "failed") {
                 showToast(data.reason === "OCR_FAILED"
                     ? "Could not read the document. Try a clearer image or digital PDF."
@@ -282,9 +287,10 @@ function displayInvoiceResults(data) {
                 <div style="display:flex;gap:8px;align-items:center;">
                     ${compBadge}
                     <span style="font-size:0.7rem;color:var(--text-light);">${ocrMeta.method || 'auto'}</span>
+                    <button class="btn btn-outline" style="padding:4px 12px;font-size:0.75rem;" onclick="toggleInvoiceEdit()" id="edit-toggle-btn">Edit Fields</button>
                 </div>
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div id="invoice-fields-display" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                 <div><p style="font-size:0.78rem;color:var(--text-light);">Invoice Number</p><p style="font-weight:600;">${invoiceNum}</p></div>
                 <div><p style="font-size:0.78rem;color:var(--text-light);">Invoice Date</p><p style="font-weight:600;">${invoiceDate}</p></div>
                 <div><p style="font-size:0.78rem;color:var(--text-light);">Vendor</p><p style="font-weight:600;">${vendor}</p></div>
@@ -294,17 +300,149 @@ function displayInvoiceResults(data) {
                 <div><p style="font-size:0.78rem;color:var(--text-light);">CGST / SGST</p><p style="font-weight:600;">${_fmtINR(gst.cgst||0)} / ${_fmtINR(gst.sgst||0)}</p></div>
                 <div><p style="font-size:0.78rem;color:var(--text-light);">IGST</p><p style="font-weight:600;">${_fmtINR(gst.igst||0)}</p></div>
             </div>
+            <div id="invoice-fields-edit" style="display:none;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div class="form-group" style="margin-bottom:8px;">
+                        <label style="font-size:0.75rem;color:var(--text-light);">Invoice Number</label>
+                        <input type="text" id="edit-invoice-number" value="${escapeHtml(data.invoice_number || '')}" style="font-size:0.85rem;padding:6px 10px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:8px;">
+                        <label style="font-size:0.75rem;color:var(--text-light);">Invoice Date</label>
+                        <input type="text" id="edit-invoice-date" value="${escapeHtml(data.invoice_date || '')}" placeholder="YYYY-MM-DD" style="font-size:0.85rem;padding:6px 10px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:8px;">
+                        <label style="font-size:0.75rem;color:var(--text-light);">Vendor Name</label>
+                        <input type="text" id="edit-vendor-name" value="${escapeHtml(data.vendor_name || '')}" style="font-size:0.85rem;padding:6px 10px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:8px;">
+                        <label style="font-size:0.75rem;color:var(--text-light);">Vendor GSTIN</label>
+                        <input type="text" id="edit-vendor-gstin" value="${escapeHtml(data.vendor_gstin || '')}" maxlength="15" style="font-size:0.85rem;padding:6px 10px;text-transform:uppercase;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:8px;">
+                        <label style="font-size:0.75rem;color:var(--text-light);">Taxable Value (₹)</label>
+                        <input type="number" id="edit-taxable-value" value="${data.taxable_value || 0}" step="0.01" style="font-size:0.85rem;padding:6px 10px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:8px;">
+                        <label style="font-size:0.75rem;color:var(--text-light);">Total Amount (₹)</label>
+                        <input type="number" id="edit-total-amount" value="${data.total_amount || 0}" step="0.01" style="font-size:0.85rem;padding:6px 10px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:8px;">
+                        <label style="font-size:0.75rem;color:var(--text-light);">CGST (₹)</label>
+                        <input type="number" id="edit-cgst" value="${gst.cgst || 0}" step="0.01" style="font-size:0.85rem;padding:6px 10px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:8px;">
+                        <label style="font-size:0.75rem;color:var(--text-light);">SGST (₹)</label>
+                        <input type="number" id="edit-sgst" value="${gst.sgst || 0}" step="0.01" style="font-size:0.85rem;padding:6px 10px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:8px;">
+                        <label style="font-size:0.75rem;color:var(--text-light);">IGST (₹)</label>
+                        <input type="number" id="edit-igst" value="${gst.igst || 0}" step="0.01" style="font-size:0.85rem;padding:6px 10px;">
+                    </div>
+                </div>
+                <p style="font-size:0.7rem;color:var(--text-light);margin-top:8px;">Edit the fields above and click "Save Corrections" to update the invoice.</p>
+            </div>
             ${itcHtml}
             ${lineItemsHtml}
             ${issuesHtml}
-            <div style="margin-top: 20px; text-align: right;">
+            <div style="margin-top: 20px; text-align: right; display:flex; gap:8px; justify-content:flex-end;">
                 <button class="btn btn-outline" style="padding: 8px 16px; font-size: 0.8rem;"
                     onclick="document.getElementById('file-upload-input').click()">Upload Another</button>
                 <button class="btn btn-primary" style="padding: 8px 16px; font-size: 0.8rem;"
-                    onclick="showToast('Invoice saved to compliance register!')">Confirm & Save</button>
+                    id="invoice-save-btn" onclick="confirmInvoiceSave()">Confirm & Save</button>
             </div>
         </div>
     `;
+}
+
+function toggleInvoiceEdit() {
+    const display = document.getElementById('invoice-fields-display');
+    const edit = document.getElementById('invoice-fields-edit');
+    const toggleBtn = document.getElementById('edit-toggle-btn');
+    const saveBtn = document.getElementById('invoice-save-btn');
+    if (!display || !edit) return;
+
+    const isEditing = edit.style.display !== 'none';
+    if (isEditing) {
+        // Switch back to view mode
+        edit.style.display = 'none';
+        display.style.display = 'grid';
+        if (toggleBtn) toggleBtn.textContent = 'Edit Fields';
+        if (saveBtn) saveBtn.textContent = 'Confirm & Save';
+    } else {
+        // Switch to edit mode
+        display.style.display = 'none';
+        edit.style.display = 'block';
+        if (toggleBtn) toggleBtn.textContent = 'Cancel Edit';
+        if (saveBtn) saveBtn.textContent = 'Save Corrections';
+    }
+}
+
+async function confirmInvoiceSave() {
+    const lastResult = window._lastInvoiceResult;
+    if (!lastResult) {
+        showToast('No invoice to save. Process an invoice first.');
+        return;
+    }
+    if (!NiyamAuth.isAuthenticated()) {
+        showToast('Please login to save invoices to your compliance register.');
+        return;
+    }
+
+    const editPanel = document.getElementById('invoice-fields-edit');
+    const isEditing = editPanel && editPanel.style.display !== 'none';
+
+    // If editing and invoice was already saved, PATCH the corrections
+    if (isEditing && lastResult.saved && lastResult.invoice_id) {
+        const corrections = {
+            invoice_number: document.getElementById('edit-invoice-number').value.trim(),
+            invoice_date: document.getElementById('edit-invoice-date').value.trim(),
+            vendor_name: document.getElementById('edit-vendor-name').value.trim(),
+            vendor_gstin: document.getElementById('edit-vendor-gstin').value.toUpperCase().trim(),
+            taxable_value: parseFloat(document.getElementById('edit-taxable-value').value) || 0,
+            total_amount: parseFloat(document.getElementById('edit-total-amount').value) || 0,
+            cgst: parseFloat(document.getElementById('edit-cgst').value) || 0,
+            sgst: parseFloat(document.getElementById('edit-sgst').value) || 0,
+            igst: parseFloat(document.getElementById('edit-igst').value) || 0,
+            needs_review: false,
+        };
+
+        const saveBtn = document.getElementById('invoice-save-btn');
+        if (saveBtn) { saveBtn.textContent = 'Saving...'; saveBtn.disabled = true; }
+
+        try {
+            const response = await NiyamAuth.niyamFetch(`${API_URL}/invoices/${lastResult.invoice_id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(corrections),
+            });
+            const result = await response.json();
+            if (result.success) {
+                showToast('Invoice corrections saved successfully!');
+                // Update local cache
+                Object.assign(lastResult, corrections);
+                lastResult.gst_breakdown = { cgst: corrections.cgst, sgst: corrections.sgst, igst: corrections.igst };
+                // Switch back to view mode and re-render
+                displayInvoiceResults(lastResult);
+                fetchDashboardData();
+            } else {
+                showToast(result.detail || 'Failed to save corrections');
+            }
+        } catch (error) {
+            showToast('Error saving: ' + error.message);
+        } finally {
+            if (saveBtn) { saveBtn.textContent = 'Save Corrections'; saveBtn.disabled = false; }
+        }
+        return;
+    }
+
+    // Not editing — just confirm the auto-saved invoice
+    if (lastResult.saved) {
+        showToast('Invoice saved (ID: ' + (lastResult.invoice_id || 'unknown').slice(0, 8) + ')');
+        fetchDashboardData();
+        return;
+    }
+
+    showToast('Invoice was processed but could not be saved. Try uploading again while logged in.');
 }
 
 // ============================================================
@@ -1021,6 +1159,118 @@ async function fetchDashboardData() {
     } finally {
         setSectionLoading('view-dashboard', false);
     }
+
+    // Fetch analytics trends for Reports charts
+    fetchAnalyticsTrends();
+
+    // Fetch TDS and ROC deadlines
+    fetchTDSDeadlines();
+    fetchROCDeadlines();
+
+    // Fetch recent activity
+    fetchActivityFeed();
+}
+
+async function fetchActivityFeed() {
+    if (!NiyamAuth.isAuthenticated()) return;
+    try {
+        const response = await NiyamAuth.niyamFetch(`${API_URL}/audit-log?page_size=15`);
+        const result = await response.json();
+        if (result.success && result.data) {
+            renderActivityFeed(result.data);
+        }
+    } catch (error) {
+        console.error('Error fetching activity feed:', error);
+    }
+}
+
+function renderActivityFeed(data) {
+    const feed = document.getElementById('activity-feed');
+    const countEl = document.getElementById('activity-count');
+    if (!feed) return;
+
+    const entries = data.entries || [];
+    if (countEl) countEl.textContent = `${data.total || 0} total events`;
+
+    if (entries.length === 0) {
+        feed.innerHTML = '<p style="font-size:0.85rem; color:var(--text-light); padding:20px 0; text-align:center;">No activity yet. Upload an invoice to get started.</p>';
+        return;
+    }
+
+    const iconMap = {
+        'invoice_uploaded': 'upload',
+        'invoice_corrected': 'edit-2',
+        'tds_deadline_filed': 'check-circle',
+        'roc_deadline_filed': 'check-circle',
+        'user_signup': 'user-plus',
+        'user_login': 'log-in',
+    };
+    const colorMap = {
+        'invoice_uploaded': '#2563eb',
+        'invoice_corrected': '#f59e0b',
+        'tds_deadline_filed': '#10b981',
+        'roc_deadline_filed': '#10b981',
+        'user_signup': '#8b5cf6',
+        'user_login': '#6b7280',
+    };
+
+    feed.innerHTML = entries.map(entry => {
+        const action = entry.action || '';
+        const label = escapeHtml(entry.action_label || action.replace(/_/g, ' '));
+        const icon = iconMap[action] || 'activity';
+        const color = colorMap[action] || '#6b7280';
+        const details = entry.details || {};
+        const ts = entry.timestamp || '';
+        const timeStr = ts ? new Date(ts).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+
+        let subtitle = '';
+        if (action === 'invoice_uploaded' && details.filename) {
+            subtitle = escapeHtml(details.filename);
+            if (details.total_amount) subtitle += ' — ' + _fmtINR(details.total_amount);
+        } else if (action === 'invoice_corrected' && details.corrected_fields) {
+            subtitle = 'Fields: ' + escapeHtml(details.corrected_fields.join(', '));
+        } else if (action === 'tds_deadline_filed' && details.challan_number) {
+            subtitle = 'Challan: ' + escapeHtml(details.challan_number);
+        }
+
+        return `<div style="display:flex; gap:12px; align-items:flex-start; padding:8px 0; border-bottom:1px solid #f8fafc;">
+            <i data-feather="${icon}" style="width:16px; height:16px; color:${color}; flex-shrink:0; margin-top:2px;"></i>
+            <div style="flex:1; min-width:0;">
+                <p style="font-size:0.85rem; font-weight:500;">${label}</p>
+                ${subtitle ? '<p style="font-size:0.75rem; color:var(--text-light); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + subtitle + '</p>' : ''}
+            </div>
+            <span style="font-size:0.7rem; color:var(--text-light); white-space:nowrap;">${escapeHtml(timeStr)}</span>
+        </div>`;
+    }).join('');
+
+    if (window.feather) feather.replace();
+}
+
+async function fetchAnalyticsTrends() {
+    try {
+        const response = await NiyamAuth.niyamFetch(`${API_URL}/analytics/trends`);
+        const result = await response.json();
+        if (result.success && result.data) {
+            const trends = result.data;
+            // Update chart data from real backend data
+            if (trends['6M']) currentChartData['6M'] = trends['6M'];
+            if (trends['1Y']) currentChartData['1Y'] = trends['1Y'];
+            if (trends['QTD']) currentChartData['QTD'] = trends['QTD'];
+
+            // Refresh chart if already initialized
+            if (window.lChart) {
+                const data = currentChartData['6M'];
+                window.lChart.data.labels = data.labels;
+                window.lChart.data.datasets[0].data = data.taxLiability;
+                window.lChart.data.datasets[1].data = data.cashFlow;
+                window.lChart.data.datasets[2].data = data.itcAvailable;
+                window.lChart.update();
+                updateDataTable('6M');
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching analytics trends:', error);
+    }
 }
 
 function updateDashboardUI(data) {
@@ -1082,6 +1332,21 @@ function updateDashboardUI(data) {
         } else {
             riskText.innerText = 'No immediate threats detected';
         }
+    }
+
+    // --- Invoice Stats (if available) ---
+    const invoiceStats = data.invoice_stats || {};
+    const totalInvoices = invoiceStats.total_invoices || 0;
+    const needsReviewCount = invoiceStats.needs_review || 0;
+
+    // Update the financial summary cards if present in GST section
+    const taxLiabilityEl = document.getElementById('total-tax-liability');
+    const itcAvailableEl = document.getElementById('total-itc-available');
+    if (taxLiabilityEl && financial.total_tax_liability != null) {
+        taxLiabilityEl.textContent = '₹' + financial.total_tax_liability.toLocaleString('en-IN');
+    }
+    if (itcAvailableEl && financial.total_itc_available != null) {
+        itcAvailableEl.textContent = '₹' + financial.total_itc_available.toLocaleString('en-IN');
     }
 
     // --- Update Deadlines Table from top_actions + timeline ---
@@ -1166,6 +1431,235 @@ function renderHealthChart(data) {
             }
         }
     });
+}
+
+// ============================================================
+// TDS Data Fetch
+// ============================================================
+async function fetchTDSDeadlines() {
+    if (!NiyamAuth.isAuthenticated()) return;
+    try {
+        const response = await NiyamAuth.niyamFetch(`${API_URL}/tds/deadlines`);
+        const result = await response.json();
+        if (result.success && result.data) {
+            renderTDSData(result.data);
+        }
+    } catch (error) {
+        console.error('Error fetching TDS deadlines:', error);
+    }
+}
+
+function renderTDSData(data) {
+    const summary = data.summary || {};
+    const deadlines = data.deadlines || [];
+    const flags = data.flags || [];
+
+    // Update metric cards
+    const totalEl = document.getElementById('tds-total');
+    const totalSub = document.getElementById('tds-total-sub');
+    const compEl = document.getElementById('tds-completed');
+    const compSub = document.getElementById('tds-completed-sub');
+    const overdueEl = document.getElementById('tds-overdue');
+    const overdueSub = document.getElementById('tds-overdue-sub');
+
+    if (totalEl) totalEl.textContent = summary.total || 0;
+    if (totalSub) totalSub.textContent = `${summary.upcoming || 0} upcoming`;
+    if (compEl) compEl.textContent = summary.completed || 0;
+    if (compSub) compSub.textContent = 'Filed this year';
+    if (overdueEl) overdueEl.textContent = summary.overdue || 0;
+    if (overdueSub) overdueSub.textContent = summary.overdue > 0 ? 'Action required!' : 'All on track';
+
+    // Update deadline table
+    const tbody = document.getElementById('tds-deadlines-body');
+    if (tbody && deadlines.length > 0) {
+        const relevant = deadlines.filter(d => d.status !== 'upcoming' || (d.days_until && d.days_until <= 30));
+        const toShow = relevant.length > 0 ? relevant.slice(0, 10) : deadlines.slice(0, 10);
+
+        tbody.innerHTML = toShow.map(dl => {
+            let badgeStyle = 'background: var(--text-light); color: white;';
+            let statusText = dl.status || 'upcoming';
+            if (dl.status === 'completed') { badgeStyle = 'background: var(--success); color: white;'; statusText = 'Filed'; }
+            else if (dl.status === 'overdue') { badgeStyle = 'background: var(--error); color: white;'; statusText = `${dl.days_late}d overdue`; }
+            else if (dl.status === 'due_soon') { badgeStyle = 'background: var(--warning); color: white;'; statusText = `${dl.days_until}d left`; }
+            else { badgeStyle = 'background: #3b82f6; color: white;'; statusText = 'Upcoming'; }
+
+            const markBtn = dl.status !== 'completed'
+                ? `<button class="btn-action" onclick="markTDSFiled('${escapeHtml(dl.id)}')">Mark Filed</button>`
+                : '<span style="color:var(--success); font-size:0.8rem;">Done</span>';
+
+            return `<tr>
+                <td style="font-weight:600;">${escapeHtml(dl.subtype || dl.type)}</td>
+                <td>${escapeHtml(dl.due_date || '-')}</td>
+                <td><span class="badge" style="${badgeStyle}">${escapeHtml(statusText)}</span></td>
+                <td>${markBtn}</td>
+            </tr>`;
+        }).join('');
+    } else if (tbody) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-light); padding:30px;">No TDS deadlines found.</td></tr>';
+    }
+
+    // Update alerts
+    const alertsContainer = document.getElementById('tds-alerts-container');
+    if (alertsContainer && flags.length > 0) {
+        alertsContainer.innerHTML = flags.slice(0, 5).map(f => {
+            const sevColor = f.severity === 'critical' ? 'var(--error)' : f.severity === 'error' ? '#f59e0b' : '#3b82f6';
+            const bgColor = f.severity === 'critical' ? '#fff5f5' : f.severity === 'error' ? '#fffbeb' : '#eff6ff';
+            return `<div style="display: flex; align-items: start; gap: 12px; padding: 10px; background: ${bgColor}; border-radius: 8px;">
+                <i data-feather="alert-circle" style="color: ${sevColor}; width: 20px; flex-shrink:0;"></i>
+                <div>
+                    <p style="font-weight: 600; font-size: 0.9rem;">${escapeHtml(f.message)}</p>
+                    ${f.action_required ? '<p style="font-size: 0.75rem; color: var(--text-light);">' + escapeHtml(f.action_required) + '</p>' : ''}
+                </div>
+            </div>`;
+        }).join('');
+        if (window.feather) feather.replace();
+    } else if (alertsContainer) {
+        alertsContainer.innerHTML = '<p style="font-size: 0.85rem; color: var(--text-light);">No alerts — all TDS deadlines on track.</p>';
+    }
+
+    if (window.feather) feather.replace();
+}
+
+async function markTDSFiled(deadlineId) {
+    try {
+        const response = await NiyamAuth.niyamFetch(`${API_URL}/tds/deadlines/mark-filed`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deadline_id: deadlineId }),
+        });
+        const result = await response.json();
+        if (result.success) {
+            showToast('TDS deadline marked as filed!');
+            fetchTDSDeadlines();
+        } else {
+            showToast(result.detail || 'Failed to mark as filed');
+        }
+    } catch (error) {
+        showToast('Error: ' + error.message);
+    }
+}
+
+// ============================================================
+// ROC Data Fetch
+// ============================================================
+async function fetchROCDeadlines() {
+    if (!NiyamAuth.isAuthenticated()) return;
+    try {
+        const response = await NiyamAuth.niyamFetch(`${API_URL}/roc/deadlines`);
+        const result = await response.json();
+        if (result.success && result.data) {
+            renderROCData(result.data);
+        }
+    } catch (error) {
+        console.error('Error fetching ROC deadlines:', error);
+    }
+}
+
+function renderROCData(data) {
+    const summary = data.summary || {};
+    const deadlines = data.deadlines || [];
+
+    // KYC card
+    const kycDl = deadlines.find(d => (d.subtype || '').includes('DIR-3'));
+    const kycVal = document.getElementById('roc-kyc-value');
+    const kycSub = document.getElementById('roc-kyc-sub');
+    const kycCard = document.getElementById('roc-kyc-card');
+    if (kycVal) {
+        if (kycDl && kycDl.status === 'completed') {
+            kycVal.textContent = 'Verified';
+            if (kycSub) { kycSub.textContent = 'DIR-3 KYC Completed'; kycSub.style.color = 'var(--success)'; }
+            if (kycCard) kycCard.classList.add('status-border-success');
+        } else {
+            kycVal.textContent = 'Pending';
+            if (kycSub) { kycSub.textContent = kycDl ? `Due: ${kycDl.due_date}` : 'DIR-3 KYC required'; kycSub.style.color = 'var(--warning)'; }
+        }
+    }
+
+    // Filing card
+    const filingVal = document.getElementById('roc-filing-value');
+    const filingSub = document.getElementById('roc-filing-sub');
+    const filingCard = document.getElementById('roc-filing-card');
+    const annualDls = deadlines.filter(d => (d.subtype || '').match(/AOC-4|MGT-7/));
+    const annualPending = annualDls.filter(d => d.status !== 'completed');
+    if (filingVal) {
+        if (annualPending.length === 0 && annualDls.length > 0) {
+            filingVal.textContent = 'All Filed';
+            if (filingSub) { filingSub.textContent = 'AOC-4 & MGT-7 completed'; filingSub.style.color = 'var(--success)'; }
+            if (filingCard) { filingCard.classList.remove('status-border-error'); filingCard.classList.add('status-border-success'); }
+        } else if (annualPending.length > 0) {
+            filingVal.textContent = 'Due Soon';
+            if (filingSub) { filingSub.textContent = annualPending.map(d => d.subtype).join(' & ') + ' Pending'; filingSub.style.color = 'var(--error)'; }
+            if (filingCard) filingCard.classList.add('status-border-error');
+        } else {
+            filingVal.textContent = '--';
+            if (filingSub) filingSub.textContent = 'No filings found';
+        }
+    }
+
+    // Disqualification card
+    const disqVal = document.getElementById('roc-disq-value');
+    const disqSub = document.getElementById('roc-disq-sub');
+    const disqCard = document.getElementById('roc-disq-card');
+    if (disqVal) {
+        if (summary.disqualification_risk) {
+            disqVal.textContent = 'HIGH';
+            disqVal.style.color = 'var(--error)';
+            if (disqSub) { disqSub.textContent = 'Overdue >1 year — risk of DIN deactivation'; disqSub.style.color = 'var(--error)'; }
+            if (disqCard) disqCard.classList.add('status-border-error');
+        } else {
+            disqVal.textContent = 'Near Zero';
+            disqVal.style.color = 'var(--success)';
+            if (disqSub) { disqSub.textContent = 'Active DIN Status'; disqSub.style.color = 'var(--success)'; }
+            if (disqCard) disqCard.classList.add('status-border-success');
+        }
+    }
+
+    // Checklist
+    const checklist = document.getElementById('roc-checklist');
+    if (checklist && deadlines.length > 0) {
+        checklist.innerHTML = deadlines.map(dl => {
+            const isCompleted = dl.status === 'completed';
+            const bg = isCompleted ? '#f0fdf4' : '#f8fafc';
+            const badgeBg = isCompleted ? 'var(--success)' : dl.status === 'overdue' ? 'var(--error)' : 'var(--warning)';
+            const statusText = isCompleted ? 'Completed' : dl.status === 'overdue' ? `${dl.days_late}d Overdue` : 'Pending';
+            const desc = dl.description || dl.subtype;
+            const dueInfo = dl.due_date ? `Due: ${dl.due_date}` : '';
+            const penaltyInfo = dl.accrued_penalty ? ` | Penalty: ₹${dl.accrued_penalty.toLocaleString('en-IN')}` : '';
+
+            const markBtn = !isCompleted
+                ? `<button class="btn-action" style="font-size:0.75rem; margin-top:6px;" onclick="markROCFiled('${escapeHtml(dl.id)}')">Mark Filed</button>`
+                : '';
+
+            return `<div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: ${bg}; border-radius: 8px;">
+                <div>
+                    <p style="font-weight: 600;">${escapeHtml(dl.subtype || 'Filing')}</p>
+                    <p style="font-size: 0.75rem; color: var(--text-light);">${escapeHtml(desc)}</p>
+                    <p style="font-size: 0.7rem; color: var(--text-light);">${escapeHtml(dueInfo)}${penaltyInfo ? escapeHtml(penaltyInfo) : ''}</p>
+                    ${markBtn}
+                </div>
+                <span class="badge" style="background: ${badgeBg}; color: white;">${escapeHtml(statusText)}</span>
+            </div>`;
+        }).join('');
+    }
+}
+
+async function markROCFiled(deadlineId) {
+    try {
+        const response = await NiyamAuth.niyamFetch(`${API_URL}/roc/deadlines/mark-filed`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deadline_id: deadlineId }),
+        });
+        const result = await response.json();
+        if (result.success) {
+            showToast('ROC deadline marked as filed!');
+            fetchROCDeadlines();
+        } else {
+            showToast(result.detail || 'Failed to mark as filed');
+        }
+    } catch (error) {
+        showToast('Error: ' + error.message);
+    }
 }
 
 // ============================================================

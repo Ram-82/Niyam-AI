@@ -6,6 +6,7 @@ POST /api/dashboard/refresh    → Force re-compute with fresh ITC/compliance da
 """
 
 import logging
+from collections import defaultdict
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
@@ -20,6 +21,9 @@ from app.services.rules.deadline_rules import generate_deadlines_for_year
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
 security = HTTPBearer()
+
+MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 
 def _get_user_id(credentials: HTTPAuthorizationCredentials) -> str:
@@ -111,6 +115,51 @@ async def get_dashboard_summary(
         itc_financials=itc_financials,
         top_n=top_n,
     )
+
+    # ---- Health History (for trend chart) ----
+    # Compute a per-month compliance health proxy from invoices:
+    # score = 100 - (flagged_invoices / total) * 50 - penalty_weight
+    today = date.today()
+    month_keys = []
+    for offset in range(5, -1, -1):
+        m = today.month - offset
+        y = today.year
+        while m < 1:
+            m += 12
+            y -= 1
+        month_keys.append(f"{y}-{m:02d}")
+
+    inv_by_month = defaultdict(lambda: {"total": 0, "flagged": 0})
+    for inv in invoices:
+        inv_date = inv.get("invoice_date") or inv.get("created_at") or ""
+        mk = str(inv_date)[:7]
+        if mk in month_keys:
+            inv_by_month[mk]["total"] += 1
+            if inv.get("needs_review"):
+                inv_by_month[mk]["flagged"] += 1
+
+    labels = []
+    health_history = []
+    for mk in month_keys:
+        m_int = int(mk.split("-")[1])
+        labels.append(MONTH_NAMES[m_int - 1])
+        bucket = inv_by_month[mk]
+        if bucket["total"] > 0:
+            flag_ratio = bucket["flagged"] / bucket["total"]
+            score = max(60, round(100 - flag_ratio * 40))
+        else:
+            score = 100  # No invoices = no issues = healthy
+        health_history.append(score)
+
+    result["labels"] = labels
+    result["health_history"] = health_history
+
+    # ---- Invoice Stats ----
+    result["invoice_stats"] = {
+        "total_invoices": len(invoices),
+        "needs_review": sum(1 for inv in invoices if inv.get("needs_review")),
+        "total_amount": round(sum(float(inv.get("total_amount") or 0) for inv in invoices), 2),
+    }
 
     return {
         "success": True,

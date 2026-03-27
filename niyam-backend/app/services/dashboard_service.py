@@ -280,9 +280,13 @@ def _build_financial_summary(
 
     net_exposure = total_penalty + itc_at_risk - recoverable
 
+    itc_available = float((itc_financials or {}).get("total_itc_available", 0))
+
     return {
         "total_penalty_risk": round(total_penalty, 2),
+        "total_tax_liability": round(total_penalty, 2),  # alias for frontend compatibility
         "total_itc_at_risk": round(itc_at_risk, 2),
+        "total_itc_available": round(itc_available, 2),
         "total_itc_claimed": round(itc_claimed, 2),
         "recoverable_itc": round(recoverable, 2),
         "net_exposure": round(max(0, net_exposure), 2),

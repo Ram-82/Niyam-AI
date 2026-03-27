@@ -5,9 +5,8 @@
 
 (function () {
     const API = CONFIG.API_URL;
-    const token = () => localStorage.getItem('niyam_access_token');
-    const headers = () => ({ 'Authorization': `Bearer ${token()}` });
-    const jsonHeaders = () => ({ ...headers(), 'Content-Type': 'application/json' });
+    // Use NiyamAuth for all authenticated requests (auto-refresh on 401)
+    const jsonHeaders = () => ({ 'Content-Type': 'application/json' });
 
     // State
     let currentStep = 1;
@@ -70,7 +69,7 @@
             form.append('document_type', 'purchase_invoice');
 
             try {
-                const res = await fetch(`${API}/upload`, { method: 'POST', headers: headers(), body: form });
+                const res = NiyamAuth.niyamFetch(`${API}/upload`, { method: 'POST', body: form });
                 $('cf-progress-fill').style.width = '70%';
 
                 if (!res.ok) {
@@ -109,7 +108,7 @@
         show(panel);
 
         try {
-            const res = await fetch(`${API}/extract`, {
+            const res = NiyamAuth.niyamFetch(`${API}/extract`, {
                 method: 'POST',
                 headers: jsonHeaders(),
                 body: JSON.stringify({ document_id: uploadedDocId })
@@ -197,7 +196,7 @@
         hide($('cf-compliance-results'));
 
         try {
-            const res = await fetch(`${API}/compliance-check`, {
+            const res = NiyamAuth.niyamFetch(`${API}/compliance-check`, {
                 method: 'POST',
                 headers: jsonHeaders(),
                 body: JSON.stringify({ check_type: 'all' })
@@ -286,7 +285,7 @@
         }
 
         try {
-            const res = await fetch(`${API}/itc-match`, {
+            const res = NiyamAuth.niyamFetch(`${API}/itc-match`, {
                 method: 'POST',
                 headers: jsonHeaders(),
                 body: JSON.stringify({
@@ -489,7 +488,7 @@
 
         // Load readiness status
         try {
-            const res = await fetch(`${API}/export/readiness`, { headers: headers() });
+            const res = NiyamAuth.niyamFetch(`${API}/export/readiness`);
             if (res.ok) {
                 const data = await res.json();
                 if (data.success) renderExportReadiness(data.data);
@@ -528,7 +527,7 @@
         if ($('cf-filter-flagged') && !$('cf-filter-flagged').checked) params.set('include_flagged', 'false');
 
         try {
-            const res = await fetch(`${API}/export?${params}`, { headers: headers() });
+            const res = NiyamAuth.niyamFetch(`${API}/export?${params}`);
 
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}));

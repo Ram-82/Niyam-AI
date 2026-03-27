@@ -61,13 +61,29 @@ document.addEventListener('DOMContentLoaded', function () {
             center: 'title',
             right: 'dayGridMonth,timeGridWeek,listMonth'
         },
-        events: [
-            { title: 'GSTR-1 Filing', start: '2025-06-11', color: '#2563eb', extendedProps: { description: 'Monthly GSTR-1 return for sales' } },
-            { title: 'ROC Annual Return', start: '2025-06-15', color: '#ef4444', extendedProps: { description: 'Annual return for internal records' } },
-            { title: 'GSTR-3B Filing', start: '2025-06-20', color: '#2563eb', extendedProps: { description: 'Summary return for GST payment' } },
-            { title: 'TDS Payment', start: '2025-06-07', color: '#10b981', extendedProps: { description: 'Monthly TDS deposit for salary/rent' } },
-            { title: 'Income Tax Audit', start: '2025-06-30', color: '#f59e0b', extendedProps: { description: 'Final tax audit submission' } }
-        ],
+        events: (function() {
+            // Generate statutory deadlines dynamically based on current month
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = now.getMonth(); // 0-indexed
+            const pad = n => String(n).padStart(2, '0');
+            const dt = (mo, d) => `${y}-${pad(mo)}-${pad(d)}`;
+
+            // Current month deadlines
+            const cm = m + 1; // 1-indexed
+            const nm = m + 2 > 12 ? 1 : m + 2; // next month
+            const ny = nm === 1 ? y + 1 : y;
+
+            return [
+                { title: 'TDS Payment', start: dt(cm, 7), color: '#10b981', extendedProps: { description: 'Monthly TDS deposit (Section 194)' } },
+                { title: 'GSTR-1 Filing', start: dt(cm, 11), color: '#2563eb', extendedProps: { description: 'Monthly GSTR-1 return for sales' } },
+                { title: 'GSTR-3B Filing', start: dt(cm, 20), color: '#2563eb', extendedProps: { description: 'Summary return + GST payment' } },
+                // Next month
+                { title: 'TDS Payment', start: `${ny}-${pad(nm)}-07`, color: '#10b981', extendedProps: { description: 'Monthly TDS deposit (Section 194)' } },
+                { title: 'GSTR-1 Filing', start: `${ny}-${pad(nm)}-11`, color: '#2563eb', extendedProps: { description: 'Monthly GSTR-1 return for sales' } },
+                { title: 'GSTR-3B Filing', start: `${ny}-${pad(nm)}-20`, color: '#2563eb', extendedProps: { description: 'Summary return + GST payment' } },
+            ];
+        })(),
         eventClick: function (info) {
             showEventDetails(info.event.title, info.event.startStr, info.event.extendedProps.description);
         }
@@ -93,7 +109,6 @@ async function handleFileUpload(input) {
     if (!input.files || !input.files[0]) return;
 
     const file = input.files[0];
-    const token = localStorage.getItem('niyam_access_token');
     const progress = document.getElementById("upload-progress");
     const bar = document.getElementById("progress-bar-inner");
     const percent = document.getElementById("progress-percent");
@@ -117,13 +132,8 @@ async function handleFileUpload(input) {
         const formData = new FormData();
         formData.append('file', file);
 
-        // Auth is optional for process-invoice — send token if available
-        const headers = {};
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-
-        const response = await fetch(`${API_URL}/process-invoice`, {
+        const response = await NiyamAuth.niyamFetch(`${API_URL}/process-invoice`, {
             method: 'POST',
-            headers: headers,
             body: formData,
             signal: controller.signal,
         });
@@ -192,10 +202,10 @@ function displayInvoiceResults(data) {
     const resultsContainer = document.getElementById("ocr-results");
     if (!resultsContainer) return;
 
-    const vendor = data.vendor_name || 'Not detected';
-    const gstin = data.vendor_gstin || 'Not detected';
-    const invoiceNum = data.invoice_number || 'Not detected';
-    const invoiceDate = data.invoice_date || 'Not detected';
+    const vendor = escapeHtml(data.vendor_name || 'Not detected');
+    const gstin = escapeHtml(data.vendor_gstin || 'Not detected');
+    const invoiceNum = escapeHtml(data.invoice_number || 'Not detected');
+    const invoiceDate = escapeHtml(data.invoice_date || 'Not detected');
     const total = data.total_amount ? _fmtINR(data.total_amount) : 'Not detected';
     const taxable = data.taxable_value ? _fmtINR(data.taxable_value) : 'Not detected';
     const gst = data.gst_breakdown || {};
@@ -223,9 +233,9 @@ function displayInvoiceResults(data) {
             compIssues.map(issue => {
                 const sevColor = issue.severity === 'high' ? '#ef4444' : issue.severity === 'medium' ? '#f59e0b' : '#6b7280';
                 return '<div style="padding:8px 10px;margin-bottom:6px;background:#f8fafc;border-radius:6px;border-left:3px solid ' + sevColor + ';">' +
-                    '<p style="font-size:0.8rem;font-weight:600;color:' + sevColor + ';">' + (issue.type || '').replace(/_/g, ' ') + '</p>' +
-                    '<p style="font-size:0.78rem;color:var(--text-light);">' + (issue.message || '') + '</p>' +
-                    (issue.impact ? '<p style="font-size:0.75rem;color:#64748b;margin-top:4px;">' + issue.impact + '</p>' : '') +
+                    '<p style="font-size:0.8rem;font-weight:600;color:' + sevColor + ';">' + escapeHtml((issue.type || '').replace(/_/g, ' ')) + '</p>' +
+                    '<p style="font-size:0.78rem;color:var(--text-light);">' + escapeHtml(issue.message || '') + '</p>' +
+                    (issue.impact ? '<p style="font-size:0.75rem;color:#64748b;margin-top:4px;">' + escapeHtml(issue.impact) + '</p>' : '') +
                     '</div>';
             }).join('') +
             '</div>';
@@ -242,8 +252,8 @@ function displayInvoiceResults(data) {
             '<th style="padding:6px;">Description</th><th style="padding:6px;">Qty</th><th style="padding:6px;">Rate</th><th style="padding:6px;">Amount</th></tr></thead><tbody>' +
             items.slice(0, 20).map(item =>
                 '<tr style="border-bottom:1px solid #f1f5f9;">' +
-                '<td style="padding:6px;">' + (item.description || '-') + '</td>' +
-                '<td style="padding:6px;">' + (item.quantity || '-') + '</td>' +
+                '<td style="padding:6px;">' + escapeHtml(item.description || '-') + '</td>' +
+                '<td style="padding:6px;">' + escapeHtml(item.quantity || '-') + '</td>' +
                 '<td style="padding:6px;">' + (item.rate ? _fmtINR(item.rate) : '-') + '</td>' +
                 '<td style="padding:6px;">' + (item.amount ? _fmtINR(item.amount) : '-') + '</td></tr>'
             ).join('') +
@@ -257,7 +267,7 @@ function displayInvoiceResults(data) {
         const itcBg = itc.eligible ? '#dcfce7' : '#fee2e2';
         itcHtml = '<div style="margin-top:15px;padding:10px;background:' + itcBg + ';border-radius:8px;">' +
             '<p style="font-size:0.85rem;font-weight:600;color:' + itcColor + ';">ITC ' + (itc.eligible ? 'Eligible' : 'At Risk') + ': ' + _fmtINR(itc.eligible ? itc.itc_amount : (itc.itc_at_risk || 0)) + '</p>' +
-            (itc.reasons || []).map(r => '<p style="font-size:0.75rem;color:#64748b;">- ' + r + '</p>').join('') +
+            (itc.reasons || []).map(r => '<p style="font-size:0.75rem;color:#64748b;">- ' + escapeHtml(r) + '</p>').join('') +
             '</div>';
     }
 
@@ -320,16 +330,16 @@ if (chatForm) {
         chatInput.value = "";
 
         setTimeout(() => {
-            let response = "I'm Niyam AI. I can help with GST, TDS, ROC, or general compliance. What specific area are you inquiring about?";
+            let response = "I'm Niyam AI assistant. I can help with GST, TDS, ROC, or general compliance questions. What area are you inquiring about?";
 
             const intentMap = {
-                "gst": "Your GST health is excellent! June liability is ₹42,500. You have ₹1.12 Lakhs available ITC.",
-                "tds": "Your next TDS payment (Section 194I) of ₹45,200 is due on Jan 07. Use the TDS calculator for interest estimates.",
-                "roc": "ROC filing for AOC-4 and MGT-7 is pending. DIR-3 KYC is verified. Need help with the MCA portal?",
-                "bank": "You can connect HDFC or ICICI bank in the 'Connect Bank' section to sync your statements.",
-                "deadline": "The most urgent deadline is TDS payment on Jan 07, followed by GSTR-1 on Jan 11.",
-                "support": "Our experts are available for premium consultation. Would you like to book a CA session?",
-                "help": "I can assist with: GST reconciliation, TDS interest calculation, ROC filing status, and document extraction."
+                "gst": "To see your GST data, upload invoices on the Dashboard tab. I can help with GSTR-1 (due 11th monthly), GSTR-3B (due 20th monthly), and ITC reconciliation via the GST/ITC tab.",
+                "tds": "TDS payments are due by the 7th of each month. Quarterly returns (24Q/26Q) are due 31st of Jul, Oct, Jan, May. Use the TDS section for deadline tracking.",
+                "roc": "ROC filings include AOC-4 (due Oct 30), MGT-7 (due Nov 29), and DIR-3-KYC (due Sep 30). Check the Calendar for your deadlines.",
+                "bank": "Bank statement import is coming soon. For now, you can upload invoices to track your compliance.",
+                "deadline": "Check the Calendar tab for all upcoming deadlines. Key monthly dates: TDS (7th), GSTR-1 (11th), GSTR-3B (20th).",
+                "support": "For professional help, consult a Chartered Accountant. Niyam AI helps organize your data for faster CA reviews.",
+                "help": "I can help with: uploading invoices, GST compliance checks, ITC reconciliation (GST/ITC tab), and deadline tracking (Calendar tab)."
             };
 
             for (const [key, value] of Object.entries(intentMap)) {
@@ -362,7 +372,7 @@ function filterTable(status) {
     showToast(`Filtering for ${status} items...`);
 }
 
-function showHealthBreakdown() { showToast("Health: GST 100%, TDS 70%, ROC 0%"); }
+function showHealthBreakdown() { showToast("Upload invoices to see your compliance health breakdown."); }
 
 // ============================================================
 // Toast Notifications
@@ -494,11 +504,11 @@ function renderInvoices() {
 
     container.innerHTML = invoices.map(inv => `
         <tr>
-            <td>${inv.date}</td>
-            <td>${inv.desc}</td>
-            <td>${inv.amount}</td>
-            <td><span class="badge" style="background: var(--success); color: white;">${inv.status}</span></td>
-            <td><button class="btn btn-outline" style="font-size: 0.7rem; padding: 4px 8px;" onclick="showToast('Downloading ${inv.id}...')">PDF</button></td>
+            <td>${escapeHtml(inv.date)}</td>
+            <td>${escapeHtml(inv.desc)}</td>
+            <td>${escapeHtml(inv.amount)}</td>
+            <td><span class="badge" style="background: var(--success); color: white;">${escapeHtml(inv.status)}</span></td>
+            <td><button class="btn btn-outline" style="font-size: 0.7rem; padding: 4px 8px;" onclick="showToast('Downloading ${escapeHtml(inv.id)}...')">PDF</button></td>
         </tr>
     `).join('');
 }
@@ -515,24 +525,30 @@ function searchSupport(query) {
 // ============================================================
 // Reports & Analytics Charts
 // ============================================================
+// NOTE: Chart data below is SAMPLE/PLACEHOLDER data for UI demonstration.
+// Real data will populate from processed invoices once the reporting API is wired.
+// TODO: Replace with fetch from /api/analytics/trends once backend endpoint exists.
 let currentChartData = {
     '6M': {
         labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-        taxLiability: [58000, 62000, 52000, 68000, 62000, 55000],
-        cashFlow: [450000, 480000, 420000, 510000, 490000, 530000],
-        itcAvailable: [32000, 28000, 35000, 41000, 38000, 42000]
+        taxLiability: [0, 0, 0, 0, 0, 0],
+        cashFlow: [0, 0, 0, 0, 0, 0],
+        itcAvailable: [0, 0, 0, 0, 0, 0],
+        _isSampleData: true
     },
     '1Y': {
         labels: ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-        taxLiability: [45000, 48000, 52000, 60000, 58000, 65000, 58000, 62000, 52000, 68000, 62000, 55000],
-        cashFlow: [410000, 430000, 460000, 480000, 450000, 520000, 450000, 480000, 420000, 510000, 490000, 530000],
-        itcAvailable: [25000, 27000, 30000, 32000, 31000, 35000, 32000, 28000, 35000, 41000, 38000, 42000]
+        taxLiability: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        cashFlow: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        itcAvailable: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        _isSampleData: true
     },
     'QTD': {
         labels: ['Apr', 'May', 'Jun'],
-        taxLiability: [68000, 62000, 55000],
-        cashFlow: [510000, 490000, 530000],
-        itcAvailable: [41000, 38000, 42000]
+        taxLiability: [0, 0, 0],
+        cashFlow: [0, 0, 0],
+        itcAvailable: [0, 0, 0],
+        _isSampleData: true
     }
 };
 
@@ -613,24 +629,26 @@ function initCharts() {
     cashFlowGradient.addColorStop(0, 'rgba(16, 185, 129, 0.3)');
     cashFlowGradient.addColorStop(1, 'rgba(16, 185, 129, 0.05)');
 
+    // Compliance chart — zeroed out until real analytics API is wired
+    // TODO: Replace with fetch from /api/analytics/compliance-trends
     window.complianceChartData = {
         '6M': {
             labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-            cashFlow: [720000, 680000, 750000, 710000, 730000, 690000],
-            complianceCosts: [62000, 58000, 75000, 68000, 72000, 65000],
-            impactScore: [78, 82, 75, 85, 80, 88]
+            cashFlow: [0, 0, 0, 0, 0, 0],
+            complianceCosts: [0, 0, 0, 0, 0, 0],
+            impactScore: [0, 0, 0, 0, 0, 0]
         },
         '1Y': {
             labels: ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-            cashFlow: [690000, 710000, 695000, 725000, 705000, 740000, 720000, 680000, 750000, 710000, 730000, 690000],
-            complianceCosts: [58000, 62000, 59000, 70000, 64000, 73000, 62000, 58000, 75000, 68000, 72000, 65000],
-            impactScore: [80, 78, 82, 76, 81, 77, 78, 82, 75, 85, 80, 88]
+            cashFlow: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            complianceCosts: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            impactScore: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         },
         'YTD': {
             labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-            cashFlow: [720000, 680000, 750000, 710000, 730000, 690000],
-            complianceCosts: [62000, 58000, 75000, 68000, 72000, 65000],
-            impactScore: [78, 82, 75, 85, 80, 88]
+            cashFlow: [0, 0, 0, 0, 0, 0],
+            complianceCosts: [0, 0, 0, 0, 0, 0],
+            impactScore: [0, 0, 0, 0, 0, 0]
         }
     };
 
@@ -805,10 +823,13 @@ function updateComplianceMetrics(period) {
     if (!data) return;
 
     let totalPercentage = 0;
-    for (let i = 0; i < data.cashFlow.length; i++) {
-        totalPercentage += (data.complianceCosts[i] / data.cashFlow[i]) * 100;
+    const len = data.cashFlow ? data.cashFlow.length : 0;
+    for (let i = 0; i < len; i++) {
+        const cf = data.cashFlow[i] || 0;
+        const cc = data.complianceCosts[i] || 0;
+        totalPercentage += cf > 0 ? (cc / cf) * 100 : 0;
     }
-    const avgPercentage = (totalPercentage / data.cashFlow.length).toFixed(1);
+    const avgPercentage = len > 0 ? (totalPercentage / len).toFixed(1) : '0.0';
 
     let highestImpactIndex = 0;
     let lowestScore = data.impactScore[0];
@@ -848,8 +869,7 @@ function loadSample2B() {
 }
 
 async function runITCMatch() {
-    const token = localStorage.getItem('niyam_access_token');
-    if (!token) {
+    if (!NiyamAuth.isAuthenticated()) {
         showToast('Please login first');
         return;
     }
@@ -873,10 +893,9 @@ async function runITCMatch() {
     showToast('Running ITC reconciliation...');
 
     try {
-        const response = await fetch(`${API_URL}/itc-match`, {
+        const response = await NiyamAuth.niyamFetch(`${API_URL}/itc-match`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
@@ -947,12 +966,12 @@ function displayITCResults(data) {
         const truncAction = action.length > 60 ? action.substring(0, 57) + '...' : action;
 
         return `<tr>
-            <td style="font-weight:600;">${r.invoice_number || '-'}</td>
-            <td style="font-size:0.8rem;">${r.vendor_gstin || '-'}</td>
+            <td style="font-weight:600;">${escapeHtml(r.invoice_number || '-')}</td>
+            <td style="font-size:0.8rem;">${escapeHtml(r.vendor_gstin || '-')}</td>
             <td>${fmtINR(eligible)}</td>
             <td style="color: ${atRisk > 0 ? 'var(--error)' : 'inherit'};">${fmtINR(atRisk)}</td>
-            <td><span class="badge" style="${badgeStyle}">${matchType}</span></td>
-            <td style="font-size:0.8rem;" title="${action.replace(/"/g, '&quot;')}">${truncAction}</td>
+            <td><span class="badge" style="${badgeStyle}">${escapeHtml(matchType)}</span></td>
+            <td style="font-size:0.8rem;" title="${escapeHtml(action)}">${escapeHtml(truncAction)}</td>
         </tr>`;
     }).join('');
 }
@@ -961,10 +980,8 @@ function displayITCResults(data) {
 // Authentication Check & Dashboard Data Fetch
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
-    const token = localStorage.getItem('niyam_access_token');
-
     // Allow demo mode to bypass auth
-    if (!token && !window._demoMode && window.location.hash !== '#demo') {
+    if (!NiyamAuth.isAuthenticated() && !window._demoMode && window.location.hash !== '#demo') {
         window.location.href = 'login.html';
         return;
     }
@@ -988,12 +1005,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function fetchDashboardData() {
-    const token = localStorage.getItem('niyam_access_token');
     setSectionLoading('view-dashboard', true);
     try {
-        const response = await fetch(`${API_URL}/dashboard/summary`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const response = await NiyamAuth.niyamFetch(`${API_URL}/dashboard/summary`);
         const data = await response.json();
         if (data.success && data.data) {
             updateDashboardUI(data.data);
@@ -1158,12 +1172,7 @@ function renderHealthChart(data) {
 // Logout
 // ============================================================
 function logout() {
-    localStorage.removeItem('niyam_access_token');
-    localStorage.removeItem('niyam_refresh_token');
-    localStorage.removeItem('niyam_user_name');
-    localStorage.removeItem('niyam_business_name');
-    localStorage.removeItem('niyam_user_business');
-    window.location.href = 'login.html';
+    NiyamAuth.logout();
 }
 
 // ============================================================

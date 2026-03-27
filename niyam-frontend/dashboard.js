@@ -287,9 +287,10 @@ function displayInvoiceResults(data) {
                 <div style="display:flex;gap:8px;align-items:center;">
                     ${compBadge}
                     <span style="font-size:0.7rem;color:var(--text-light);">${ocrMeta.method || 'auto'}</span>
+                    <button class="btn btn-outline" style="padding:4px 12px;font-size:0.75rem;" onclick="toggleInvoiceEdit()" id="edit-toggle-btn">Edit Fields</button>
                 </div>
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div id="invoice-fields-display" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                 <div><p style="font-size:0.78rem;color:var(--text-light);">Invoice Number</p><p style="font-weight:600;">${invoiceNum}</p></div>
                 <div><p style="font-size:0.78rem;color:var(--text-light);">Invoice Date</p><p style="font-weight:600;">${invoiceDate}</p></div>
                 <div><p style="font-size:0.78rem;color:var(--text-light);">Vendor</p><p style="font-weight:600;">${vendor}</p></div>
@@ -299,35 +300,148 @@ function displayInvoiceResults(data) {
                 <div><p style="font-size:0.78rem;color:var(--text-light);">CGST / SGST</p><p style="font-weight:600;">${_fmtINR(gst.cgst||0)} / ${_fmtINR(gst.sgst||0)}</p></div>
                 <div><p style="font-size:0.78rem;color:var(--text-light);">IGST</p><p style="font-weight:600;">${_fmtINR(gst.igst||0)}</p></div>
             </div>
+            <div id="invoice-fields-edit" style="display:none;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div class="form-group" style="margin-bottom:8px;">
+                        <label style="font-size:0.75rem;color:var(--text-light);">Invoice Number</label>
+                        <input type="text" id="edit-invoice-number" value="${escapeHtml(data.invoice_number || '')}" style="font-size:0.85rem;padding:6px 10px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:8px;">
+                        <label style="font-size:0.75rem;color:var(--text-light);">Invoice Date</label>
+                        <input type="text" id="edit-invoice-date" value="${escapeHtml(data.invoice_date || '')}" placeholder="YYYY-MM-DD" style="font-size:0.85rem;padding:6px 10px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:8px;">
+                        <label style="font-size:0.75rem;color:var(--text-light);">Vendor Name</label>
+                        <input type="text" id="edit-vendor-name" value="${escapeHtml(data.vendor_name || '')}" style="font-size:0.85rem;padding:6px 10px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:8px;">
+                        <label style="font-size:0.75rem;color:var(--text-light);">Vendor GSTIN</label>
+                        <input type="text" id="edit-vendor-gstin" value="${escapeHtml(data.vendor_gstin || '')}" maxlength="15" style="font-size:0.85rem;padding:6px 10px;text-transform:uppercase;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:8px;">
+                        <label style="font-size:0.75rem;color:var(--text-light);">Taxable Value (₹)</label>
+                        <input type="number" id="edit-taxable-value" value="${data.taxable_value || 0}" step="0.01" style="font-size:0.85rem;padding:6px 10px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:8px;">
+                        <label style="font-size:0.75rem;color:var(--text-light);">Total Amount (₹)</label>
+                        <input type="number" id="edit-total-amount" value="${data.total_amount || 0}" step="0.01" style="font-size:0.85rem;padding:6px 10px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:8px;">
+                        <label style="font-size:0.75rem;color:var(--text-light);">CGST (₹)</label>
+                        <input type="number" id="edit-cgst" value="${gst.cgst || 0}" step="0.01" style="font-size:0.85rem;padding:6px 10px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:8px;">
+                        <label style="font-size:0.75rem;color:var(--text-light);">SGST (₹)</label>
+                        <input type="number" id="edit-sgst" value="${gst.sgst || 0}" step="0.01" style="font-size:0.85rem;padding:6px 10px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:8px;">
+                        <label style="font-size:0.75rem;color:var(--text-light);">IGST (₹)</label>
+                        <input type="number" id="edit-igst" value="${gst.igst || 0}" step="0.01" style="font-size:0.85rem;padding:6px 10px;">
+                    </div>
+                </div>
+                <p style="font-size:0.7rem;color:var(--text-light);margin-top:8px;">Edit the fields above and click "Save Corrections" to update the invoice.</p>
+            </div>
             ${itcHtml}
             ${lineItemsHtml}
             ${issuesHtml}
-            <div style="margin-top: 20px; text-align: right;">
+            <div style="margin-top: 20px; text-align: right; display:flex; gap:8px; justify-content:flex-end;">
                 <button class="btn btn-outline" style="padding: 8px 16px; font-size: 0.8rem;"
                     onclick="document.getElementById('file-upload-input').click()">Upload Another</button>
                 <button class="btn btn-primary" style="padding: 8px 16px; font-size: 0.8rem;"
-                    onclick="confirmInvoiceSave()">Confirm & Save</button>
+                    id="invoice-save-btn" onclick="confirmInvoiceSave()">Confirm & Save</button>
             </div>
         </div>
     `;
 }
 
-function confirmInvoiceSave() {
+function toggleInvoiceEdit() {
+    const display = document.getElementById('invoice-fields-display');
+    const edit = document.getElementById('invoice-fields-edit');
+    const toggleBtn = document.getElementById('edit-toggle-btn');
+    const saveBtn = document.getElementById('invoice-save-btn');
+    if (!display || !edit) return;
+
+    const isEditing = edit.style.display !== 'none';
+    if (isEditing) {
+        // Switch back to view mode
+        edit.style.display = 'none';
+        display.style.display = 'grid';
+        if (toggleBtn) toggleBtn.textContent = 'Edit Fields';
+        if (saveBtn) saveBtn.textContent = 'Confirm & Save';
+    } else {
+        // Switch to edit mode
+        display.style.display = 'none';
+        edit.style.display = 'block';
+        if (toggleBtn) toggleBtn.textContent = 'Cancel Edit';
+        if (saveBtn) saveBtn.textContent = 'Save Corrections';
+    }
+}
+
+async function confirmInvoiceSave() {
     const lastResult = window._lastInvoiceResult;
     if (!lastResult) {
         showToast('No invoice to save. Process an invoice first.');
-        return;
-    }
-    if (lastResult.saved) {
-        showToast('Invoice already saved (ID: ' + (lastResult.invoice_id || 'unknown').slice(0, 8) + ')');
-        // Refresh dashboard data to reflect new invoice
-        fetchDashboardData();
         return;
     }
     if (!NiyamAuth.isAuthenticated()) {
         showToast('Please login to save invoices to your compliance register.');
         return;
     }
+
+    const editPanel = document.getElementById('invoice-fields-edit');
+    const isEditing = editPanel && editPanel.style.display !== 'none';
+
+    // If editing and invoice was already saved, PATCH the corrections
+    if (isEditing && lastResult.saved && lastResult.invoice_id) {
+        const corrections = {
+            invoice_number: document.getElementById('edit-invoice-number').value.trim(),
+            invoice_date: document.getElementById('edit-invoice-date').value.trim(),
+            vendor_name: document.getElementById('edit-vendor-name').value.trim(),
+            vendor_gstin: document.getElementById('edit-vendor-gstin').value.toUpperCase().trim(),
+            taxable_value: parseFloat(document.getElementById('edit-taxable-value').value) || 0,
+            total_amount: parseFloat(document.getElementById('edit-total-amount').value) || 0,
+            cgst: parseFloat(document.getElementById('edit-cgst').value) || 0,
+            sgst: parseFloat(document.getElementById('edit-sgst').value) || 0,
+            igst: parseFloat(document.getElementById('edit-igst').value) || 0,
+            needs_review: false,
+        };
+
+        const saveBtn = document.getElementById('invoice-save-btn');
+        if (saveBtn) { saveBtn.textContent = 'Saving...'; saveBtn.disabled = true; }
+
+        try {
+            const response = await NiyamAuth.niyamFetch(`${API_URL}/invoices/${lastResult.invoice_id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(corrections),
+            });
+            const result = await response.json();
+            if (result.success) {
+                showToast('Invoice corrections saved successfully!');
+                // Update local cache
+                Object.assign(lastResult, corrections);
+                lastResult.gst_breakdown = { cgst: corrections.cgst, sgst: corrections.sgst, igst: corrections.igst };
+                // Switch back to view mode and re-render
+                displayInvoiceResults(lastResult);
+                fetchDashboardData();
+            } else {
+                showToast(result.detail || 'Failed to save corrections');
+            }
+        } catch (error) {
+            showToast('Error saving: ' + error.message);
+        } finally {
+            if (saveBtn) { saveBtn.textContent = 'Save Corrections'; saveBtn.disabled = false; }
+        }
+        return;
+    }
+
+    // Not editing — just confirm the auto-saved invoice
+    if (lastResult.saved) {
+        showToast('Invoice saved (ID: ' + (lastResult.invoice_id || 'unknown').slice(0, 8) + ')');
+        fetchDashboardData();
+        return;
+    }
+
     showToast('Invoice was processed but could not be saved. Try uploading again while logged in.');
 }
 

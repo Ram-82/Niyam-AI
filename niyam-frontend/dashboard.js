@@ -166,9 +166,14 @@ async function handleFileUpload(input) {
         setTimeout(() => {
             progress.style.display = "none";
             if (data.status === "success") {
+                window._lastInvoiceResult = data;
                 displayInvoiceResults(data);
                 results.style.display = "block";
-                showToast("Invoice processed successfully!");
+                if (data.saved) {
+                    showToast("Invoice processed and saved!");
+                } else {
+                    showToast("Invoice processed successfully!");
+                }
             } else if (data.status === "failed") {
                 showToast(data.reason === "OCR_FAILED"
                     ? "Could not read the document. Try a clearer image or digital PDF."
@@ -301,10 +306,29 @@ function displayInvoiceResults(data) {
                 <button class="btn btn-outline" style="padding: 8px 16px; font-size: 0.8rem;"
                     onclick="document.getElementById('file-upload-input').click()">Upload Another</button>
                 <button class="btn btn-primary" style="padding: 8px 16px; font-size: 0.8rem;"
-                    onclick="showToast('Invoice saved to compliance register!')">Confirm & Save</button>
+                    onclick="confirmInvoiceSave()">Confirm & Save</button>
             </div>
         </div>
     `;
+}
+
+function confirmInvoiceSave() {
+    const lastResult = window._lastInvoiceResult;
+    if (!lastResult) {
+        showToast('No invoice to save. Process an invoice first.');
+        return;
+    }
+    if (lastResult.saved) {
+        showToast('Invoice already saved (ID: ' + (lastResult.invoice_id || 'unknown').slice(0, 8) + ')');
+        // Refresh dashboard data to reflect new invoice
+        fetchDashboardData();
+        return;
+    }
+    if (!NiyamAuth.isAuthenticated()) {
+        showToast('Please login to save invoices to your compliance register.');
+        return;
+    }
+    showToast('Invoice was processed but could not be saved. Try uploading again while logged in.');
 }
 
 // ============================================================
@@ -1021,6 +1045,36 @@ async function fetchDashboardData() {
     } finally {
         setSectionLoading('view-dashboard', false);
     }
+
+    // Fetch analytics trends for Reports charts
+    fetchAnalyticsTrends();
+}
+
+async function fetchAnalyticsTrends() {
+    try {
+        const response = await NiyamAuth.niyamFetch(`${API_URL}/analytics/trends`);
+        const result = await response.json();
+        if (result.success && result.data) {
+            const trends = result.data;
+            // Update chart data from real backend data
+            if (trends['6M']) currentChartData['6M'] = trends['6M'];
+            if (trends['1Y']) currentChartData['1Y'] = trends['1Y'];
+            if (trends['QTD']) currentChartData['QTD'] = trends['QTD'];
+
+            // Refresh chart if already initialized
+            if (window.lChart) {
+                const data = currentChartData['6M'];
+                window.lChart.data.labels = data.labels;
+                window.lChart.data.datasets[0].data = data.taxLiability;
+                window.lChart.data.datasets[1].data = data.cashFlow;
+                window.lChart.data.datasets[2].data = data.itcAvailable;
+                window.lChart.update();
+                updateDataTable('6M');
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching analytics trends:', error);
+    }
 }
 
 function updateDashboardUI(data) {
@@ -1082,6 +1136,21 @@ function updateDashboardUI(data) {
         } else {
             riskText.innerText = 'No immediate threats detected';
         }
+    }
+
+    // --- Invoice Stats (if available) ---
+    const invoiceStats = data.invoice_stats || {};
+    const totalInvoices = invoiceStats.total_invoices || 0;
+    const needsReviewCount = invoiceStats.needs_review || 0;
+
+    // Update the financial summary cards if present in GST section
+    const taxLiabilityEl = document.getElementById('total-tax-liability');
+    const itcAvailableEl = document.getElementById('total-itc-available');
+    if (taxLiabilityEl && financial.total_tax_liability != null) {
+        taxLiabilityEl.textContent = '₹' + financial.total_tax_liability.toLocaleString('en-IN');
+    }
+    if (itcAvailableEl && financial.total_itc_available != null) {
+        itcAvailableEl.textContent = '₹' + financial.total_itc_available.toLocaleString('en-IN');
     }
 
     // --- Update Deadlines Table from top_actions + timeline ---

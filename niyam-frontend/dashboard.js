@@ -612,6 +612,62 @@ function switchSettingsTab(tabId, element) {
     feather.replace();
 }
 
+// Fetch and populate settings profile on load
+async function fetchSettingsProfile() {
+    if (!NiyamAuth.isAuthenticated()) return;
+    try {
+        const response = await NiyamAuth.niyamFetch(`${API_URL}/settings/profile`);
+        const result = await response.json();
+        if (result.success && result.data) {
+            const user = result.data.user || {};
+            const biz = result.data.business || {};
+            const el = id => document.getElementById(id);
+            if (el('setting-biz-name')) el('setting-biz-name').value = biz.legal_name || biz.trade_name || '';
+            if (el('setting-gstin')) el('setting-gstin').value = biz.gstin || '';
+            if (el('setting-pan')) el('setting-pan').value = biz.pan || '';
+            if (el('setting-email')) el('setting-email').value = user.email || '';
+            if (el('setting-address')) el('setting-address').value = biz.address || '';
+        }
+    } catch (error) {
+        console.error('Error fetching settings profile:', error);
+    }
+}
+
+async function saveProfileSettings() {
+    const el = id => document.getElementById(id);
+    const updates = {};
+    const bizName = el('setting-biz-name') ? el('setting-biz-name').value.trim() : '';
+    const gstin = el('setting-gstin') ? el('setting-gstin').value.toUpperCase().trim() : '';
+    const pan = el('setting-pan') ? el('setting-pan').value.toUpperCase().trim() : '';
+    const address = el('setting-address') ? el('setting-address').value.trim() : '';
+
+    if (bizName) updates.legal_name = bizName;
+    if (gstin) updates.gstin = gstin;
+    if (pan) updates.pan = pan;
+    if (address) updates.address = address;
+
+    if (Object.keys(updates).length === 0) {
+        showToast('No changes to save');
+        return;
+    }
+
+    try {
+        const response = await NiyamAuth.niyamFetch(`${API_URL}/settings/profile`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updates),
+        });
+        const result = await response.json();
+        if (result.success) {
+            showToast('Settings saved successfully!');
+        } else {
+            showToast(result.detail || 'Failed to save settings');
+        }
+    } catch (error) {
+        showToast('Error: ' + error.message);
+    }
+}
+
 // ============================================================
 // Subscription Module
 // ============================================================
@@ -1174,6 +1230,7 @@ async function fetchDashboardData() {
 
     // Fetch recent activity
     fetchActivityFeed();
+    fetchSettingsProfile();
 }
 
 async function fetchActivityFeed() {

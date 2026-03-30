@@ -46,7 +46,8 @@ def _get_business_id(db, is_mock: bool, user_id: str) -> Optional[str]:
         else:
             resp = db.table("users").select("business_id").eq("id", user_id).single().execute()
             return resp.data.get("business_id") if resp.data else None
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Failed to look up business_id for user={user_id[:8]}: {e}")
         return None
 
 
@@ -64,7 +65,8 @@ def _parse_invoice_month(invoice: dict) -> Optional[str]:
             s = str(raw)[:10]  # "2026-03-15" or "2026-03-15T..."
             if len(s) >= 7 and s[4] == '-':
                 return s[:7]  # "2026-03"
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Failed to parse invoice month from field={field!r}: {e}")
             continue
     return None
 

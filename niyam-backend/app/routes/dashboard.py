@@ -133,6 +133,9 @@ async def get_dashboard_summary(
     for inv in invoices:
         inv_date = inv.get("invoice_date") or inv.get("created_at") or ""
         mk = str(inv_date)[:7]
+        # Validate month key format (YYYY-MM)
+        if len(mk) < 7 or mk[4:5] != '-':
+            continue
         if mk in month_keys:
             inv_by_month[mk]["total"] += 1
             if inv.get("needs_review"):

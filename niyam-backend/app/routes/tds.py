@@ -50,7 +50,8 @@ def _get_business_id(db, is_mock: bool, user_id: str) -> Optional[str]:
         else:
             resp = db.table("users").select("business_id").eq("id", user_id).single().execute()
             return resp.data.get("business_id") if resp.data else None
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Failed to look up business_id for user={user_id[:8]}: {e}")
         return None
 
 

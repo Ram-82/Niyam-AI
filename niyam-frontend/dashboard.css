@@ -734,6 +734,10 @@ th {
     to { transform: rotate(360deg); }
 }
 
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
 /* Error Banner */
 .cf-error {
     padding: 14px 20px;

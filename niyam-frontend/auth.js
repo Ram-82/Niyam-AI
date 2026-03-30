@@ -114,9 +114,7 @@ const NiyamAuth = (() => {
             } else {
                 // Refresh failed — redirect to login
                 clearAuth();
-                if (!window._demoMode && window.location.hash !== '#demo') {
-                    window.location.href = 'login.html';
-                }
+                window.location.href = 'login.html';
                 return response;
             }
         }

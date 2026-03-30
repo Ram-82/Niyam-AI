@@ -2,6 +2,11 @@
 // Niyam AI Dashboard - Main JavaScript
 // ============================================================
 
+// Redirect #demo to standalone demo page
+if (window.location.hash === '#demo') {
+    window.location.replace('demo.html');
+}
+
 // Initialize icons
 feather.replace();
 
@@ -607,6 +612,62 @@ function switchSettingsTab(tabId, element) {
     feather.replace();
 }
 
+// Fetch and populate settings profile on load
+async function fetchSettingsProfile() {
+    if (!NiyamAuth.isAuthenticated()) return;
+    try {
+        const response = await NiyamAuth.niyamFetch(`${API_URL}/settings/profile`);
+        const result = await response.json();
+        if (result.success && result.data) {
+            const user = result.data.user || {};
+            const biz = result.data.business || {};
+            const el = id => document.getElementById(id);
+            if (el('setting-biz-name')) el('setting-biz-name').value = biz.legal_name || biz.trade_name || '';
+            if (el('setting-gstin')) el('setting-gstin').value = biz.gstin || '';
+            if (el('setting-pan')) el('setting-pan').value = biz.pan || '';
+            if (el('setting-email')) el('setting-email').value = user.email || '';
+            if (el('setting-address')) el('setting-address').value = biz.address || '';
+        }
+    } catch (error) {
+        console.error('Error fetching settings profile:', error);
+    }
+}
+
+async function saveProfileSettings() {
+    const el = id => document.getElementById(id);
+    const updates = {};
+    const bizName = el('setting-biz-name') ? el('setting-biz-name').value.trim() : '';
+    const gstin = el('setting-gstin') ? el('setting-gstin').value.toUpperCase().trim() : '';
+    const pan = el('setting-pan') ? el('setting-pan').value.toUpperCase().trim() : '';
+    const address = el('setting-address') ? el('setting-address').value.trim() : '';
+
+    if (bizName) updates.legal_name = bizName;
+    if (gstin) updates.gstin = gstin;
+    if (pan) updates.pan = pan;
+    if (address) updates.address = address;
+
+    if (Object.keys(updates).length === 0) {
+        showToast('No changes to save');
+        return;
+    }
+
+    try {
+        const response = await NiyamAuth.niyamFetch(`${API_URL}/settings/profile`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updates),
+        });
+        const result = await response.json();
+        if (result.success) {
+            showToast('Settings saved successfully!');
+        } else {
+            showToast(result.detail || 'Failed to save settings');
+        }
+    } catch (error) {
+        showToast('Error: ' + error.message);
+    }
+}
+
 // ============================================================
 // Subscription Module
 // ============================================================
@@ -1118,8 +1179,8 @@ function displayITCResults(data) {
 // Authentication Check & Dashboard Data Fetch
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
-    // Allow demo mode to bypass auth
-    if (!NiyamAuth.isAuthenticated() && !window._demoMode && window.location.hash !== '#demo') {
+    // Require authentication — demo is now on its own page (demo.html)
+    if (!NiyamAuth.isAuthenticated()) {
         window.location.href = 'login.html';
         return;
     }
@@ -1139,14 +1200,69 @@ document.addEventListener('DOMContentLoaded', () => {
     const ddBiz = document.getElementById('dropdown-business');
     if (ddBiz) ddBiz.textContent = businessNameStored;
 
-    fetchDashboardData();
+    warmUpAndFetchDashboard();
 });
+
+function showServerBanner(type, message) {
+    const banner = document.getElementById('server-status-banner');
+    if (!banner) return;
+    banner.style.display = 'flex';
+    if (type === 'warming') {
+        banner.style.background = '#eff6ff';
+        banner.style.border = '1px solid #bfdbfe';
+        banner.innerHTML = '<div style="width:16px;height:16px;border:2px solid #3b82f6;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0;"></div><span style="color:#1d4ed8;">' + escapeHtml(message) + '</span>';
+    } else if (type === 'error') {
+        banner.style.background = '#fef2f2';
+        banner.style.border = '1px solid #fecaca';
+        banner.innerHTML = '<span style="color:#dc2626;">' + escapeHtml(message) + '</span><button class="btn btn-outline" style="margin-left:auto;padding:4px 12px;font-size:0.75rem;" onclick="warmUpAndFetchDashboard()">Retry</button>';
+    } else {
+        banner.style.display = 'none';
+    }
+}
+
+async function warmUpAndFetchDashboard() {
+    showServerBanner('warming', 'Connecting to server...');
+    const start = Date.now();
+
+    // Ping the health endpoint to wake the server
+    try {
+        const healthResp = await fetch(API_URL.replace('/api', '') + '/health', { signal: AbortSignal.timeout(60000) });
+        const elapsed = Date.now() - start;
+        if (elapsed > 5000) {
+            showServerBanner('warming', 'Server is ready. Loading your data...');
+        } else {
+            showServerBanner('hide');
+        }
+    } catch (e) {
+        showServerBanner('error', 'Server is unavailable. It may be starting up — please retry in 30 seconds.');
+        return;
+    }
+
+    fetchDashboardData();
+}
 
 async function fetchDashboardData() {
     setSectionLoading('view-dashboard', true);
     try {
-        const response = await NiyamAuth.niyamFetch(`${API_URL}/dashboard/summary`);
-        const data = await response.json();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 45000);
+        const response = await NiyamAuth.niyamFetch(`${API_URL}/dashboard/summary`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        let data;
+        const text = await response.text();
+        try {
+            data = JSON.parse(text);
+        } catch (parseErr) {
+            console.error('Dashboard: invalid JSON response', text.substring(0, 200));
+            showServerBanner('error', response.status >= 500
+                ? 'Server returned an error. It may be restarting — please retry.'
+                : 'Unexpected response from server.');
+            renderHealthChart({});
+            return;
+        }
+
+        showServerBanner('hide');
         if (data.success && data.data) {
             updateDashboardUI(data.data);
             renderHealthChart(data.data);
@@ -1155,6 +1271,11 @@ async function fetchDashboardData() {
         }
     } catch (error) {
         console.error('Error fetching dashboard data:', error);
+        if (error.name === 'AbortError') {
+            showServerBanner('error', 'Request timed out. Server may be cold-starting — please retry in 30 seconds.');
+        } else {
+            showServerBanner('error', 'Failed to load dashboard data. Check your connection and retry.');
+        }
         renderHealthChart({});
     } finally {
         setSectionLoading('view-dashboard', false);
@@ -1169,6 +1290,7 @@ async function fetchDashboardData() {
 
     // Fetch recent activity
     fetchActivityFeed();
+    fetchSettingsProfile();
 }
 
 async function fetchActivityFeed() {
@@ -1351,6 +1473,46 @@ function updateDashboardUI(data) {
 
     // --- Update Deadlines Table from top_actions + timeline ---
     updateDeadlinesTable(topActions, timeline);
+
+    // --- Reports section metrics ---
+    const reportInvEl = document.getElementById('report-total-invoices');
+    const reportInvSub = document.getElementById('report-invoices-sub');
+    if (reportInvEl) {
+        reportInvEl.textContent = totalInvoices;
+        if (reportInvSub) reportInvSub.textContent = totalInvoices > 0
+            ? `${needsReviewCount} need review`
+            : 'Upload invoices to begin';
+    }
+
+    const reportSavingsEl = document.getElementById('report-tax-savings');
+    if (reportSavingsEl && financial.total_itc_available != null) {
+        reportSavingsEl.textContent = '₹' + financial.total_itc_available.toLocaleString('en-IN');
+    }
+
+    const reportPenaltyEl = document.getElementById('report-penalty-risk');
+    const reportPenaltySub = document.getElementById('report-penalty-sub');
+    if (reportPenaltyEl) {
+        const penaltyTotal = (financial.total_penalty_risk || 0) + (financial.total_itc_at_risk || 0);
+        reportPenaltyEl.textContent = '₹' + penaltyTotal.toLocaleString('en-IN');
+        if (reportPenaltySub) {
+            if (penaltyTotal > 0) {
+                reportPenaltySub.textContent = 'Action required';
+                reportPenaltySub.style.color = 'var(--error)';
+            } else {
+                reportPenaltySub.textContent = 'All filings on track';
+                reportPenaltySub.style.color = 'var(--success)';
+            }
+        }
+    }
+
+    const reportLiabilityEl = document.getElementById('report-tax-liability');
+    const reportTrendEl = document.getElementById('report-tax-trend');
+    if (reportLiabilityEl && financial.total_tax_liability != null) {
+        reportLiabilityEl.textContent = '₹' + financial.total_tax_liability.toLocaleString('en-IN');
+        if (reportTrendEl) reportTrendEl.textContent = totalInvoices > 0
+            ? `From ${totalInvoices} processed invoices`
+            : 'Upload invoices to see trends';
+    }
 }
 
 function updateDeadlinesTable(topActions, timeline) {

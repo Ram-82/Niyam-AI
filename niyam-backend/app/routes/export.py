@@ -206,6 +206,10 @@ async def check_filing_readiness(
         )
         itc_results = itc_resp.data or []
 
-    readiness = assess_filing_readiness(invoices, flags, itc_results)
+    try:
+        readiness = assess_filing_readiness(invoices, flags, itc_results)
+    except Exception as e:
+        logger.error(f"Filing readiness assessment failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to assess filing readiness")
 
     return {"success": True, "data": readiness}

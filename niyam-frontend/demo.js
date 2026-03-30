@@ -9,19 +9,6 @@
 
     let demoLoaded = false;
 
-    // Auto-trigger demo if arriving via #demo hash (from landing page)
-    document.addEventListener('DOMContentLoaded', () => {
-        if (window.location.hash === '#demo') {
-            // Skip auth check for demo mode
-            window._demoMode = true;
-            setTimeout(() => {
-                const sidebarItem = $('sidebar-demo');
-                if (typeof switchView === 'function') switchView('demo', sidebarItem);
-                runDemo();
-            }, 200);
-        }
-    });
-
     window.runDemo = async function () {
         if (demoLoaded) return; // don't re-fetch if already loaded
 
@@ -44,10 +31,11 @@
             demoLoaded = true;
         } catch (e) {
             if (loading) {
+                const isColdStart = e.message.includes('Failed to fetch') || e.message.includes('NetworkError') || e.message.includes('Load failed');
                 loading.innerHTML = `
                     <div style="text-align:center; padding:40px;">
-                        <p style="color:var(--error); font-weight:600; margin-bottom:12px;">Demo Error</p>
-                        <p style="color:var(--text-light); margin-bottom:20px;">${e.message}</p>
+                        <p style="color:var(--error); font-weight:600; margin-bottom:12px;">${isColdStart ? 'Server is waking up...' : 'Demo Error'}</p>
+                        <p style="color:var(--text-light); margin-bottom:20px;">${isColdStart ? 'The backend is on a free tier and takes ~30 seconds to cold-start. Please retry.' : e.message}</p>
                         <button class="btn btn-primary" onclick="demoLoaded=false; runDemo();">Retry</button>
                     </div>`;
             }

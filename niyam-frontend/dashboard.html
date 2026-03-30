@@ -42,7 +42,7 @@
 
             <div class="sidebar-group">
                 <div class="sidebar-group-label">Actions</div>
-                <a href="#" class="sidebar-item" onclick="switchView('demo', this); runDemo();" id="sidebar-demo" style="color:#10b981; font-weight:700;"><i data-feather="play-circle"></i>
+                <a href="demo.html" class="sidebar-item" id="sidebar-demo" style="color:#10b981; font-weight:700;"><i data-feather="play-circle"></i>
                     Try Demo</a>
                 <a href="#" class="sidebar-item" onclick="switchView('compliance-flow', this)"><i data-feather="zap"></i>
                     Compliance Flow</a>
@@ -100,6 +100,10 @@
                 </div>
 
                 <!-- Metrics Grid -->
+                <!-- Cold start / loading banner -->
+                <div id="server-status-banner" style="display:none; padding:12px 20px; border-radius:10px; margin-bottom:16px; font-size:0.85rem; display:flex; align-items:center; gap:10px;">
+                </div>
+
                 <div class="metrics-grid">
                     <div class="card metric-card status-border-error" style="cursor: pointer;"
                         onclick="filterTable('Upcoming')">
@@ -168,25 +172,8 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr data-status="Upcoming">
-                                    <td style="font-weight: 600;">GST-3B</td>
-                                    <td>June 20, 2025</td>
-                                    <td><span class="badge badge-upcoming">Upcoming</span></td>
-                                    <td><button class="btn-action">File Now</button></td>
-                                </tr>
-                                <tr data-status="Upcoming">
-                                    <td style="font-weight: 600;">TDS Quarterly</td>
-                                    <td>July 10, 2025</td>
-                                    <td><span class="badge badge-upcoming">Upcoming</span></td>
-                                    <td><button class="btn-action">File Now</button></td>
-                                </tr>
-                                <tr data-status="Overdue" class="status-border-error">
-                                    <td style="font-weight: 600;">ROC Filing</td>
-                                    <td>May 30, 2025</td>
-                                    <td><span class="badge badge-overdue">Overdue</span></td>
-                                    <td><button class="btn-action"
-                                            style="color: var(--error); border-color: var(--error);">File Now</button>
-                                    </td>
+                                <tr>
+                                    <td colspan="4" style="text-align:center; color:var(--text-light); padding:24px;">Loading deadlines...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -313,33 +300,7 @@
                     </div>
                 </div>
                 <div id="ocr-results" style="display: none; margin-top: 30px;">
-                    <h3 style="margin-bottom: 15px;">Extracted Data Preview</h3>
-                    <div class="card">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                            <div>
-                                <p style="font-size: 0.8rem; color: var(--text-light);">Vendor</p>
-                                <p style="font-weight: 600;">Office Supplies Inc.</p>
-                            </div>
-                            <div>
-                                <p style="font-size: 0.8rem; color: var(--text-light);">GSTIN Extracted</p>
-                                <p style="font-weight: 600;">29CCCDD0000C1Z1</p>
-                            </div>
-                            <div>
-                                <p style="font-size: 0.8rem; color: var(--text-light);">Date</p>
-                                <p style="font-weight: 600;">June 15, 2025</p>
-                            </div>
-                            <div>
-                                <p style="font-size: 0.8rem; color: var(--text-light);">Total Amount</p>
-                                <p style="font-weight: 600;">₹4,250.00</p>
-                            </div>
-                        </div>
-                        <div style="margin-top: 20px; text-align: right;">
-                            <button class="btn btn-outline" style="padding: 8px 16px; font-size: 0.8rem;"
-                                onclick="showToast('Redoing OCR...')">Retry OCR</button>
-                            <button class="btn btn-primary" style="padding: 8px 16px; font-size: 0.8rem;"
-                                onclick="showToast('Data synced to GST Purchase Register!')">Confirm & Sync</button>
-                        </div>
-                    </div>
+                    <!-- Populated dynamically by displayInvoiceResults() in dashboard.js -->
                 </div>
             </section>
 
@@ -614,26 +575,26 @@
                 </div>
 
                 <div class="metrics-grid">
-                    <div class="card metric-card status-border-success">
+                    <div class="card metric-card">
                         <p
                             style="color: var(--text-light); text-transform: uppercase; font-size: 0.7rem; font-weight: 600;">
-                            Optimization Score</p>
-                        <div class="metric-value">92%</div>
-                        <p style="font-size: 0.8rem; color: var(--success);">↑ 4% from last month</p>
+                            Total Invoices</p>
+                        <div class="metric-value" id="report-total-invoices">0</div>
+                        <p style="font-size: 0.8rem; color: var(--text-light);" id="report-invoices-sub">Upload invoices to begin</p>
                     </div>
-                    <div class="card metric-card status-border-warning">
+                    <div class="card metric-card">
                         <p
                             style="color: var(--text-light); text-transform: uppercase; font-size: 0.7rem; font-weight: 600;">
                             Est. Tax Savings</p>
-                        <div class="metric-value">₹12,400</div>
-                        <p style="font-size: 0.8rem; color: var(--warning);">Potential ITC uncapped</p>
+                        <div class="metric-value" id="report-tax-savings">₹0</div>
+                        <p style="font-size: 0.8rem; color: var(--text-light);" id="report-savings-sub">Based on ITC claims</p>
                     </div>
-                    <div class="card metric-card status-border-error">
+                    <div class="card metric-card">
                         <p
                             style="color: var(--text-light); text-transform: uppercase; font-size: 0.7rem; font-weight: 600;">
                             Penalty Risk</p>
-                        <div class="metric-value">₹0</div>
-                        <p style="font-size: 0.8rem; color: var(--success);">All filings on track</p>
+                        <div class="metric-value" id="report-penalty-risk">₹0</div>
+                        <p style="font-size: 0.8rem; color: var(--success);" id="report-penalty-sub">All filings on track</p>
                     </div>
                 </div>
 
@@ -656,8 +617,8 @@
                         <div class="chart-summary">
                             <div class="summary-item">
                                 <span class="label">Current Tax Liability:</span>
-                                <span class="value">₹62,000</span>
-                                <span class="trend up">↑ 8% from last month</span>
+                                <span class="value" id="report-tax-liability">₹0</span>
+                                <span class="trend" id="report-tax-trend" style="font-size:0.75rem; color:var(--text-light);">Upload invoices to see trends</span>
                             </div>
                         </div>
                         <div id="no-js-fallback"
@@ -686,19 +647,16 @@
                     <!-- Optimization Suggestions -->
                     <div class="card">
                         <h3 style="margin-bottom: 15px;">Smart Suggestions</h3>
-                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <div id="gst-smart-suggestions" style="display: flex; flex-direction: column; gap: 12px;">
                             <div
                                 style="padding: 12px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid var(--success);">
                                 <p style="font-size: 0.85rem; font-weight: 600; color: #166534;">ITC Optimization</p>
-                                <p style="font-size: 0.75rem; color: #15803d;">Reclaim ₹8,200 by verifying 12 pending
-                                    vendor invoices.</p>
+                                <p style="font-size: 0.75rem; color: #15803d;">Upload invoices and run ITC reconciliation to see optimization suggestions.</p>
                             </div>
                             <div
                                 style="padding: 12px; background: #eff6ff; border-radius: 8px; border-left: 4px solid var(--primary-color);">
-                                <p style="font-size: 0.85rem; font-weight: 600; color: var(--primary-color);">Quarterly
-                                    Strategy</p>
-                                <p style="font-size: 0.75rem; color: var(--text-light);">Switching to QRMP scheme could
-                                    save 2 hours/month on GST.</p>
+                                <p style="font-size: 0.85rem; font-weight: 600; color: var(--primary-color);">Getting Started</p>
+                                <p style="font-size: 0.75rem; color: var(--text-light);">Upload purchase invoices to auto-populate your GST data and get compliance insights.</p>
                             </div>
                         </div>
                     </div>
@@ -921,7 +879,7 @@
             <section id="view-settings" class="content-view">
                 <div class="welcome-bar">
                     <h1>Settings</h1>
-                    <button class="btn btn-primary" onclick="showToast('Settings saved successfully!')">Save All
+                    <button class="btn btn-primary" onclick="saveProfileSettings()">Save All
                         Changes</button>
                 </div>
 
@@ -945,24 +903,24 @@
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                             <div class="form-group">
                                 <label>Legal Business Name</label>
-                                <input type="text" id="setting-biz-name" value="Niyam Enterprises Pvt Ltd">
+                                <input type="text" id="setting-biz-name" value="" placeholder="Loading...">
                             </div>
                             <div class="form-group">
                                 <label>GSTIN</label>
-                                <input type="text" value="27AAAAA0000A1Z5">
+                                <input type="text" id="setting-gstin" value="" placeholder="e.g. 27AAACM7890G1Z3" maxlength="15" style="text-transform:uppercase;">
                             </div>
                             <div class="form-group">
                                 <label>PAN</label>
-                                <input type="text" value="ABCDE1234F">
+                                <input type="text" id="setting-pan" value="" placeholder="e.g. ABCDE1234F" maxlength="10" style="text-transform:uppercase;">
                             </div>
                             <div class="form-group">
                                 <label>Contact Email</label>
-                                <input type="email" value="admin@niyam.ai">
+                                <input type="email" id="setting-email" value="" placeholder="Loading..." readonly style="background:#f8fafc;">
                             </div>
                             <div class="form-group" style="grid-column: span 2;">
                                 <label>Registered Address</label>
-                                <textarea
-                                    style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px;">123, Business Park, Phase II, Mumbai, Maharashtra - 400001</textarea>
+                                <textarea id="setting-address"
+                                    style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px;" placeholder="Business address..."></textarea>
                             </div>
                         </div>
                     </div>
@@ -1453,72 +1411,7 @@
                 </div>
             </section>
 
-            <!-- View: Demo -->
-            <section id="view-demo" class="content-view">
-                <div class="welcome-bar">
-                    <div>
-                        <h1>Niyam AI — Live Demo</h1>
-                        <p style="color: var(--text-light);">Full pipeline on sample data. No signup needed.</p>
-                    </div>
-                </div>
-
-                <!-- Loading -->
-                <div id="demo-loading" class="cf-loading">
-                    <div class="cf-spinner"></div>
-                    <p>Running full pipeline on demo dataset...</p>
-                </div>
-
-                <!-- Results container -->
-                <div id="demo-results" style="display:none;">
-                    <!-- Readiness Banner -->
-                    <div id="demo-readiness" class="cf-readiness-banner" style="margin-bottom:20px;"></div>
-
-                    <!-- Data Summary -->
-                    <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:12px; margin-bottom:20px;" id="demo-summary-cards"></div>
-
-                    <!-- Top Actions -->
-                    <div class="card" style="margin-bottom:20px;">
-                        <h3 style="margin-bottom:16px;">Top Priority Actions</h3>
-                        <div id="demo-top-actions"></div>
-                    </div>
-
-                    <!-- Two columns: Financials + Compliance -->
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
-                        <div class="card">
-                            <h3 style="margin-bottom:16px;">Financial Summary</h3>
-                            <div id="demo-financials"></div>
-                        </div>
-                        <div class="card">
-                            <h3 style="margin-bottom:16px;">Compliance Overview</h3>
-                            <div id="demo-compliance-overview"></div>
-                        </div>
-                    </div>
-
-                    <!-- Invoice Records -->
-                    <div class="card" style="margin-bottom:20px;">
-                        <h3 style="margin-bottom:16px;">Invoice Records</h3>
-                        <div id="demo-invoices"></div>
-                    </div>
-
-                    <!-- ITC Results -->
-                    <div class="card" style="margin-bottom:20px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                            <h3>ITC Match Results</h3>
-                            <div id="demo-itc-financials" style="display:flex; gap:16px;"></div>
-                        </div>
-                        <div id="demo-itc-matches"></div>
-                    </div>
-
-                    <!-- Compliance Flags -->
-                    <div class="card" style="margin-bottom:20px;">
-                        <h3 style="margin-bottom:16px;">Compliance Flags</h3>
-                        <div id="demo-flags"></div>
-                    </div>
-
-                    <!-- Elapsed -->
-                    <p id="demo-elapsed" style="text-align:center; color:var(--text-light); font-size:0.8rem; margin-top:20px;"></p>
-                </div>
-            </section>
+            <!-- Demo is now on its own page: demo.html -->
 
             <!-- View: Compliance Flow -->
             <section id="view-compliance-flow" class="content-view">
@@ -2004,7 +1897,6 @@
         </div>
     </div>
 
-    <script src="demo.js"></script>
     <script src="compliance-flow.js"></script>
     <script src="dashboard.js"></script>
 </body>

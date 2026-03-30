@@ -1356,6 +1356,46 @@ function updateDashboardUI(data) {
 
     // --- Update Deadlines Table from top_actions + timeline ---
     updateDeadlinesTable(topActions, timeline);
+
+    // --- Reports section metrics ---
+    const reportInvEl = document.getElementById('report-total-invoices');
+    const reportInvSub = document.getElementById('report-invoices-sub');
+    if (reportInvEl) {
+        reportInvEl.textContent = totalInvoices;
+        if (reportInvSub) reportInvSub.textContent = totalInvoices > 0
+            ? `${needsReviewCount} need review`
+            : 'Upload invoices to begin';
+    }
+
+    const reportSavingsEl = document.getElementById('report-tax-savings');
+    if (reportSavingsEl && financial.total_itc_available != null) {
+        reportSavingsEl.textContent = '₹' + financial.total_itc_available.toLocaleString('en-IN');
+    }
+
+    const reportPenaltyEl = document.getElementById('report-penalty-risk');
+    const reportPenaltySub = document.getElementById('report-penalty-sub');
+    if (reportPenaltyEl) {
+        const penaltyTotal = (financial.total_penalty_risk || 0) + (financial.total_itc_at_risk || 0);
+        reportPenaltyEl.textContent = '₹' + penaltyTotal.toLocaleString('en-IN');
+        if (reportPenaltySub) {
+            if (penaltyTotal > 0) {
+                reportPenaltySub.textContent = 'Action required';
+                reportPenaltySub.style.color = 'var(--error)';
+            } else {
+                reportPenaltySub.textContent = 'All filings on track';
+                reportPenaltySub.style.color = 'var(--success)';
+            }
+        }
+    }
+
+    const reportLiabilityEl = document.getElementById('report-tax-liability');
+    const reportTrendEl = document.getElementById('report-tax-trend');
+    if (reportLiabilityEl && financial.total_tax_liability != null) {
+        reportLiabilityEl.textContent = '₹' + financial.total_tax_liability.toLocaleString('en-IN');
+        if (reportTrendEl) reportTrendEl.textContent = totalInvoices > 0
+            ? `From ${totalInvoices} processed invoices`
+            : 'Upload invoices to see trends';
+    }
 }
 
 function updateDeadlinesTable(topActions, timeline) {

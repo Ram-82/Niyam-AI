@@ -875,7 +875,7 @@
             <section id="view-settings" class="content-view">
                 <div class="welcome-bar">
                     <h1>Settings</h1>
-                    <button class="btn btn-primary" onclick="showToast('Settings saved successfully!')">Save All
+                    <button class="btn btn-primary" onclick="saveProfileSettings()">Save All
                         Changes</button>
                 </div>
 
@@ -899,24 +899,24 @@
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                             <div class="form-group">
                                 <label>Legal Business Name</label>
-                                <input type="text" id="setting-biz-name" value="Niyam Enterprises Pvt Ltd">
+                                <input type="text" id="setting-biz-name" value="" placeholder="Loading...">
                             </div>
                             <div class="form-group">
                                 <label>GSTIN</label>
-                                <input type="text" value="27AAAAA0000A1Z5">
+                                <input type="text" id="setting-gstin" value="" placeholder="e.g. 27AAACM7890G1Z3" maxlength="15" style="text-transform:uppercase;">
                             </div>
                             <div class="form-group">
                                 <label>PAN</label>
-                                <input type="text" value="ABCDE1234F">
+                                <input type="text" id="setting-pan" value="" placeholder="e.g. ABCDE1234F" maxlength="10" style="text-transform:uppercase;">
                             </div>
                             <div class="form-group">
                                 <label>Contact Email</label>
-                                <input type="email" value="admin@niyam.ai">
+                                <input type="email" id="setting-email" value="" placeholder="Loading..." readonly style="background:#f8fafc;">
                             </div>
                             <div class="form-group" style="grid-column: span 2;">
                                 <label>Registered Address</label>
-                                <textarea
-                                    style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px;">123, Business Park, Phase II, Mumbai, Maharashtra - 400001</textarea>
+                                <textarea id="setting-address"
+                                    style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px;" placeholder="Business address..."></textarea>
                             </div>
                         </div>
                     </div>

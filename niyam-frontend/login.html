@@ -77,7 +77,24 @@
             try {
                 const response = await fetch(`${API_URL}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
                 const data = await response.json();
-                if (!response.ok) { let errorMessage = 'Login failed'; if (data.detail) { if (typeof data.detail === 'string') { errorMessage = data.detail; } else if (Array.isArray(data.detail)) { errorMessage = data.detail.map(err => err.msg || JSON.stringify(err)).join('\n'); } else { errorMessage = JSON.stringify(data.detail); } } throw new Error(errorMessage); }
+                if (!response.ok) {
+                    // Check if email verification is needed (403 with requires_verification)
+                    if (response.status === 403 && data.detail && typeof data.detail === 'object' && data.detail.requires_verification) {
+                        localStorage.setItem('niyam_verify_email', data.detail.email || email);
+                        const devCode = data.detail._dev_verification_code || '';
+                        const verifyUrl = `verify-email.html?email=${encodeURIComponent(data.detail.email || email)}` + (devCode ? `&code=${devCode}` : '');
+                        window.location.href = verifyUrl;
+                        return;
+                    }
+                    let errorMessage = 'Login failed';
+                    if (data.detail) {
+                        if (typeof data.detail === 'string') { errorMessage = data.detail; }
+                        else if (Array.isArray(data.detail)) { errorMessage = data.detail.map(err => err.msg || JSON.stringify(err)).join('\n'); }
+                        else if (data.detail.detail) { errorMessage = data.detail.detail; }
+                        else { errorMessage = JSON.stringify(data.detail); }
+                    }
+                    throw new Error(errorMessage);
+                }
                 if (data.success) { localStorage.setItem('niyam_access_token', data.data.access_token); localStorage.setItem('niyam_refresh_token', data.data.refresh_token); localStorage.setItem('niyam_user_name', data.data.user_name); localStorage.setItem('niyam_business_name', data.data.business_name); window.location.href = 'dashboard.html'; }
             } catch (error) { console.error('Login error:', error); errorDiv.innerText = error.message; errorDiv.style.display = 'block'; } finally { loginBtn.innerText = 'Log In'; loginBtn.disabled = false; }
         });

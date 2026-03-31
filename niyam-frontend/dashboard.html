@@ -12,6 +12,7 @@
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
     <script src="config.js"></script>
     <script src="auth.js"></script>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
 
 <body>
@@ -48,6 +49,8 @@
                     Compliance Flow</a>
                 <a href="#" class="sidebar-item" onclick="switchView('upload', this)"><i data-feather="upload"></i>
                     Upload Invoices</a>
+                <a href="#" class="sidebar-item" onclick="switchView('documents', this)"><i data-feather="folder"></i>
+                    My Documents</a>
                 <a href="#" class="sidebar-item" onclick="switchView('bank', this)"><i data-feather="link"></i> Connect
                     Bank</a>
                 <a href="#" class="sidebar-item" onclick="switchView('ca-portal', this)"><i data-feather="users"></i> CA
@@ -301,6 +304,37 @@
                 </div>
                 <div id="ocr-results" style="display: none; margin-top: 30px;">
                     <!-- Populated dynamically by displayInvoiceResults() in dashboard.js -->
+                </div>
+            </section>
+
+            <!-- View: Documents Gallery -->
+            <section id="view-documents" class="content-view">
+                <div class="welcome-bar">
+                    <div>
+                        <h1>My Documents</h1>
+                        <p style="color: var(--text-light);">Original invoices and uploaded files. Files are retained for 30 days.</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="switchView('upload', document.querySelector('[onclick*=upload]'))">
+                        <i data-feather="upload" style="width: 16px; margin-right: 8px;"></i> Upload New
+                    </button>
+                </div>
+
+                <!-- Plan Usage Banner -->
+                <div id="doc-plan-banner" style="display: none; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; background: #eff6ff; border: 1px solid #bfdbfe;">
+                    <p id="doc-plan-text" style="font-size: 0.875rem; color: #1d4ed8; margin: 0;"></p>
+                </div>
+
+                <div class="card" style="padding: 0; overflow: hidden;">
+                    <div style="padding: 16px 20px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
+                        <h3 style="margin: 0;">Uploaded Files</h3>
+                        <span id="doc-count" style="font-size: 0.8rem; color: var(--text-light);"></span>
+                    </div>
+                    <div id="documents-list-container">
+                        <div style="text-align: center; padding: 60px 20px;">
+                            <div style="width:20px;height:20px;border:2px solid #3b82f6;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div>
+                            <p style="color: var(--text-light); font-size: 0.9rem;">Loading documents...</p>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -1065,57 +1099,49 @@
                 <!-- Billing Section -->
                 <div id="settings-billing" class="settings-section">
                     <div class="subscription-section">
-                        <!-- SECTION 1: Current Plan Display -->
-                        <div class="current-plan-card">
+                        <!-- SECTION 1: Current Plan Display (dynamic) -->
+                        <div id="current-plan-card" class="current-plan-card">
                             <div style="flex: 1;">
-                                <p
-                                    style="font-size: 0.8rem; color: var(--text-light); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em;">
+                                <p style="font-size: 0.8rem; color: var(--text-light); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em;">
                                     Your Current Plan</p>
-                                <h1 style="font-size: 2rem; margin: 10px 0; color: var(--primary-color);">Compliance Pro
-                                    (Annual)</h1>
-                                <p style="font-size: 1.1rem; font-weight: 500;">₹2,999/month <span
-                                        style="font-size: 0.9rem; color: var(--text-light); font-weight: normal;">(billed
-                                        annually at ₹28,790)</span></p>
+                                <h1 id="billing-plan-name" style="font-size: 2rem; margin: 10px 0; color: var(--primary-color);">Loading...</h1>
+                                <p id="billing-plan-price" style="font-size: 1.1rem; font-weight: 500;"></p>
 
-                                <div
-                                    style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px;">
-                                    <div style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem;">
-                                        <i data-feather="check-circle" style="width: 16px; color: var(--success);"></i>
-                                        Unlimited Invoices
+                                <!-- Usage meter -->
+                                <div id="billing-usage-bar-wrap" style="margin-top: 16px; display: none;">
+                                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 6px;">
+                                        <span style="color: var(--text-light);">Invoices this month</span>
+                                        <span id="billing-usage-text" style="font-weight: 600;"></span>
                                     </div>
-                                    <div style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem;">
-                                        <i data-feather="check-circle" style="width: 16px; color: var(--success);"></i>
-                                        AI ITC Matching
-                                    </div>
-                                    <div style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem;">
-                                        <i data-feather="check-circle" style="width: 16px; color: var(--success);"></i>
-                                        CA Collaboration
-                                    </div>
-                                    <div style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem;">
-                                        <i data-feather="check-circle" style="width: 16px; color: var(--success);"></i>
-                                        Priority Support
+                                    <div style="width: 100%; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
+                                        <div id="billing-usage-fill" style="height: 100%; background: var(--primary-color); border-radius: 4px; transition: width 0.4s;"></div>
                                     </div>
                                 </div>
 
-                                <div class="plan-value-tag">
-                                    <i data-feather="trending-up" style="width: 14px; margin-right: 5px;"></i>
-                                    Value saved this year: ₹47,500 (penalties avoided)
-                                </div>
+                                <div id="billing-features-list" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px;"></div>
                             </div>
 
-                            <div
-                                style="text-align: right; border-left: 1px solid #e2e8f0; padding-left: 30px; margin-left: 30px;">
-                                <p style="font-size: 0.85rem; color: var(--text-light);">Next Renewal</p>
-                                <p style="font-size: 1.1rem; font-weight: 600; margin-bottom: 25px;">October 15, 2026
-                                </p>
-
-                                <div style="display: flex; flex-direction: column; gap: 10px;">
-                                    <button class="btn btn-primary"
-                                        onclick="showToast('Loading plan upgrades...')">Upgrade Plan</button>
-                                    <button class="btn btn-outline" style="color: var(--error); border-color: #fee2e2;"
-                                        onclick="showToast('Cancellation request sent. You will be contacted.')">Cancel
-                                        Subscription</button>
+                            <div style="text-align: right; border-left: 1px solid #e2e8f0; padding-left: 30px; margin-left: 30px; min-width: 160px;">
+                                <p style="font-size: 0.85rem; color: var(--text-light);">Billing Cycle</p>
+                                <div style="display: flex; gap: 8px; justify-content: flex-end; margin: 8px 0 20px;">
+                                    <button id="bill-monthly-btn" class="btn btn-outline" style="padding: 6px 12px; font-size: 0.8rem;" onclick="setBillingCycle('monthly', this)">Monthly</button>
+                                    <button id="bill-annual-btn" class="btn btn-outline" style="padding: 6px 12px; font-size: 0.8rem;" onclick="setBillingCycle('annual', this)">Annual <span style="font-size:0.7rem;color:var(--success);">-17%</span></button>
                                 </div>
+                                <div style="display: flex; flex-direction: column; gap: 10px;">
+                                    <button id="billing-upgrade-btn" class="btn btn-primary" onclick="showUpgradePlans()">Upgrade Plan</button>
+                                    <button class="btn btn-outline" style="color: var(--error); border-color: #fee2e2;" onclick="showToast('Email us at support@niyam.ai to cancel.')">Cancel Subscription</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Upgrade Modal (inline, hidden by default) -->
+                        <div id="upgrade-plans-panel" style="display: none; margin-top: 20px; padding: 20px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                                <h3 style="margin: 0;">Choose a Plan</h3>
+                                <button onclick="document.getElementById('upgrade-plans-panel').style.display='none'" style="background:none;border:none;cursor:pointer;font-size:1.2rem;color:var(--text-light);">✕</button>
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;" id="upgrade-plans-grid">
+                                <!-- Populated by JS -->
                             </div>
                         </div>
 
@@ -1304,7 +1330,7 @@
                                 style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px;">
                                 <h3 style="margin: 0;">Invoice History</h3>
                                 <a href="#" style="font-size: 0.85rem; color: var(--primary-color); font-weight: 600;"
-                                    onclick="showToast('Fetching complete invoice history...')">View All Invoices</a>
+                                    onclick="switchView('documents', document.querySelector('[onclick*=documents]'))">View All Documents</a>
                             </div>
                             <div class="pricing-table-container">
                                 <table class="pricing-table" style="text-align: left;">

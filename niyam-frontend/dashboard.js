@@ -43,6 +43,9 @@ function switchView(viewId, element) {
     if (viewId === 'reports') {
         setTimeout(() => { initCharts(); }, 100);
     }
+    if (viewId === 'documents') {
+        fetchDocuments();
+    }
 
     feather.replace();
 }
@@ -250,6 +253,23 @@ async function handleFileUpload(input) {
             );
         }
 
+        // Handle plan limit exceeded (402)
+        if (response.status === 402) {
+            progress.style.display = 'none';
+            const detail = data.detail;
+            const msg = (detail && typeof detail === 'object' && detail.message)
+                ? detail.message
+                : 'Monthly invoice limit reached. Upgrade your plan to continue.';
+            showToast(msg);
+            if (confirm(msg + '\n\nOpen billing settings to upgrade?')) {
+                switchView('settings', document.querySelector('[onclick*=settings]'));
+                setTimeout(() => {
+                    const billingBtn = document.querySelector('[onclick*="billing"]');
+                    if (billingBtn) billingBtn.click();
+                }, 300);
+            }
+            return;
+        }
         if (!response.ok) {
             throw new Error(data.error || data.detail || data.reason || `Processing failed (HTTP ${response.status})`);
         }
@@ -695,6 +715,7 @@ function switchSettingsTab(tabId, element) {
     document.getElementById(`settings-${tabId}`).classList.add('active');
 
     if (tabId === 'billing') {
+        loadBillingPlan();
         renderInvoices();
     }
 
@@ -2263,3 +2284,441 @@ document.addEventListener('DOMContentLoaded', () => {
 window.addEventListener('error', () => {
     showToast('Something went wrong. Please refresh.');
 });
+
+// ============================================================
+// D1: Document Gallery
+// ============================================================
+let _docsPage = 1;
+let _docsTotal = 0;
+
+async function fetchDocuments(page) {
+    page = page || 1;
+    _docsPage = page;
+    const container = document.getElementById('documents-list-container');
+    const countEl = document.getElementById('doc-count');
+    if (!container) return;
+
+    if (!NiyamAuth.isAuthenticated()) {
+        container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light);">Login to view your documents.</div>';
+        return;
+    }
+
+    container.innerHTML = '<div style="text-align:center;padding:60px 20px;"><div style="width:20px;height:20px;border:2px solid #3b82f6;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div><p style="color:var(--text-light);font-size:0.9rem;">Loading documents...</p></div>';
+
+    // Also load plan usage banner
+    try {
+        const planResp = await NiyamAuth.niyamFetch(`${API_URL}/billing/plan`);
+        const planData = await planResp.json();
+        if (planData.success && planData.data) {
+            renderDocPlanBanner(planData.data);
+        }
+    } catch (e) { /* non-fatal */ }
+
+    try {
+        const resp = await NiyamAuth.niyamFetch(`${API_URL}/documents?page=${page}&page_size=20`);
+        const result = await resp.json();
+        if (!result.success) throw new Error(result.detail || 'Failed to load documents');
+
+        const { documents, total, pages } = result.data;
+        _docsTotal = total;
+        if (countEl) countEl.textContent = `${total} document${total !== 1 ? 's' : ''}`;
+
+        if (total === 0) {
+            container.innerHTML = `
+                <div style="text-align:center;padding:60px 20px;">
+                    <i data-feather="folder" style="width:48px;height:48px;color:#cbd5e1;margin-bottom:16px;"></i>
+                    <p style="font-size:1rem;font-weight:600;color:var(--text-light);">No documents yet</p>
+                    <p style="font-size:0.85rem;color:#94a3b8;margin:8px 0 20px;">Upload invoices to build your document archive.</p>
+                    <button class="btn btn-primary" onclick="switchView('upload', document.querySelector('[onclick*=upload]'))">
+                        <i data-feather="upload" style="width:14px;margin-right:6px;"></i>Upload Your First Invoice
+                    </button>
+                </div>`;
+            if (window.feather) feather.replace();
+            return;
+        }
+
+        container.innerHTML = renderDocumentsTable(documents, total, page, pages);
+        if (window.feather) feather.replace();
+    } catch (error) {
+        console.error('Fetch documents error:', error);
+        container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--error);">Failed to load documents: ${escapeHtml(error.message)}</div>`;
+    }
+}
+
+function renderDocPlanBanner(planData) {
+    const banner = document.getElementById('doc-plan-banner');
+    const text = document.getElementById('doc-plan-text');
+    if (!banner || !text) return;
+    const usage = planData.usage || {};
+    const plan = planData.plan || {};
+    if (usage.is_unlimited) {
+        banner.style.display = 'none';
+        return;
+    }
+    const pct = usage.limit > 0 ? Math.round((usage.invoices_this_month / usage.limit) * 100) : 0;
+    const remaining = usage.remaining;
+    banner.style.display = 'block';
+    if (remaining === 0) {
+        banner.style.background = '#fef2f2';
+        banner.style.border = '1px solid #fecaca';
+        text.innerHTML = `<strong>Invoice limit reached</strong> — You've used all ${usage.limit} invoices on the <strong>${plan.name}</strong> plan this month. <a href="#" onclick="switchView('settings', document.querySelector('[onclick*=settings]')); setTimeout(() => { document.querySelector('[onclick*=billing]').click(); }, 100);" style="color:var(--primary-color);font-weight:600;">Upgrade to continue →</a>`;
+        text.style.color = '#dc2626';
+    } else if (pct >= 80) {
+        banner.style.background = '#fffbeb';
+        banner.style.border = '1px solid #fde68a';
+        text.innerHTML = `<strong>${remaining} invoices remaining</strong> this month on your <strong>${plan.name}</strong> plan (${usage.invoices_this_month}/${usage.limit} used). <a href="#" onclick="switchView('settings', document.querySelector('[onclick*=settings]'))" style="color:var(--primary-color);">Upgrade for more →</a>`;
+        text.style.color = '#92400e';
+    } else {
+        banner.style.background = '#eff6ff';
+        banner.style.border = '1px solid #bfdbfe';
+        text.innerHTML = `<strong>${plan.name}</strong> plan — ${usage.invoices_this_month} of ${usage.limit} invoices used this month`;
+        text.style.color = '#1d4ed8';
+    }
+}
+
+function renderDocumentsTable(docs, total, page, pages) {
+    const thead = `<table style="width:100%;border-collapse:collapse;">
+        <thead>
+            <tr style="border-bottom:1px solid #f1f5f9;text-align:left;">
+                <th style="padding:12px 16px;font-size:0.75rem;font-weight:600;color:var(--text-light);text-transform:uppercase;">Filename</th>
+                <th style="padding:12px 16px;font-size:0.75rem;font-weight:600;color:var(--text-light);text-transform:uppercase;">Uploaded</th>
+                <th style="padding:12px 16px;font-size:0.75rem;font-weight:600;color:var(--text-light);text-transform:uppercase;">Size</th>
+                <th style="padding:12px 16px;font-size:0.75rem;font-weight:600;color:var(--text-light);text-transform:uppercase;">Status</th>
+                <th style="padding:12px 16px;font-size:0.75rem;font-weight:600;color:var(--text-light);text-transform:uppercase;">Actions</th>
+            </tr>
+        </thead><tbody>`;
+
+    const rows = docs.map(doc => {
+        const name = escapeHtml(doc.filename || 'Unknown');
+        const date = doc.created_at ? new Date(doc.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+        const size = doc.file_size ? _fmtFileSize(doc.file_size) : '—';
+        const status = doc.status || 'uploaded';
+        const statusColor = status === 'extracted' ? 'var(--success)' : status === 'failed' ? 'var(--error)' : '#f59e0b';
+        const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
+        const fileAvail = doc.file_available;
+        const mime = doc.mime_type || '';
+        const icon = mime.includes('pdf') ? '📄' : mime.includes('image') ? '🖼️' : '📁';
+
+        const downloadBtn = fileAvail
+            ? `<button class="btn btn-outline" style="padding:4px 10px;font-size:0.75rem;" onclick="downloadDocument('${doc.id}', '${escapeHtml(doc.filename || 'document')}')"><i data-feather="download" style="width:12px;height:12px;margin-right:4px;"></i>Download</button>`
+            : `<span style="font-size:0.75rem;color:#94a3b8;" title="File expired or not available">Expired</span>`;
+
+        return `<tr style="border-bottom:1px solid #f8fafc;transition:background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+            <td style="padding:12px 16px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <span style="font-size:1.1rem;">${icon}</span>
+                    <div>
+                        <p style="font-weight:600;font-size:0.875rem;margin:0;">${name}</p>
+                        <p style="font-size:0.75rem;color:var(--text-light);margin:2px 0 0;">${escapeHtml(mime || '—')}</p>
+                    </div>
+                </div>
+            </td>
+            <td style="padding:12px 16px;font-size:0.85rem;color:var(--text-light);">${date}</td>
+            <td style="padding:12px 16px;font-size:0.85rem;color:var(--text-light);">${size}</td>
+            <td style="padding:12px 16px;">
+                <span style="font-size:0.75rem;font-weight:600;padding:3px 8px;border-radius:4px;background:${statusColor}20;color:${statusColor};">${statusLabel}</span>
+            </td>
+            <td style="padding:12px 16px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    ${downloadBtn}
+                    <button class="btn" style="padding:4px 10px;font-size:0.75rem;background:transparent;border:1px solid #e2e8f0;color:var(--error);" onclick="deleteDocument('${doc.id}', this)"><i data-feather="trash-2" style="width:12px;height:12px;"></i></button>
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+
+    let pagination = '';
+    if (pages > 1) {
+        const prevDisabled = page <= 1;
+        const nextDisabled = page >= pages;
+        pagination = `<div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #f1f5f9;">
+            <span style="font-size:0.8rem;color:var(--text-light);">Page ${page} of ${pages} (${total} total)</span>
+            <div style="display:flex;gap:8px;">
+                <button class="btn btn-outline" style="padding:4px 10px;font-size:0.8rem;" ${prevDisabled ? 'disabled' : ''} onclick="fetchDocuments(${page-1})">← Prev</button>
+                <button class="btn btn-outline" style="padding:4px 10px;font-size:0.8rem;" ${nextDisabled ? 'disabled' : ''} onclick="fetchDocuments(${page+1})">Next →</button>
+            </div>
+        </div>`;
+    }
+
+    return thead + rows + '</tbody></table>' + pagination;
+}
+
+function _fmtFileSize(bytes) {
+    if (!bytes) return '—';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+async function downloadDocument(docId, filename) {
+    showToast(`Downloading ${filename}...`);
+    try {
+        const token = NiyamAuth.getToken();
+        const response = await fetch(`${API_URL}/documents/${docId}/download`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (response.status === 410) {
+            showToast('File is no longer available. It may have expired (30-day limit).');
+            return;
+        }
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            showToast(err.detail || 'Download failed');
+            return;
+        }
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+    } catch (error) {
+        showToast('Download failed: ' + error.message);
+    }
+}
+
+async function deleteDocument(docId, btnEl) {
+    if (!confirm('Delete this document? This cannot be undone.')) return;
+    const row = btnEl.closest('tr');
+    if (row) row.style.opacity = '0.4';
+    try {
+        const resp = await NiyamAuth.niyamFetch(`${API_URL}/documents/${docId}`, { method: 'DELETE' });
+        const result = await resp.json();
+        if (result.success) {
+            showToast('Document deleted.');
+            fetchDocuments(_docsPage);
+        } else {
+            showToast(result.detail || 'Delete failed');
+            if (row) row.style.opacity = '1';
+        }
+    } catch (error) {
+        showToast('Error: ' + error.message);
+        if (row) row.style.opacity = '1';
+    }
+}
+
+// ============================================================
+// D2: Billing / Plan Management
+// ============================================================
+let _billingCycle = 'monthly';
+let _billingPlanData = null;
+
+async function loadBillingPlan() {
+    if (!NiyamAuth.isAuthenticated()) return;
+    try {
+        const resp = await NiyamAuth.niyamFetch(`${API_URL}/billing/plan`);
+        const result = await resp.json();
+        if (!result.success) return;
+        _billingPlanData = result.data;
+        renderBillingPlanCard(result.data);
+    } catch (e) {
+        console.error('loadBillingPlan error:', e);
+    }
+}
+
+function renderBillingPlanCard(data) {
+    const plan = data.plan || {};
+    const usage = data.usage || {};
+
+    const nameEl = document.getElementById('billing-plan-name');
+    const priceEl = document.getElementById('billing-plan-price');
+    const featuresEl = document.getElementById('billing-features-list');
+    const upgradeBtn = document.getElementById('billing-upgrade-btn');
+
+    if (nameEl) nameEl.textContent = plan.name || 'Free Trial';
+
+    if (priceEl) {
+        const price = _billingCycle === 'annual' ? plan.price_annual : plan.price_monthly;
+        if (!price || price === 0) {
+            priceEl.innerHTML = '<span style="font-size:1.4rem;font-weight:700;color:var(--success);">Free</span>';
+        } else {
+            const monthlyEquiv = _billingCycle === 'annual' ? Math.round(plan.price_annual / 12) : plan.price_monthly;
+            priceEl.innerHTML = `₹${monthlyEquiv.toLocaleString('en-IN')}/month` +
+                (_billingCycle === 'annual' ? ` <span style="font-size:0.85rem;color:var(--text-light);">(billed annually ₹${plan.price_annual.toLocaleString('en-IN')})</span>` : '');
+        }
+    }
+
+    if (featuresEl) {
+        const features = plan.features || [];
+        featuresEl.innerHTML = features.map(f => `
+            <div style="display:flex;align-items:center;gap:8px;font-size:0.875rem;">
+                <i data-feather="check-circle" style="width:14px;color:var(--success);flex-shrink:0;"></i>${escapeHtml(f)}
+            </div>`).join('');
+    }
+
+    // Usage meter
+    const usageWrap = document.getElementById('billing-usage-bar-wrap');
+    const usageText = document.getElementById('billing-usage-text');
+    const usageFill = document.getElementById('billing-usage-fill');
+    if (usageWrap && !usage.is_unlimited) {
+        usageWrap.style.display = 'block';
+        if (usageText) usageText.textContent = `${usage.invoices_this_month} / ${usage.limit}`;
+        if (usageFill) {
+            const pct = usage.limit > 0 ? Math.min(100, Math.round((usage.invoices_this_month / usage.limit) * 100)) : 0;
+            usageFill.style.width = pct + '%';
+            usageFill.style.background = pct >= 90 ? 'var(--error)' : pct >= 70 ? '#f59e0b' : 'var(--primary-color)';
+        }
+    }
+
+    // Show/hide upgrade button
+    if (upgradeBtn) {
+        if (plan.id === 'pro') {
+            upgradeBtn.textContent = 'Current Plan';
+            upgradeBtn.disabled = true;
+        } else {
+            upgradeBtn.textContent = 'Upgrade Plan';
+            upgradeBtn.disabled = false;
+        }
+    }
+
+    if (window.feather) feather.replace();
+}
+
+function setBillingCycle(cycle, btn) {
+    _billingCycle = cycle;
+    document.querySelectorAll('#current-plan-card [onclick*=setBillingCycle]').forEach(b => {
+        b.classList.remove('btn-primary');
+        b.classList.add('btn-outline');
+    });
+    btn.classList.remove('btn-outline');
+    btn.classList.add('btn-primary');
+    if (_billingPlanData) renderBillingPlanCard(_billingPlanData);
+    const grid = document.getElementById('upgrade-plans-grid');
+    if (grid && grid.children.length > 0) renderUpgradePlansGrid();
+}
+
+function showUpgradePlans() {
+    const panel = document.getElementById('upgrade-plans-panel');
+    if (!panel) return;
+    panel.style.display = 'block';
+    renderUpgradePlansGrid();
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function renderUpgradePlansGrid() {
+    const grid = document.getElementById('upgrade-plans-grid');
+    if (!grid) return;
+
+    const plans = [
+        { id: 'starter', name: 'Starter', inv: '25/mo', monthly: 499, annual: 4990, features: ['AI invoice parsing', 'GST/TDS/ROC tracking', 'Email alerts'] },
+        { id: 'growth', name: 'Growth', inv: '100/mo', monthly: 1499, annual: 14990, features: ['AI ITC matching', 'Bank integration', 'Ask Niyam chatbot'], highlight: true },
+        { id: 'pro', name: 'Pro', inv: 'Unlimited', monthly: 2999, annual: 28790, features: ['CA collaboration', 'Advanced reports', 'Priority support', '10 users'] },
+    ];
+
+    const currentPlanId = (_billingPlanData && _billingPlanData.plan && _billingPlanData.plan.id) || 'free';
+
+    grid.innerHTML = plans.map(p => {
+        const price = _billingCycle === 'annual' ? Math.round(p.annual / 12) : p.monthly;
+        const isCurrent = p.id === currentPlanId;
+        const border = p.highlight ? 'border: 2px solid var(--primary-color);' : 'border: 1px solid #e2e8f0;';
+        const badge = p.highlight ? '<span style="display:inline-block;background:var(--primary-color);color:white;font-size:0.65rem;padding:2px 6px;border-radius:3px;margin-bottom:8px;">POPULAR</span>' : '<span style="display:inline-block;height:18px;margin-bottom:8px;"></span>';
+        const btnLabel = isCurrent ? 'Current Plan' : 'Choose This';
+        const btnStyle = isCurrent ? 'background:#e2e8f0;color:var(--text-light);cursor:default;' : 'background:var(--primary-color);color:white;cursor:pointer;';
+
+        return `<div style="padding:20px;border-radius:10px;${border}background:white;text-align:center;">
+            ${badge}
+            <h3 style="margin:0 0 4px;">${escapeHtml(p.name)}</h3>
+            <p style="font-size:0.8rem;color:var(--text-light);margin-bottom:12px;">${escapeHtml(p.inv)}</p>
+            <p style="font-size:1.8rem;font-weight:700;color:var(--primary-color);margin-bottom:4px;">₹${price.toLocaleString('en-IN')}</p>
+            <p style="font-size:0.75rem;color:var(--text-light);margin-bottom:16px;">/month${_billingCycle === 'annual' ? ' (billed annually)' : ''}</p>
+            <ul style="list-style:none;padding:0;margin:0 0 16px;text-align:left;">
+                ${p.features.map(f => `<li style="font-size:0.8rem;padding:4px 0;display:flex;gap:6px;align-items:center;">✓ ${escapeHtml(f)}</li>`).join('')}
+            </ul>
+            <button style="width:100%;padding:9px;border-radius:7px;font-weight:600;font-size:0.85rem;border:none;${btnStyle}"
+                onclick="${isCurrent ? '' : `startCheckout('${p.id}')`}"
+                ${isCurrent ? 'disabled' : ''}>${btnLabel}</button>
+        </div>`;
+    }).join('');
+}
+
+async function startCheckout(planId) {
+    if (!NiyamAuth.isAuthenticated()) {
+        showToast('Please login first');
+        return;
+    }
+    showToast('Preparing checkout...');
+    try {
+        const resp = await NiyamAuth.niyamFetch(`${API_URL}/billing/create-order`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ plan_id: planId, billing_cycle: _billingCycle }),
+        });
+        const result = await resp.json();
+        if (!result.success) {
+            showToast(result.detail || 'Could not create order');
+            return;
+        }
+        const orderData = result.data;
+
+        if (orderData.is_dev_mode) {
+            // Dev mode: simulate successful payment
+            const confirmed = confirm(
+                `[DEV MODE] Simulate payment for ${orderData.plan_name}?\n` +
+                `Amount: ₹${(orderData.amount / 100).toLocaleString('en-IN')}\n\n` +
+                `Click OK to activate plan (no real payment in dev mode).`
+            );
+            if (!confirmed) return;
+            await _activatePlan(planId, orderData.order_id, 'pay_dev_mock', '');
+            return;
+        }
+
+        // Real Razorpay checkout
+        const userName = localStorage.getItem('niyam_user_name') || '';
+        const options = {
+            key: orderData.razorpay_key_id,
+            amount: orderData.amount,
+            currency: orderData.currency,
+            name: 'Niyam AI',
+            description: `${orderData.plan_name} Plan (${_billingCycle})`,
+            order_id: orderData.order_id,
+            prefill: { name: userName },
+            theme: { color: '#2563eb' },
+            handler: function (response) {
+                _activatePlan(
+                    planId,
+                    response.razorpay_order_id,
+                    response.razorpay_payment_id,
+                    response.razorpay_signature
+                );
+            },
+        };
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+    } catch (error) {
+        showToast('Error: ' + error.message);
+    }
+}
+
+async function _activatePlan(planId, orderId, paymentId, signature) {
+    try {
+        const resp = await NiyamAuth.niyamFetch(`${API_URL}/billing/verify-payment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                razorpay_order_id: orderId,
+                razorpay_payment_id: paymentId,
+                razorpay_signature: signature,
+                plan_id: planId,
+            }),
+        });
+        const result = await resp.json();
+        if (result.success) {
+            showToast(result.message || 'Plan activated!');
+            document.getElementById('upgrade-plans-panel').style.display = 'none';
+            loadBillingPlan();
+        } else {
+            showToast(result.detail || 'Plan activation failed');
+        }
+    } catch (error) {
+        showToast('Error activating plan: ' + error.message);
+    }
+}
+
+// Override handleFileUpload to show plan limit error nicely
+const _origHandleFileUpload = window.handleFileUpload;
+window._handleFileUploadWithPlanCheck = async function(input) {
+    // Intercept 402 from process-invoice for plan limit exceeded
+    // The actual check is done by wrapping the fetch response inside handleFileUpload
+    // This is handled by the 402 response from the backend triggering a special toast
+};

@@ -80,9 +80,65 @@ def _get_business_id(db, is_mock: bool, user_id: str) -> Optional[str]:
         return None
 
 
+PLAN_LIMITS = {
+    "free": 10,
+    "starter": 25,
+    "growth": 100,
+    "pro": -1,  # unlimited
+}
+
+
+def _check_plan_limit(db, is_mock: bool, user_id: str, business_id: str) -> None:
+    """Raise 402 if the user has exceeded their monthly invoice limit."""
+    from datetime import date
+    plan = "free"
+    try:
+        if is_mock:
+            user = db.get_user_by_id(user_id)
+            plan = (user or {}).get("plan", "free") or "free"
+        else:
+            resp = db.table("users").select("plan").eq("id", user_id).single().execute()
+            plan = (resp.data or {}).get("plan", "free") or "free"
+    except Exception:
+        pass  # default to free if lookup fails
+
+    limit = PLAN_LIMITS.get(plan, 10)
+    if limit == -1:
+        return  # unlimited
+
+    try:
+        if is_mock:
+            count = db.get_invoice_count_this_month(business_id)
+        else:
+            first_of_month = date.today().replace(day=1).isoformat()
+            resp = (
+                db.table("invoices")
+                .select("id", count="exact")
+                .eq("business_id", business_id)
+                .gte("created_at", first_of_month)
+                .execute()
+            )
+            count = resp.count or 0
+    except Exception:
+        return  # skip limit check on DB error
+
+    if count >= limit:
+        raise HTTPException(
+            status_code=402,
+            detail={
+                "error": "PLAN_LIMIT_REACHED",
+                "message": f"Your {plan.title()} plan allows {limit} invoices/month. You've used {count}.",
+                "current_plan": plan,
+                "limit": limit,
+                "used": count,
+                "upgrade_required": True,
+            },
+        )
+
+
 def _save_document_record(db, is_mock: bool, doc_id: str, business_id: str,
                            user_id: str, filename: str, file_size: int,
-                           content_type: str, now: str) -> None:
+                           content_type: str, now: str, safe_filename: str) -> None:
     """Persist a document record to the DB."""
     from app.models.document import DocumentType, DocumentStatus
     doc_record = {
@@ -90,7 +146,7 @@ def _save_document_record(db, is_mock: bool, doc_id: str, business_id: str,
         "business_id": business_id,
         "uploaded_by": user_id,
         "filename": filename,
-        "file_path": None,          # file is temp — not kept on disk
+        "file_path": safe_filename,     # retained in uploads/ for re-download
         "file_size": file_size,
         "mime_type": content_type,
         "document_type": DocumentType.PURCHASE_INVOICE.value,
@@ -185,6 +241,18 @@ async def process_invoice(
             detail=f"File too large ({file_size // (1024*1024)}MB). Max: {MAX_FILE_SIZE // (1024*1024)}MB",
         )
 
+    # Enforce plan invoice limits for authenticated users
+    if user_id:
+        try:
+            db, is_mock = _get_db()
+            business_id_check = _get_business_id(db, is_mock, user_id)
+            if business_id_check:
+                _check_plan_limit(db, is_mock, user_id, business_id_check)
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.warning(f"Plan limit check failed (non-fatal): {e}")
+
     # Save temporarily
     doc_id = str(uuid.uuid4())
     ext = ALLOWED_MIME[content_type]
@@ -235,6 +303,7 @@ async def process_invoice(
                     _save_document_record(
                         db, is_mock, doc_id, business_id,
                         user_id, original_filename, file_size, content_type, now,
+                        safe_filename,
                     )
                     _save_invoice_record(
                         db, is_mock, invoice_id, doc_id,
@@ -279,10 +348,6 @@ async def process_invoice(
             "reason": "PROCESSING_ERROR",
             "detail": str(e),
         }
-    finally:
-        # Clean up temp file
-        try:
-            if file_path.exists():
-                os.remove(file_path)
-        except OSError:
-            pass
+    # Files are retained in UPLOAD_DIR for re-download (30-day retention).
+    # Note: on ephemeral filesystems (Render free tier), files are lost on
+    # redeploy. For production persistence, use Supabase Storage.

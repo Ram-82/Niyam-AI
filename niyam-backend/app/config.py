@@ -37,6 +37,12 @@ class Settings:
     TESSERACT_PATH: str = os.getenv("TESSERACT_PATH", "/usr/bin/tesseract")
     OCR_TIMEOUT: int = int(os.getenv("OCR_TIMEOUT", "30"))  # seconds
 
+    # ---- Razorpay (optional — payment integration) ----
+    # Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in your deployment platform.
+    # Without these, billing runs in dev mode (mock payments accepted).
+    RAZORPAY_KEY_ID: str = os.getenv("RAZORPAY_KEY_ID", "").strip()
+    RAZORPAY_KEY_SECRET: str = os.getenv("RAZORPAY_KEY_SECRET", "").strip()
+
     # ---- AI Extraction (optional — fallback when parser confidence is low) ----
     # Set ANTHROPIC_API_KEY to enable AI-assisted extraction for messy invoices.
     # If not set, the system falls back to rule-based parser only.

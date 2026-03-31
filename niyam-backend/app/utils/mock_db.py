@@ -111,6 +111,25 @@ class MockDB:
                 return business
         return None
 
+    def update_user(self, user_id: str, updates: Dict):
+        def _update(users):
+            for user in users:
+                if user.get("id") == user_id:
+                    user.update(updates)
+                    break
+        self._read_modify_write(self.users_file, _update)
+
+    def update_user_plan(self, user_id: str, plan: str):
+        self.update_user(user_id, {"plan": plan})
+
+    def mark_email_verified(self, email: str):
+        def _update(users):
+            for user in users:
+                if user.get("email") == email:
+                    user["email_verified"] = True
+                    break
+        self._read_modify_write(self.users_file, _update)
+
     # Document operations
     def create_document(self, doc_data: Dict) -> Dict:
         def _append(docs):
@@ -118,12 +137,26 @@ class MockDB:
         self._read_modify_write(self.documents_file, _append)
         return doc_data
 
+    def get_documents_by_business(self, business_id: str) -> List[Dict]:
+        docs = self._read_file(self.documents_file)
+        results = [d for d in docs if d.get("business_id") == business_id]
+        results.sort(key=lambda d: d.get("created_at", ""), reverse=True)
+        return results
+
     def get_document_by_id(self, doc_id: str) -> Optional[Dict]:
         docs = self._read_file(self.documents_file)
         for doc in docs:
             if doc.get("id") == doc_id:
                 return doc
         return None
+
+    def delete_document(self, doc_id: str):
+        def _remove(docs):
+            return [d for d in docs if d.get("id") != doc_id]
+        with self._lock:
+            data = self._read_file(self.documents_file)
+            filtered = [d for d in data if d.get("id") != doc_id]
+            self._write_file(self.documents_file, filtered)
 
     def update_document_status(self, doc_id: str, status: str, processed_at: str = None):
         def _update(docs):
@@ -153,6 +186,16 @@ class MockDB:
     def get_invoices_by_business(self, business_id: str) -> List[Dict]:
         invoices = self._read_file(self.invoices_file)
         return [inv for inv in invoices if inv.get("business_id") == business_id]
+
+    def get_invoice_count_this_month(self, business_id: str) -> int:
+        from datetime import date
+        first_of_month = date.today().replace(day=1).isoformat()
+        invoices = self._read_file(self.invoices_file)
+        return sum(
+            1 for inv in invoices
+            if inv.get("business_id") == business_id
+            and (inv.get("created_at") or "") >= first_of_month
+        )
 
     # Deadline operations
     def get_deadlines_by_business(self, business_id: str, dl_type: str = None) -> List[Dict]:

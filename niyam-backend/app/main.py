@@ -9,7 +9,7 @@ from app.middleware import RequestIDMiddleware, RateLimitMiddleware, install_err
 from app.routes import (
     auth, dashboard, upload, compliance, gst, tds, roc,
     ocr, analytics, export, demo, itc, process_invoice, invoices, audit,
-    onboarding, settings as settings_routes
+    onboarding, settings as settings_routes, documents, billing
 )
 
 # Configure logging
@@ -74,6 +74,8 @@ app.include_router(audit.router)
 app.include_router(onboarding.router)
 app.include_router(demo.router)
 app.include_router(settings_routes.router)
+app.include_router(documents.router)
+app.include_router(billing.router)
 
 
 @app.get("/")

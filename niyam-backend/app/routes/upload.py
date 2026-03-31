@@ -179,13 +179,32 @@ async def extract_document(
     user_id = _get_user_id(credentials)
     doc_id = body.document_id
 
-    # Fetch document record
     db, is_mock = _get_db()
 
+    # Resolve the requesting user's business_id (tenant identity)
     if is_mock:
-        doc = db.get_document_by_id(doc_id)
+        _user = db.get_user_by_id(user_id)
+        business_id = _user["business_id"] if _user else None
     else:
-        doc_resp = db.table("documents").select("*").eq("id", doc_id).single().execute()
+        _user_resp = db.table("users").select("business_id").eq("id", user_id).single().execute()
+        business_id = _user_resp.data.get("business_id") if _user_resp.data else None
+
+    if not business_id:
+        raise HTTPException(status_code=403, detail="No business found for this user")
+
+    # Fetch document record — filter by business_id to enforce tenant isolation
+    if is_mock:
+        _doc = db.get_document_by_id(doc_id)
+        doc = _doc if (_doc and _doc.get("business_id") == business_id) else None
+    else:
+        doc_resp = (
+            db.table("documents")
+            .select("*")
+            .eq("id", doc_id)
+            .eq("business_id", business_id)
+            .single()
+            .execute()
+        )
         doc = doc_resp.data
 
     if not doc:
@@ -270,7 +289,7 @@ async def extract_document(
     # Step 3: Normalize — enforce types, reconcile GST, cross-check totals
     now = datetime.now(timezone.utc).isoformat()
     invoice_id = str(uuid.uuid4())
-    business_id = doc.get("business_id", "unknown")
+    # business_id already resolved above (from user record, ownership-verified)
 
     normalized = normalize_invoice(parsed, invoice_id)
     norm = normalized.to_dict()

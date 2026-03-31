@@ -20,9 +20,11 @@ class UserLogin(BaseModel):
 class UserResponse(UserBase):
     id: str
     business_id: str
+    email_verified: bool = False
+    plan: str = "free"
     created_at: datetime
-    last_login: Optional[datetime]
-    
+    last_login: Optional[datetime] = None
+
     class Config:
         from_attributes = True
 

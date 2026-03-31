@@ -124,6 +124,7 @@ class AuthService:
                     "phone": user_data.phone,
                     "business_id": business_id,
                     "email_verified": False,
+                    "plan": "free",
                     "created_at": now,
                 }
             ).execute()
@@ -182,6 +183,7 @@ class AuthService:
                 "phone": user_data.phone,
                 "business_id": business_id,
                 "email_verified": False,
+                "plan": "free",
                 "created_at": now,
                 "last_login": None,
             }

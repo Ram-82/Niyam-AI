@@ -1679,7 +1679,7 @@ function updateDeadlinesTable(topActions, timeline) {
                 <td style="font-weight: 600;">${category}${impact}</td>
                 <td>${dueDate}</td>
                 <td><span class="badge ${statusClass}">${statusText}</span></td>
-                <td><button class="btn-action" onclick="showToast('${(item.action_required || item.title || '').replace(/'/g, "\\'")}')">View</button></td>
+                <td><button class="btn-action" onclick="showToast('${escapeHtml((item.action_required || item.title || '').replace(/'/g, ""))}')">View</button></td>
             </tr>
         `;
     }).join('');

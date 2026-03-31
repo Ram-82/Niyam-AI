@@ -69,7 +69,7 @@
             form.append('document_type', 'purchase_invoice');
 
             try {
-                const res = NiyamAuth.niyamFetch(`${API}/upload`, { method: 'POST', body: form });
+                const res = await NiyamAuth.niyamFetch(`${API}/upload`, { method: 'POST', body: form });
                 $('cf-progress-fill').style.width = '70%';
 
                 if (!res.ok) {
@@ -108,7 +108,7 @@
         show(panel);
 
         try {
-            const res = NiyamAuth.niyamFetch(`${API}/extract`, {
+            const res = await NiyamAuth.niyamFetch(`${API}/extract`, {
                 method: 'POST',
                 headers: jsonHeaders(),
                 body: JSON.stringify({ document_id: uploadedDocId })
@@ -196,7 +196,7 @@
         hide($('cf-compliance-results'));
 
         try {
-            const res = NiyamAuth.niyamFetch(`${API}/compliance-check`, {
+            const res = await NiyamAuth.niyamFetch(`${API}/compliance-check`, {
                 method: 'POST',
                 headers: jsonHeaders(),
                 body: JSON.stringify({ check_type: 'all' })
@@ -285,7 +285,7 @@
         }
 
         try {
-            const res = NiyamAuth.niyamFetch(`${API}/itc-match`, {
+            const res = await NiyamAuth.niyamFetch(`${API}/itc-match`, {
                 method: 'POST',
                 headers: jsonHeaders(),
                 body: JSON.stringify({
@@ -366,8 +366,8 @@
         try {
             // Fetch dashboard + readiness in parallel
             const [dashRes, readyRes] = await Promise.all([
-                fetch(`${API}/dashboard/summary?top_n=3`, { headers: headers() }),
-                fetch(`${API}/export/readiness`, { headers: headers() }).catch(() => null)
+                NiyamAuth.niyamFetch(`${API}/dashboard/summary?top_n=3`),
+                NiyamAuth.niyamFetch(`${API}/export/readiness`).catch(() => null)
             ]);
 
             if (!dashRes.ok) {
@@ -488,7 +488,7 @@
 
         // Load readiness status
         try {
-            const res = NiyamAuth.niyamFetch(`${API}/export/readiness`);
+            const res = await NiyamAuth.niyamFetch(`${API}/export/readiness`);
             if (res.ok) {
                 const data = await res.json();
                 if (data.success) renderExportReadiness(data.data);
@@ -527,7 +527,7 @@
         if ($('cf-filter-flagged') && !$('cf-filter-flagged').checked) params.set('include_flagged', 'false');
 
         try {
-            const res = NiyamAuth.niyamFetch(`${API}/export?${params}`);
+            const res = await NiyamAuth.niyamFetch(`${API}/export?${params}`);
 
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}));

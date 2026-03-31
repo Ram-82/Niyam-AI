@@ -123,6 +123,7 @@ class AuthService:
                     "full_name": user_data.full_name,
                     "phone": user_data.phone,
                     "business_id": business_id,
+                    "email_verified": False,
                     "created_at": now,
                 }
             ).execute()
@@ -180,6 +181,7 @@ class AuthService:
                 "full_name": user_data.full_name,
                 "phone": user_data.phone,
                 "business_id": business_id,
+                "email_verified": False,
                 "created_at": now,
                 "last_login": None,
             }
@@ -240,6 +242,7 @@ class AuthService:
                 "refresh_token": refresh_token,
                 "user_name": user.get("full_name"),
                 "business_name": business_name,
+                "email_verified": user.get("email_verified", True),
             }
         except HTTPException:
             raise
@@ -275,6 +278,7 @@ class AuthService:
             "refresh_token": refresh_token,
             "user_name": user["full_name"],
             "business_name": business_name,
+            "email_verified": user.get("email_verified", True),
         }
 
     # ------------------------------------------------------------------
@@ -369,3 +373,28 @@ class AuthService:
             return resp.data or {}
         except Exception:
             return {}
+
+    def mark_email_verified(self, email: str):
+        """Mark a user's email as verified."""
+        if self.use_mock:
+            def _update(users):
+                for u in users:
+                    if u.get("email", "").lower() == email.lower():
+                        u["email_verified"] = True
+                        break
+            self.mock_db._read_modify_write(self.mock_db.users_file, _update)
+        else:
+            self.db.table("users").update(
+                {"email_verified": True}
+            ).eq("email", email).execute()
+
+    def check_user_exists(self, email: str) -> bool:
+        """Check if a user with the given email exists."""
+        if self.use_mock:
+            return self.mock_db.get_user_by_email(email) is not None
+        else:
+            try:
+                resp = self.db.table("users").select("id").eq("email", email).execute()
+                return bool(resp.data)
+            except Exception:
+                return False

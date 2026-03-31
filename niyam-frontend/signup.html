@@ -182,11 +182,22 @@
                     throw new Error(errorMessage);
                 }
                 if (data.success) {
+                    // Store tokens for after verification
                     localStorage.setItem('niyam_access_token', data.data.access_token);
                     localStorage.setItem('niyam_refresh_token', data.data.refresh_token);
                     localStorage.setItem('niyam_user_name', data.data.user_name);
                     localStorage.setItem('niyam_business_name', data.data.business_name);
-                    window.location.href = 'dashboard.html';
+                    localStorage.setItem('niyam_verify_email', email);
+
+                    // Redirect to email verification
+                    if (data.requires_verification) {
+                        const devCode = data._dev_verification_code || '';
+                        const verifyUrl = `verify-email.html?email=${encodeURIComponent(email)}` +
+                            (devCode ? `&code=${devCode}` : '');
+                        window.location.href = verifyUrl;
+                    } else {
+                        window.location.href = 'dashboard.html';
+                    }
                 }
             } catch (error) {
                 console.error('Signup error:', error);

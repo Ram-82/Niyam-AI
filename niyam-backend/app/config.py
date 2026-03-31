@@ -1,4 +1,5 @@
 import os
+import secrets
 import sys
 import logging
 from dotenv import load_dotenv
@@ -54,8 +55,8 @@ class Settings:
             if self.ENVIRONMENT == "production":
                 errors.append("JWT_SECRET_KEY is required in production")
             else:
-                self.JWT_SECRET_KEY = "dev-secret-key-not-for-production"
-                logger.warning("JWT_SECRET_KEY not set — using insecure dev default.")
+                self.JWT_SECRET_KEY = secrets.token_urlsafe(32)
+                logger.warning("JWT_SECRET_KEY not set — generated ephemeral dev secret.")
 
         if self.ENVIRONMENT == "production":
             if not self.SUPABASE_URL:

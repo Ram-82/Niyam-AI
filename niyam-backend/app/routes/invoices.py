@@ -7,10 +7,12 @@ PATCH /api/invoices/{id}    — update extracted fields (correction flow)
 """
 
 import logging
+import math
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel, Field, field_validator
 
 from app.config import settings
 from app.utils.security import verify_token
@@ -139,25 +141,44 @@ async def get_invoice(
 
 
 # ================================================================
-# PATCH /api/invoices/{invoice_id}
+# PATCH /api/invoices/{invoice_id} — validation model
 # ================================================================
+
+class InvoiceUpdate(BaseModel):
+    invoice_number: Optional[str] = None
+    invoice_date: Optional[str] = None
+    vendor_name: Optional[str] = None
+    vendor_gstin: Optional[str] = None
+    taxable_value: Optional[float] = Field(None, ge=0)
+    cgst: Optional[float] = Field(None, ge=0)
+    sgst: Optional[float] = Field(None, ge=0)
+    igst: Optional[float] = Field(None, ge=0)
+    total_amount: Optional[float] = Field(None, ge=0)
+    needs_review: Optional[bool] = None
+
+    @field_validator("taxable_value", "cgst", "sgst", "igst", "total_amount", mode="before")
+    @classmethod
+    def reject_non_finite(cls, v):
+        if v is not None:
+            v = float(v)
+            if math.isnan(v) or math.isinf(v):
+                raise ValueError("Value must be a finite number")
+        return v
+
+
 @router.patch("/invoices/{invoice_id}", response_model=dict)
 async def update_invoice(
     invoice_id: str,
-    body: dict,
+    body: InvoiceUpdate,
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ):
     """
-    Correct extracted fields on an invoice. Only allowed fields can be updated.
+    Correct extracted fields on an invoice. Only explicitly provided fields
+    are updated; null/omitted fields are left unchanged.
 
-    Allowed fields: invoice_number, invoice_date, vendor_name, vendor_gstin,
-    taxable_value, cgst, sgst, igst, total_amount, needs_review
+    Numeric fields (taxable_value, cgst, sgst, igst, total_amount) must be
+    non-negative finite numbers. Pydantic validates this at the boundary.
     """
-    ALLOWED_FIELDS = {
-        "invoice_number", "invoice_date", "vendor_name", "vendor_gstin",
-        "taxable_value", "cgst", "sgst", "igst", "total_amount", "needs_review",
-    }
-
     user_id = _get_user_id(credentials)
     db, is_mock = _get_db()
 
@@ -165,8 +186,8 @@ async def update_invoice(
     if not business_id:
         raise HTTPException(status_code=403, detail="No business found for this user")
 
-    # Filter to only allowed fields
-    updates = {k: v for k, v in body.items() if k in ALLOWED_FIELDS}
+    # Only include fields that were explicitly sent (not None)
+    updates = body.model_dump(exclude_none=True)
     if not updates:
         raise HTTPException(status_code=400, detail="No valid fields to update")
 

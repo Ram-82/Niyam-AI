@@ -6,6 +6,7 @@
     const API = CONFIG.API_URL;
     const $ = id => document.getElementById(id);
     const fmt = n => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
+    const esc = s => { if (s == null) return ''; const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; };
 
     let demoLoaded = false;
 
@@ -35,7 +36,7 @@
                 loading.innerHTML = `
                     <div style="text-align:center; padding:40px;">
                         <p style="color:var(--error); font-weight:600; margin-bottom:12px;">${isColdStart ? 'Server is waking up...' : 'Demo Error'}</p>
-                        <p style="color:var(--text-light); margin-bottom:20px;">${isColdStart ? 'The backend is on a free tier and takes ~30 seconds to cold-start. Please retry.' : e.message}</p>
+                        <p style="color:var(--text-light); margin-bottom:20px;">${isColdStart ? 'The backend is on a free tier and takes ~30 seconds to cold-start. Please retry.' : esc(e.message)}</p>
                         <button class="btn btn-primary" onclick="demoLoaded=false; runDemo();">Retry</button>
                     </div>`;
             }
@@ -100,15 +101,15 @@
                             ${a.amount ? `<span style="font-weight:700; color:var(--error); white-space:nowrap; font-size:1.15rem; min-width:90px; text-align:right;">${fmt(a.amount)}</span>` : ''}
                             <div class="cf-action-priority" style="background:${urgencyColors[urgency] || '#94a3b8'};">${i + 1}</div>
                             <div style="flex:1;">
-                                <p style="font-weight:700;">${a.title || a.message || ''}</p>
-                                <p style="font-size:0.85rem; color:var(--text-light);">${a.description || a.action_required || ''}</p>
+                                <p style="font-weight:700;">${esc(a.title || a.message || '')}</p>
+                                <p style="font-size:0.85rem; color:var(--text-light);">${esc(a.description || a.action_required || '')}</p>
                             </div>
                         </div>
                         ${trust.explanation ? `
                         <div class="demo-trust-box">
-                            <div class="demo-trust-row"><span class="demo-trust-label">Why:</span> ${trust.explanation}</div>
-                            ${trust.calculation ? `<div class="demo-trust-row"><span class="demo-trust-label">Calc:</span> ${trust.calculation}</div>` : ''}
-                            ${trust.source ? `<div class="demo-trust-row"><span class="demo-trust-label">Source:</span> ${trust.source}</div>` : ''}
+                            <div class="demo-trust-row"><span class="demo-trust-label">Why:</span> ${esc(trust.explanation)}</div>
+                            ${trust.calculation ? `<div class="demo-trust-row"><span class="demo-trust-label">Calc:</span> ${esc(trust.calculation)}</div>` : ''}
+                            ${trust.source ? `<div class="demo-trust-row"><span class="demo-trust-label">Source:</span> ${esc(trust.source)}</div>` : ''}
                         </div>` : ''}
                     </div>`;
             }).join('');
@@ -172,8 +173,8 @@
                 return `
                     <div style="display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #f1f5f9;">
                         <div style="flex:1;">
-                            <span style="font-weight:700;">${inv.invoice_number || 'N/A'}</span>
-                            <span style="color:var(--text-light); font-size:0.85rem; margin-left:8px;">${inv.vendor_name || ''}</span>
+                            <span style="font-weight:700;">${esc(inv.invoice_number || 'N/A')}</span>
+                            <span style="color:var(--text-light); font-size:0.85rem; margin-left:8px;">${esc(inv.vendor_name || '')}</span>
                         </div>
                         <span style="font-size:0.85rem; color:var(--text-light); white-space:nowrap;">${fmt(inv.total_amount)}</span>
                         <span class="badge" style="background:${confColor}; color:white;">${conf}% conf</span>
@@ -205,9 +206,9 @@
                             <div>
                                 <span class="badge" style="background:${matchColors[mt] || '#94a3b8'}; color:white;">${matchLabels[mt] || mt}</span>
                                 ${m.confidence_score != null ? `<span class="badge" style="background:#6b7280; color:white; margin-left:4px;">${m.confidence_score}%</span>` : ''}
-                                <span style="font-weight:700; margin-left:8px;">${m.invoice_number || 'N/A'}</span>
+                                <span style="font-weight:700; margin-left:8px;">${esc(m.invoice_number || 'N/A')}</span>
                             </div>
-                            <span style="font-size:0.8rem; color:var(--text-light);">${m.vendor_gstin || ''}</span>
+                            <span style="font-size:0.8rem; color:var(--text-light);">${esc(m.vendor_gstin || '')}</span>
                         </div>
                         <div style="display:flex; gap:20px; font-size:0.85rem; margin-bottom:8px;">
                             <span>Eligible: <strong>${fmt(m.eligible_itc)}</strong></span>
@@ -215,9 +216,9 @@
                         </div>
                         ${trust.explanation ? `
                         <div class="demo-trust-box">
-                            <div class="demo-trust-row"><span class="demo-trust-label">Why:</span> ${trust.explanation}</div>
-                            ${trust.calculation ? `<div class="demo-trust-row"><span class="demo-trust-label">Calc:</span> ${trust.calculation}</div>` : ''}
-                            ${trust.source ? `<div class="demo-trust-row"><span class="demo-trust-label">Source:</span> ${trust.source}</div>` : ''}
+                            <div class="demo-trust-row"><span class="demo-trust-label">Why:</span> ${esc(trust.explanation)}</div>
+                            ${trust.calculation ? `<div class="demo-trust-row"><span class="demo-trust-label">Calc:</span> ${esc(trust.calculation)}</div>` : ''}
+                            ${trust.source ? `<div class="demo-trust-row"><span class="demo-trust-label">Source:</span> ${esc(trust.source)}</div>` : ''}
                         </div>` : ''}
                     </div>`;
             }).join('');
@@ -236,15 +237,15 @@
                     <div class="cf-flag" style="border-left:4px solid ${sevColors[sev] || '#94a3b8'}; background:${sevBgs[sev] || '#f8fafc'};">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <span class="badge" style="background:${sevColors[sev] || '#94a3b8'}; color:white;">${sev.toUpperCase()}</span>
-                            <span style="font-size:0.75rem; color:var(--text-light);">${f.rule_id || ''}</span>
+                            <span style="font-size:0.75rem; color:var(--text-light);">${esc(f.rule_id || '')}</span>
                         </div>
-                        <p style="font-weight:600; margin-top:8px;">${f.message || ''}</p>
-                        ${f.action_required ? `<p style="font-size:0.8rem; color:var(--text-light); margin-top:4px;">${f.action_required}</p>` : ''}
+                        <p style="font-weight:600; margin-top:8px;">${esc(f.message || '')}</p>
+                        ${f.action_required ? `<p style="font-size:0.8rem; color:var(--text-light); margin-top:4px;">${esc(f.action_required)}</p>` : ''}
                         ${trust.explanation ? `
                         <div class="demo-trust-box" style="margin-top:8px;">
-                            <div class="demo-trust-row"><span class="demo-trust-label">Why:</span> ${trust.explanation}</div>
-                            ${trust.calculation ? `<div class="demo-trust-row"><span class="demo-trust-label">Calc:</span> ${trust.calculation}</div>` : ''}
-                            ${trust.source ? `<div class="demo-trust-row"><span class="demo-trust-label">Source:</span> ${trust.source}</div>` : ''}
+                            <div class="demo-trust-row"><span class="demo-trust-label">Why:</span> ${esc(trust.explanation)}</div>
+                            ${trust.calculation ? `<div class="demo-trust-row"><span class="demo-trust-label">Calc:</span> ${esc(trust.calculation)}</div>` : ''}
+                            ${trust.source ? `<div class="demo-trust-row"><span class="demo-trust-label">Source:</span> ${esc(trust.source)}</div>` : ''}
                         </div>` : ''}
                     </div>`;
             }).join('');

@@ -31,6 +31,8 @@ create table public.users (
     full_name text,
     phone text,
     business_id uuid references public.businesses(id),
+    email_verified boolean default false,
+    plan text default 'free',
     last_login timestamp with time zone
 );
 

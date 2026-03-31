@@ -69,7 +69,7 @@
             form.append('document_type', 'purchase_invoice');
 
             try {
-                const res = NiyamAuth.niyamFetch(`${API}/upload`, { method: 'POST', body: form });
+                const res = await NiyamAuth.niyamFetch(`${API}/upload`, { method: 'POST', body: form });
                 $('cf-progress-fill').style.width = '70%';
 
                 if (!res.ok) {
@@ -108,7 +108,7 @@
         show(panel);
 
         try {
-            const res = NiyamAuth.niyamFetch(`${API}/extract`, {
+            const res = await NiyamAuth.niyamFetch(`${API}/extract`, {
                 method: 'POST',
                 headers: jsonHeaders(),
                 body: JSON.stringify({ document_id: uploadedDocId })
@@ -174,7 +174,7 @@
                 </div>
                 ${norm.review_reasons && norm.review_reasons.length ? `
                     <div style="margin-top:16px; padding:12px; background:#fef3c7; border-radius:8px;">
-                        <p style="font-weight:600; font-size:0.85rem; color:#92400e;">Review Notes: ${norm.review_reasons.join(', ')}</p>
+                        <p style="font-weight:600; font-size:0.85rem; color:#92400e;">Review Notes: ${escapeHtml(norm.review_reasons.join(', '))}</p>
                     </div>
                 ` : ''}
                 <div style="margin-top:24px; display:flex; gap:10px; justify-content:flex-end;">
@@ -196,7 +196,7 @@
         hide($('cf-compliance-results'));
 
         try {
-            const res = NiyamAuth.niyamFetch(`${API}/compliance-check`, {
+            const res = await NiyamAuth.niyamFetch(`${API}/compliance-check`, {
                 method: 'POST',
                 headers: jsonHeaders(),
                 body: JSON.stringify({ check_type: 'all' })
@@ -247,10 +247,10 @@
                     <div class="cf-flag" style="border-left:4px solid ${colors[sev] || '#94a3b8'}; background:${bgColors[sev] || '#f8fafc'};">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <span class="badge" style="background:${colors[sev] || '#94a3b8'}; color:white;">${sev.toUpperCase()}</span>
-                            <span style="font-size:0.75rem; color:var(--text-light);">${f.rule_id || ''}</span>
+                            <span style="font-size:0.75rem; color:var(--text-light);">${escapeHtml(f.rule_id || '')}</span>
                         </div>
-                        <p style="font-weight:600; margin-top:8px;">${f.message || ''}</p>
-                        ${f.action_required ? `<p style="font-size:0.8rem; color:var(--text-light); margin-top:4px;">${f.action_required}</p>` : ''}
+                        <p style="font-weight:600; margin-top:8px;">${escapeHtml(f.message || '')}</p>
+                        ${f.action_required ? `<p style="font-size:0.8rem; color:var(--text-light); margin-top:4px;">${escapeHtml(f.action_required)}</p>` : ''}
                     </div>`;
             }).join('');
             if (flags.length > 10) {
@@ -285,7 +285,7 @@
         }
 
         try {
-            const res = NiyamAuth.niyamFetch(`${API}/itc-match`, {
+            const res = await NiyamAuth.niyamFetch(`${API}/itc-match`, {
                 method: 'POST',
                 headers: jsonHeaders(),
                 body: JSON.stringify({
@@ -343,9 +343,9 @@
                 <div class="cf-action-item">
                     <span class="cf-action-num">${i + 1}</span>
                     <div>
-                        <p style="font-weight:600;">${a.action_required || a.message || ''}</p>
+                        <p style="font-weight:600;">${escapeHtml(a.action_required || a.message || '')}</p>
                         <p style="font-size:0.8rem; color:var(--text-light);">
-                            ${a.invoice_number || ''} ${a.itc_at_risk ? ' &middot; ' + fmt(a.itc_at_risk) + ' at risk' : ''}
+                            ${escapeHtml(a.invoice_number || '')} ${a.itc_at_risk ? ' &middot; ' + fmt(a.itc_at_risk) + ' at risk' : ''}
                         </p>
                     </div>
                 </div>
@@ -366,8 +366,8 @@
         try {
             // Fetch dashboard + readiness in parallel
             const [dashRes, readyRes] = await Promise.all([
-                fetch(`${API}/dashboard/summary?top_n=3`, { headers: headers() }),
-                fetch(`${API}/export/readiness`, { headers: headers() }).catch(() => null)
+                NiyamAuth.niyamFetch(`${API}/dashboard/summary?top_n=3`),
+                NiyamAuth.niyamFetch(`${API}/export/readiness`).catch(() => null)
             ]);
 
             if (!dashRes.ok) {
@@ -430,8 +430,8 @@
                     <div class="cf-top-action">
                         <div class="cf-action-priority" style="background:${urgencyColors[urgency] || '#94a3b8'};">${i + 1}</div>
                         <div style="flex:1;">
-                            <p style="font-weight:600;">${a.title || a.message || ''}</p>
-                            <p style="font-size:0.8rem; color:var(--text-light);">${a.description || a.action_required || ''}</p>
+                            <p style="font-weight:600;">${escapeHtml(a.title || a.message || '')}</p>
+                            <p style="font-size:0.8rem; color:var(--text-light);">${escapeHtml(a.description || a.action_required || '')}</p>
                         </div>
                         ${a.amount ? `<span style="font-weight:700; color:var(--error);">${fmt(a.amount)}</span>` : ''}
                     </div>`;
@@ -488,7 +488,7 @@
 
         // Load readiness status
         try {
-            const res = NiyamAuth.niyamFetch(`${API}/export/readiness`);
+            const res = await NiyamAuth.niyamFetch(`${API}/export/readiness`);
             if (res.ok) {
                 const data = await res.json();
                 if (data.success) renderExportReadiness(data.data);
@@ -527,7 +527,7 @@
         if ($('cf-filter-flagged') && !$('cf-filter-flagged').checked) params.set('include_flagged', 'false');
 
         try {
-            const res = NiyamAuth.niyamFetch(`${API}/export?${params}`);
+            const res = await NiyamAuth.niyamFetch(`${API}/export?${params}`);
 
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}));

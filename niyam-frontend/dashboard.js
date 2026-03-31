@@ -1949,6 +1949,187 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================================
+// Onboarding Wizard
+// ============================================================
+const GSTIN_RE_OB = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/;
+
+async function checkOnboarding() {
+    if (localStorage.getItem('niyam_onboarding_done')) return;
+    try {
+        const resp = await NiyamAuth.niyamFetch(`${API_URL}/onboarding/status`);
+        const result = await resp.json();
+        if (result.success && result.data && !result.data.completed) {
+            showOnboarding(result.data);
+        } else {
+            localStorage.setItem('niyam_onboarding_done', '1');
+        }
+    } catch (e) {
+        console.error('Onboarding check failed:', e);
+    }
+}
+
+function showOnboarding(status) {
+    const overlay = document.getElementById('onboarding-overlay');
+    if (!overlay) return;
+    overlay.style.display = 'flex';
+
+    // Pre-fill if GSTIN already exists
+    if (status.gstin) {
+        const gstinInput = document.getElementById('ob-gstin');
+        if (gstinInput) gstinInput.value = status.gstin;
+    }
+
+    // Live GSTIN validation
+    const gstinInput = document.getElementById('ob-gstin');
+    if (gstinInput) {
+        gstinInput.addEventListener('input', function () {
+            const hint = document.getElementById('ob-gstin-hint');
+            const val = this.value.toUpperCase().trim();
+            if (!val) { hint.style.display = 'none'; return; }
+            if (val.length === 15 && GSTIN_RE_OB.test(val)) {
+                const sc = parseInt(val.slice(0, 2), 10);
+                if (sc >= 1 && sc <= 37) {
+                    hint.style.display = 'block'; hint.style.color = '#16a34a'; hint.textContent = 'Valid GSTIN';
+                } else {
+                    hint.style.display = 'block'; hint.style.color = '#ef4444'; hint.textContent = 'Invalid state code';
+                }
+            } else if (val.length > 0) {
+                hint.style.display = 'block'; hint.style.color = '#94a3b8';
+                hint.textContent = `${15 - val.length} more characters`;
+            }
+        });
+    }
+
+    if (window.feather) feather.replace();
+}
+
+function onboardingGoStep(step) {
+    for (let i = 1; i <= 3; i++) {
+        const el = document.getElementById('ob-step-' + i);
+        const dot = document.getElementById('ob-dot-' + i);
+        if (el) el.style.display = i === step ? '' : 'none';
+        if (dot) dot.style.background = i <= step ? '#2563eb' : '#e2e8f0';
+    }
+    if (window.feather) feather.replace();
+}
+
+async function onboardingSaveProfile() {
+    const gstin = (document.getElementById('ob-gstin').value || '').toUpperCase().trim();
+    const pan = (document.getElementById('ob-pan').value || '').toUpperCase().trim();
+
+    if (gstin && !GSTIN_RE_OB.test(gstin)) {
+        showToast('Invalid GSTIN format');
+        return;
+    }
+
+    const updates = {};
+    if (gstin) updates.gstin = gstin;
+    if (pan) updates.pan = pan;
+
+    if (Object.keys(updates).length > 0) {
+        try {
+            const resp = await NiyamAuth.niyamFetch(`${API_URL}/settings/profile`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates),
+            });
+            const result = await resp.json();
+            if (!result.success) {
+                showToast(result.detail || 'Failed to save profile');
+                return;
+            }
+        } catch (e) {
+            showToast('Error saving profile: ' + e.message);
+            return;
+        }
+    }
+
+    // Seed deadlines
+    try {
+        const seedResp = await NiyamAuth.niyamFetch(`${API_URL}/onboarding/seed`, { method: 'POST' });
+        const seedResult = await seedResp.json();
+        if (seedResult.success && seedResult.seeded > 0) {
+            window._onboardingDeadlinesSeeded = seedResult.seeded;
+        }
+    } catch (e) {
+        console.error('Deadline seeding failed:', e);
+    }
+
+    showToast(gstin ? 'Profile saved! GSTIN verified.' : 'Profile saved!');
+    onboardingGoStep(2);
+}
+
+async function onboardingUploadInvoice(input) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+    const statusEl = document.getElementById('ob-upload-status');
+    if (statusEl) {
+        statusEl.style.color = 'var(--primary-color)';
+        statusEl.textContent = 'Processing ' + file.name + '...';
+    }
+
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const resp = await NiyamAuth.niyamFetch(`${API_URL}/process-invoice`, {
+            method: 'POST',
+            body: formData,
+        });
+        const result = await resp.json();
+        if (result.status === 'success') {
+            if (statusEl) {
+                statusEl.style.color = '#16a34a';
+                statusEl.textContent = 'Invoice processed! Confidence: ' + Math.round((result.confidence_score || 0) * 100) + '%';
+            }
+            setTimeout(() => onboardingGoStep(3), 1200);
+        } else {
+            if (statusEl) {
+                statusEl.style.color = 'var(--error)';
+                statusEl.textContent = 'Processing failed: ' + (result.reason || 'Unknown error') + '. Try another file.';
+            }
+        }
+    } catch (e) {
+        if (statusEl) {
+            statusEl.style.color = 'var(--error)';
+            statusEl.textContent = 'Upload error: ' + e.message;
+        }
+    }
+}
+
+function skipOnboarding() {
+    // Seed deadlines even on skip
+    NiyamAuth.niyamFetch(`${API_URL}/onboarding/seed`, { method: 'POST' }).catch(() => {});
+    finishOnboarding();
+}
+
+function finishOnboarding() {
+    localStorage.setItem('niyam_onboarding_done', '1');
+    const overlay = document.getElementById('onboarding-overlay');
+    if (overlay) overlay.style.display = 'none';
+
+    // Show summary on step 3
+    const summary = document.getElementById('ob-summary');
+    const dlInfo = document.getElementById('ob-deadlines-info');
+    if (window._onboardingDeadlinesSeeded && dlInfo) {
+        dlInfo.style.display = 'block';
+        dlInfo.textContent = window._onboardingDeadlinesSeeded + ' statutory deadlines seeded for this year (GST, TDS, ROC).';
+    }
+
+    // Refresh dashboard to reflect new data
+    fetchDashboardData();
+    fetchTDSDeadlines();
+    fetchROCDeadlines();
+    fetchActivityFeed();
+    showToast('Welcome aboard! Your compliance dashboard is ready.');
+}
+
+// Trigger onboarding check after dashboard loads
+document.addEventListener('DOMContentLoaded', () => {
+    // Delay slightly so dashboard renders first
+    setTimeout(checkOnboarding, 1500);
+});
+
+// ============================================================
 // B. Global Error Boundary
 // ============================================================
 window.addEventListener('error', () => {

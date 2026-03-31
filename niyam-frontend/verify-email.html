@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Email | Niyam AI</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/feather-icons"></script>
+    <style>
+        .auth-container {
+            min-height: calc(100vh - 80px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-4);
+        }
+        .auth-card { width: 100%; max-width: 420px; }
+        .code-inputs {
+            display: flex; gap: 8px; justify-content: center; margin: 20px 0;
+        }
+        .code-inputs input {
+            width: 48px; height: 56px; text-align: center; font-size: 1.5rem;
+            font-weight: 700; border: 2px solid #e2e8f0; border-radius: 10px;
+            transition: border-color 0.2s;
+        }
+        .code-inputs input:focus {
+            border-color: var(--primary-color); outline: none;
+        }
+        .dev-code-box {
+            background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px;
+            padding: 12px; margin-bottom: 16px; text-align: center;
+        }
+    </style>
+</head>
+
+<body style="background-color: #f1f5f9;">
+
+    <header>
+        <div class="container nav">
+            <a href="index.html" class="logo">
+                <img src="logo.svg" alt="Niyam AI Logo" height="40">
+            </a>
+        </div>
+    </header>
+
+    <div class="auth-container">
+        <div class="card auth-card" style="text-align: center;">
+            <div style="margin-bottom: 20px;">
+                <div style="width:56px; height:56px; border-radius:50%; background:#eff6ff; display:flex; align-items:center; justify-content:center; margin:0 auto 16px;">
+                    <i data-feather="mail" style="color:var(--primary-color); width:28px; height:28px;"></i>
+                </div>
+                <h2 style="margin-bottom: 6px; font-size: 1.4rem;">Verify Your Email</h2>
+                <p style="color: var(--text-light); font-size: 0.9rem;" id="verify-subtitle">
+                    Enter the 6-digit code sent to your email.
+                </p>
+            </div>
+
+            <!-- Dev mode: show code -->
+            <div id="dev-code-box" class="dev-code-box" style="display:none;">
+                <p style="font-size:0.75rem; color:var(--text-light); margin-bottom:4px;">Development Mode — Your code:</p>
+                <p style="font-size:1.8rem; font-weight:800; letter-spacing:8px; color:var(--primary-color);" id="dev-code-display"></p>
+            </div>
+
+            <div id="error-message"
+                style="display: none; background-color: #fee2e2; color: #ef4444; padding: 10px; border-radius: 4px; margin-bottom: 16px; font-size: 0.85rem;">
+            </div>
+
+            <div id="success-message"
+                style="display: none; background-color: #dcfce7; color: #166534; padding: 10px; border-radius: 4px; margin-bottom: 16px; font-size: 0.85rem;">
+            </div>
+
+            <form id="verify-form">
+                <div class="code-inputs">
+                    <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" class="code-digit" data-index="0" autofocus>
+                    <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" class="code-digit" data-index="1">
+                    <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" class="code-digit" data-index="2">
+                    <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" class="code-digit" data-index="3">
+                    <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" class="code-digit" data-index="4">
+                    <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" class="code-digit" data-index="5">
+                </div>
+                <button type="submit" id="verify-btn" class="btn btn-primary" style="width: 100%; padding: 12px;">
+                    Verify Email
+                </button>
+            </form>
+
+            <div style="margin-top: 20px;">
+                <p style="font-size: 0.85rem; color: var(--text-light);">
+                    Didn't receive the code?
+                    <a href="#" id="resend-link" style="color: var(--primary-color); font-weight: 600;" onclick="resendCode(event)">Resend Code</a>
+                </p>
+                <p id="resend-status" style="font-size: 0.8rem; color: var(--text-light); margin-top: 6px; display:none;"></p>
+            </div>
+
+            <p style="margin-top: 20px; font-size: 0.85rem;">
+                <a href="login.html" style="color: var(--text-light);">Back to Login</a>
+            </p>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script>
+        feather.replace();
+        const API_URL = CONFIG.API_URL;
+
+        // Get email from URL params or localStorage
+        const urlParams = new URLSearchParams(window.location.search);
+        const email = urlParams.get('email') || localStorage.getItem('niyam_verify_email') || '';
+        const devCode = urlParams.get('code') || '';
+
+        if (!email) {
+            document.getElementById('verify-subtitle').textContent = 'No email address found. Please sign up again.';
+        } else {
+            const masked = email.replace(/(.{2})(.*)(@.*)/, '$1***$3');
+            document.getElementById('verify-subtitle').textContent = `Enter the 6-digit code sent to ${masked}`;
+        }
+
+        // Show dev code if available
+        if (devCode) {
+            document.getElementById('dev-code-box').style.display = 'block';
+            document.getElementById('dev-code-display').textContent = devCode;
+        }
+
+        // Auto-focus and auto-advance code inputs
+        const digits = document.querySelectorAll('.code-digit');
+        digits.forEach((input, i) => {
+            input.addEventListener('input', (e) => {
+                const val = e.target.value;
+                if (val && i < 5) digits[i + 1].focus();
+            });
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !e.target.value && i > 0) {
+                    digits[i - 1].focus();
+                }
+            });
+            // Allow paste of full code
+            input.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const pasted = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 6);
+                pasted.split('').forEach((ch, j) => {
+                    if (digits[j]) digits[j].value = ch;
+                });
+                if (pasted.length === 6) digits[5].focus();
+            });
+        });
+
+        // Submit
+        document.getElementById('verify-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const code = Array.from(digits).map(d => d.value).join('');
+            if (code.length !== 6) {
+                showError('Please enter all 6 digits');
+                return;
+            }
+
+            const btn = document.getElementById('verify-btn');
+            btn.textContent = 'Verifying...'; btn.disabled = true;
+            hideMessages();
+
+            try {
+                const resp = await fetch(`${API_URL}/auth/verify-email`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email, code: code }),
+                });
+                const data = await resp.json();
+
+                if (!resp.ok) {
+                    throw new Error(data.detail || 'Verification failed');
+                }
+
+                showSuccess('Email verified! Redirecting to login...');
+                localStorage.removeItem('niyam_verify_email');
+                setTimeout(() => { window.location.href = 'login.html'; }, 1500);
+
+            } catch (error) {
+                showError(error.message);
+                // Clear inputs
+                digits.forEach(d => d.value = '');
+                digits[0].focus();
+            } finally {
+                btn.textContent = 'Verify Email'; btn.disabled = false;
+            }
+        });
+
+        async function resendCode(e) {
+            e.preventDefault();
+            if (!email) return;
+
+            const statusEl = document.getElementById('resend-status');
+            statusEl.style.display = 'block';
+            statusEl.textContent = 'Sending new code...';
+            statusEl.style.color = 'var(--text-light)';
+
+            try {
+                const resp = await fetch(`${API_URL}/auth/resend-code`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email }),
+                });
+                const data = await resp.json();
+                statusEl.textContent = 'New code sent!';
+                statusEl.style.color = '#16a34a';
+
+                // Show dev code if returned
+                if (data._dev_verification_code) {
+                    document.getElementById('dev-code-box').style.display = 'block';
+                    document.getElementById('dev-code-display').textContent = data._dev_verification_code;
+                }
+            } catch (error) {
+                statusEl.textContent = 'Failed to resend. Try again.';
+                statusEl.style.color = 'var(--error)';
+            }
+        }
+
+        function showError(msg) {
+            const el = document.getElementById('error-message');
+            el.textContent = msg; el.style.display = 'block';
+            document.getElementById('success-message').style.display = 'none';
+        }
+        function showSuccess(msg) {
+            const el = document.getElementById('success-message');
+            el.textContent = msg; el.style.display = 'block';
+            document.getElementById('error-message').style.display = 'none';
+        }
+        function hideMessages() {
+            document.getElementById('error-message').style.display = 'none';
+            document.getElementById('success-message').style.display = 'none';
+        }
+    </script>
+</body>
+
+</html>

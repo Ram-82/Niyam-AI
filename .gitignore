@@ -1,4 +1,3 @@
-```gitignore
 # Python
 __pycache__/
 *.pyc
@@ -22,5 +21,13 @@ SETUP_GUIDE_PRO.md
 model_capabilities.yaml
 adapters/
 docs/
-scripts/
-```
+
+# MockDB runtime data (development only)
+niyam-backend/data/
+
+# Uploads (temporary)
+niyam-backend/uploads/
+
+# Environment
+.env
+.env.*

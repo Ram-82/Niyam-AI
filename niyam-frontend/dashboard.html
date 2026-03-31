@@ -325,18 +325,7 @@
                         <div class="card">
                             <h3 style="margin-bottom: 15px;">Upcoming This Week</h3>
                             <div id="upcoming-events-list">
-                                <div class="event-card event-gst"
-                                    onclick="showEventDetails('GSTR-1 Filing', '2025-06-11')">
-                                    <p style="font-size: 0.75rem; color: var(--text-light); margin-bottom: 5px;">June
-                                        11, 2025</p>
-                                    <p style="font-weight: 600;">GSTR-1 Monthly filing</p>
-                                </div>
-                                <div class="event-card event-roc" style="margin-top: 10px;"
-                                    onclick="showEventDetails('ROC Annual Return', '2025-06-15')">
-                                    <p style="font-size: 0.75rem; color: var(--text-light); margin-bottom: 5px;">June
-                                        15, 2025</p>
-                                    <p style="font-weight: 600;">ROC Annual Return</p>
-                                </div>
+                                <p style="font-size:0.85rem; color:var(--text-light);">Loading upcoming deadlines...</p>
                             </div>
                         </div>
                         <div class="card">
@@ -1894,6 +1883,68 @@
                 redirect you
                 securely to the government portal or handle filing automatically.</p>
             <button class="btn btn-primary" id="modal-close">Got it</button>
+        </div>
+    </div>
+
+    <!-- Onboarding Modal -->
+    <div id="onboarding-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; display:none; align-items:center; justify-content:center;">
+        <div style="background:white; border-radius:16px; max-width:520px; width:90%; padding:0; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+            <!-- Header -->
+            <div style="background:linear-gradient(135deg,#2563eb,#1d4ed8); color:white; padding:28px 32px;">
+                <h2 style="margin:0 0 6px; font-size:1.3rem;">Welcome to Niyam AI</h2>
+                <p style="opacity:0.9; font-size:0.85rem; margin:0;">Let's set up your compliance in 2 minutes.</p>
+            </div>
+
+            <!-- Steps indicator -->
+            <div style="display:flex; gap:8px; padding:20px 32px 0; justify-content:center;">
+                <div id="ob-dot-1" style="width:10px; height:10px; border-radius:50%; background:#2563eb;"></div>
+                <div id="ob-dot-2" style="width:10px; height:10px; border-radius:50%; background:#e2e8f0;"></div>
+                <div id="ob-dot-3" style="width:10px; height:10px; border-radius:50%; background:#e2e8f0;"></div>
+            </div>
+
+            <!-- Step 1: Business Profile -->
+            <div id="ob-step-1" style="padding:24px 32px;">
+                <h3 style="margin:0 0 4px; font-size:1rem;">Step 1: Complete Your Profile</h3>
+                <p style="color:var(--text-light); font-size:0.85rem; margin:0 0 16px;">Enter your GSTIN to auto-track GST deadlines.</p>
+                <div class="form-group" style="margin-bottom:12px;">
+                    <label style="font-size:0.8rem;">GSTIN</label>
+                    <input type="text" id="ob-gstin" placeholder="e.g. 29ABCDE1234F1Z5" maxlength="15" style="text-transform:uppercase; font-size:0.9rem;">
+                    <small id="ob-gstin-hint" style="display:none; font-size:0.75rem; margin-top:4px;"></small>
+                </div>
+                <div class="form-group" style="margin-bottom:16px;">
+                    <label style="font-size:0.8rem;">PAN (Optional)</label>
+                    <input type="text" id="ob-pan" placeholder="e.g. ABCDE1234F" maxlength="10" style="text-transform:uppercase; font-size:0.9rem;">
+                </div>
+                <div style="display:flex; gap:10px; justify-content:flex-end;">
+                    <button class="btn btn-outline" style="font-size:0.85rem; padding:8px 16px;" onclick="skipOnboarding()">Skip for now</button>
+                    <button class="btn btn-primary" style="font-size:0.85rem; padding:8px 20px;" onclick="onboardingSaveProfile()">Save & Continue</button>
+                </div>
+            </div>
+
+            <!-- Step 2: Upload Invoice -->
+            <div id="ob-step-2" style="padding:24px 32px; display:none;">
+                <h3 style="margin:0 0 4px; font-size:1rem;">Step 2: Upload Your First Invoice</h3>
+                <p style="color:var(--text-light); font-size:0.85rem; margin:0 0 16px;">Upload a purchase invoice (PDF/JPG/PNG) to see the AI extraction in action.</p>
+                <div style="border:2px dashed #cbd5e1; border-radius:12px; padding:30px; text-align:center; background:#f8fafc;">
+                    <i data-feather="upload-cloud" style="width:36px; height:36px; color:var(--primary-color); margin-bottom:10px;"></i>
+                    <br>
+                    <input type="file" id="ob-file-input" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="onboardingUploadInvoice(this)">
+                    <button class="btn btn-primary" style="font-size:0.85rem;" onclick="document.getElementById('ob-file-input').click()">Choose File</button>
+                    <p id="ob-upload-status" style="font-size:0.8rem; color:var(--text-light); margin-top:12px;">PDF, JPG, or PNG — max 10MB</p>
+                </div>
+                <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px;">
+                    <button class="btn btn-outline" style="font-size:0.85rem; padding:8px 16px;" onclick="onboardingGoStep(3)">Skip</button>
+                </div>
+            </div>
+
+            <!-- Step 3: You're Ready -->
+            <div id="ob-step-3" style="padding:24px 32px; display:none; text-align:center;">
+                <div style="font-size:2.5rem; margin-bottom:12px;">&#127881;</div>
+                <h3 style="margin:0 0 8px; font-size:1.1rem;">You're All Set!</h3>
+                <p style="color:var(--text-light); font-size:0.85rem; margin:0 0 8px;" id="ob-summary">Your compliance dashboard is ready.</p>
+                <div id="ob-deadlines-info" style="background:#f0fdf4; border-radius:8px; padding:12px; margin:12px 0; font-size:0.85rem; color:#166534; display:none;"></div>
+                <button class="btn btn-primary" style="font-size:0.9rem; padding:10px 32px; margin-top:8px;" onclick="finishOnboarding()">Go to Dashboard</button>
+            </div>
         </div>
     </div>
 

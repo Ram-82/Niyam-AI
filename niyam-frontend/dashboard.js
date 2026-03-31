@@ -840,14 +840,53 @@ let currentChartData = {
     }
 };
 
+function _showComplianceChartEmpty(cCtx) {
+    if (!cCtx) return;
+    const container = cCtx.parentElement;
+    if (container) {
+        container.innerHTML = `
+            <div style="display:flex; align-items:center; justify-content:center; height:280px; flex-direction:column; gap:12px; text-align:center;">
+                <i data-feather="shield" style="width:40px; height:40px; color:#cbd5e1;"></i>
+                <p style="font-size:0.95rem; font-weight:600; color:var(--text-light);">Compliance impact chart</p>
+                <p style="font-size:0.8rem; color:#94a3b8; max-width:320px;">This chart tracks your compliance costs vs cash flow over time. Data will appear as you process invoices.</p>
+            </div>`;
+        if (window.feather) feather.replace();
+    }
+}
+
 function initCharts() {
     const lCtx = document.getElementById('liabilityChart');
     const cCtx = document.getElementById('cashflowChart');
     if (!lCtx || !cCtx) return;
 
-    if (window.lChart) window.lChart.destroy();
-
     const data = currentChartData['6M'];
+
+    // Check if data is all zeros — show empty state instead of flat lines
+    const hasData = data && (
+        (data.taxLiability && data.taxLiability.some(v => v > 0)) ||
+        (data.cashFlow && data.cashFlow.some(v => v > 0)) ||
+        (data.itcAvailable && data.itcAvailable.some(v => v > 0))
+    );
+
+    if (!hasData) {
+        const chartContainer = lCtx.parentElement;
+        if (chartContainer) {
+            chartContainer.innerHTML = `
+                <div style="display:flex; align-items:center; justify-content:center; height:280px; flex-direction:column; gap:12px; text-align:center;">
+                    <i data-feather="bar-chart-2" style="width:40px; height:40px; color:#cbd5e1;"></i>
+                    <p style="font-size:0.95rem; font-weight:600; color:var(--text-light);">No financial data yet</p>
+                    <p style="font-size:0.8rem; color:#94a3b8; max-width:320px;">Upload invoices to see your tax liability, cash flow, and ITC trends visualized here.</p>
+                    <button class="btn btn-primary" style="font-size:0.8rem; padding:8px 20px; margin-top:4px;"
+                        onclick="switchView('upload', document.querySelector('[onclick*=upload]'))">Upload Invoices</button>
+                </div>`;
+            if (window.feather) feather.replace();
+        }
+        // Also handle compliance chart
+        _showComplianceChartEmpty(cCtx);
+        return;
+    }
+
+    if (window.lChart) window.lChart.destroy();
     window.lChart = new Chart(lCtx.getContext('2d'), {
         type: 'line',
         data: {

@@ -77,6 +77,17 @@ class RateLimiter:
 
         return True, ""
 
+    def check_custom(self, ip: str, path: str, max_requests: int, window_seconds: int) -> bool:
+        """Check against a custom limit (separate from registered rules)."""
+        key = (ip, path)
+        bucket = self._buckets[key]
+        now = time.time()
+        if now - bucket.window_start >= window_seconds:
+            bucket.hits = 0
+            bucket.window_start = now
+        bucket.hits += 1
+        return bucket.hits <= max_requests
+
 
 # Global limiter instance
 rate_limiter = RateLimiter()
@@ -126,11 +137,38 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
 # ============================================================
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    """Enforces per-IP rate limits on configured routes."""
+    """Enforces per-IP rate limits on configured routes.
+
+    Anonymous requests (no valid Bearer token) to /api/process-invoice
+    get a stricter limit to prevent abuse of the public OCR endpoint.
+    """
 
     async def dispatch(self, request: Request, call_next):
-        ip = request.client.host if request.client else "0.0.0.0"
+        # Prefer X-Forwarded-For (first hop) when behind a reverse proxy
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            ip = forwarded.split(",")[0].strip()
+        else:
+            ip = request.client.host if request.client else "0.0.0.0"
+
         path = request.url.path
+
+        # Stricter limit for anonymous process-invoice (3 req/60s vs 10 for authed)
+        if path.startswith("/api/process-invoice"):
+            auth_header = request.headers.get("authorization", "")
+            if not auth_header.startswith("Bearer "):
+                if not rate_limiter.check_custom(f"anon:{ip}", path, max_requests=3, window_seconds=60):
+                    request_id = getattr(request.state, "request_id", "?")
+                    logger.warning(f"[{request_id}] Anon rate limit exceeded: {ip} on /api/process-invoice")
+                    return JSONResponse(
+                        status_code=429,
+                        content={
+                            "error": "Too many requests. Please try again later.",
+                            "code": "RATE_LIMIT_EXCEEDED",
+                        },
+                        headers={"Retry-After": "60"},
+                    )
+                return await call_next(request)
 
         allowed, matched_rule = rate_limiter.check(ip, path)
         if not allowed:
@@ -142,6 +180,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     "error": "Too many requests. Please try again later.",
                     "code": "RATE_LIMIT_EXCEEDED",
                 },
+                headers={"Retry-After": "60"},
             )
 
         return await call_next(request)
@@ -182,10 +221,19 @@ def install_error_handlers(app: FastAPI):
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException):
         request_id = getattr(request.state, "request_id", "unknown")
+
+        # exc.detail may be str, dict, list, or None — normalize to a
+        # JSON-safe shape so the response never fails to serialize.
+        detail = exc.detail
+        if isinstance(detail, (dict, list)):
+            error_field = detail
+        else:
+            error_field = str(detail) if detail else "Request failed"
+
         return JSONResponse(
             status_code=exc.status_code,
             content={
-                "error": exc.detail or "Request failed",
+                "error": error_field,
                 "code": f"HTTP_{exc.status_code}",
                 "request_id": request_id,
             },

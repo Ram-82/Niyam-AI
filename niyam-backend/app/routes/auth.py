@@ -7,11 +7,28 @@ from app.models.user import UserCreate, UserLogin, UserResponse, BusinessRespons
 from app.services.auth_service import AuthService
 from app.utils.security import verify_token, blacklist_token
 from app.utils.verification import verification_store
+from app.services.email_service import email_service
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 security = HTTPBearer()
+
+
+def _get_user_name(email: str) -> str:
+    """Look up a user's full_name by email (for the welcome email)."""
+    try:
+        if settings.ENVIRONMENT != "production":
+            from app.utils.mock_db import MockDB
+            user = MockDB().get_user_by_email(email)
+        else:
+            from app.database import get_db_client
+            db = get_db_client()
+            resp = db.table("users").select("full_name").eq("email", email).single().execute()
+            user = resp.data
+        return (user or {}).get("full_name") or "there"
+    except Exception:
+        return "there"
 
 
 @router.post("/signup", response_model=dict, status_code=status.HTTP_201_CREATED)
@@ -21,9 +38,10 @@ async def signup(user_data: UserCreate):
         auth_service = AuthService()
         result = await auth_service.register_user(user_data)
 
-        # Generate verification code
+        # Generate verification code and send via email
         code = verification_store.generate(user_data.email)
         logger.info(f"Verification code generated for {user_data.email[:4]}****")
+        email_service.send_verification_email(user_data.email, code)
 
         # Audit log
         from app.services.audit_service import audit_log
@@ -79,6 +97,10 @@ async def verify_email(body: VerifyEmailRequest):
 
     logger.info(f"Email verified for {body.email[:4]}****")
 
+    # Send welcome email (non-blocking — failure is logged, not raised)
+    user_name = _get_user_name(body.email)
+    email_service.send_welcome_email(body.email, user_name)
+
     return {
         "success": True,
         "message": "Email verified successfully. You can now log in.",
@@ -101,6 +123,7 @@ async def resend_verification_code(body: ResendCodeRequest):
 
     code = verification_store.generate(body.email)
     logger.info(f"Verification code resent for {body.email[:4]}****")
+    email_service.send_verification_email(body.email, code)
 
     response = {"success": True, "message": "Verification code sent."}
 
@@ -123,8 +146,9 @@ async def login(credentials: UserLogin):
 
         # Check email verification
         if not result.get("email_verified", True):
-            # Re-send verification code
+            # Re-send verification code (and email)
             code = verification_store.generate(credentials.email)
+            email_service.send_verification_email(credentials.email, code)
             error_response = {
                 "detail": "Email not verified. A new verification code has been sent.",
                 "requires_verification": True,

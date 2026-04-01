@@ -43,6 +43,13 @@ class Settings:
     # If not set, the system falls back to rule-based parser only.
     ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "").strip()
 
+    # ---- Email (Resend) ----
+    # Set RESEND_API_KEY to send real verification/welcome emails.
+    # If not set, emails are skipped (dev mode shows codes in API response).
+    RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "").strip()
+    SENDER_EMAIL: str = os.getenv("SENDER_EMAIL", "noreply@niyam.ai")
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+
     # ---- Validation ----
     def validate(self):
         """

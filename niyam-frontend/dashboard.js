@@ -2012,24 +2012,54 @@ document.addEventListener('click', (e) => {
 });
 
 // ============================================================
-// 5. Empty States — actionable upgrades
+// 5. Empty States — actionable upgrades + sample data loader
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.empty-state').forEach(el => {
         const text = el.querySelector('p');
         if (text && text.textContent.trim() === 'No data yet') {
-            text.textContent = 'No data yet. Upload invoices to see insights.';
-            const btn = document.createElement('button');
-            btn.className = 'btn btn-primary';
-            btn.textContent = 'Upload Invoices';
-            btn.addEventListener('click', () => {
+            text.textContent = 'No data yet. Upload invoices or load sample data to explore.';
+
+            const btnWrap = document.createElement('div');
+            btnWrap.style.cssText = 'display:flex; gap:10px; margin-top:12px; justify-content:center; flex-wrap:wrap;';
+
+            const uploadBtn = document.createElement('button');
+            uploadBtn.className = 'btn btn-primary';
+            uploadBtn.textContent = 'Upload Invoices';
+            uploadBtn.addEventListener('click', () => {
                 const sidebar = document.getElementById('sidebar-compliance');
                 if (typeof switchView === 'function') switchView('compliance', sidebar);
             });
-            el.appendChild(btn);
+
+            const sampleBtn = document.createElement('button');
+            sampleBtn.className = 'btn btn-outline';
+            sampleBtn.textContent = 'Load Sample Data';
+            sampleBtn.addEventListener('click', () => loadSampleData());
+
+            btnWrap.appendChild(uploadBtn);
+            btnWrap.appendChild(sampleBtn);
+            el.appendChild(btnWrap);
         }
     });
 });
+
+async function loadSampleData() {
+    try {
+        const response = await NiyamAuth.niyamFetch(`${API_URL}/onboarding/load-sample-data`, {
+            method: 'POST',
+        });
+        const data = await response.json();
+        if (response.ok && data.success) {
+            if (typeof showToast === 'function') showToast(`Loaded ${data.data.count} sample invoices!`);
+            setTimeout(() => window.location.reload(), 800);
+        } else {
+            if (typeof showToast === 'function') showToast(data.error || data.detail || 'Could not load sample data');
+        }
+    } catch (e) {
+        console.error('Load sample data failed:', e);
+        if (typeof showToast === 'function') showToast('Failed to load sample data');
+    }
+}
 
 // ============================================================
 // 6. Dashboard Sanity Fallbacks

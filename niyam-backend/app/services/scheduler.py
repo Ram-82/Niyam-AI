@@ -29,11 +29,13 @@ class DeadlineScheduler:
         self._scheduler = None
 
     def start(self):
-        """Start the background scheduler with a daily 8 AM IST cron trigger."""
+        """Start the background scheduler with cron triggers."""
         try:
             from apscheduler.schedulers.background import BackgroundScheduler
 
             self._scheduler = BackgroundScheduler(timezone=IST_TIMEZONE)
+
+            # Daily 8 AM IST — deadline reminder emails
             self._scheduler.add_job(
                 func=self.send_deadline_reminders,
                 trigger="cron",
@@ -42,12 +44,33 @@ class DeadlineScheduler:
                 id="deadline_reminders",
                 replace_existing=True,
             )
+
+            # Weekly Sunday 2 AM IST — storage cleanup
+            self._scheduler.add_job(
+                func=self._run_storage_cleanup,
+                trigger="cron",
+                day_of_week="sun",
+                hour=2,
+                minute=0,
+                id="storage_cleanup",
+                replace_existing=True,
+            )
+
             self._scheduler.start()
-            logger.info("Deadline reminder scheduler started (daily 8:00 AM IST).")
+            logger.info("Scheduler started: deadline reminders (daily 8AM), storage cleanup (Sun 2AM).")
         except ImportError:
-            logger.warning("APScheduler not installed — deadline reminders disabled.")
+            logger.warning("APScheduler not installed — scheduled jobs disabled.")
         except Exception as e:
             logger.error(f"Failed to start scheduler: {e}")
+
+    @staticmethod
+    def _run_storage_cleanup():
+        """Run the storage cleanup job (separate static method for APScheduler)."""
+        try:
+            from app.services.storage import storage_service
+            storage_service.cleanup_old_documents()
+        except Exception as e:
+            logger.error(f"Storage cleanup job failed: {e}")
 
     def shutdown(self):
         if self._scheduler:

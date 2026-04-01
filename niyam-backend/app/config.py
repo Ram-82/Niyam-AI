@@ -56,6 +56,16 @@ class Settings:
     SUPABASE_STORAGE_BUCKET: str = os.getenv("SUPABASE_STORAGE_BUCKET", "niyam-documents")
     STORAGE_RETENTION_DAYS: int = int(os.getenv("STORAGE_RETENTION_DAYS", "30"))
 
+    # ---- Payments (Razorpay) ----
+    # Set these to enable subscription billing. Both are required for webhook
+    # signature verification. Get from: https://dashboard.razorpay.com → Settings → API Keys
+    RAZORPAY_KEY_ID: str = os.getenv("RAZORPAY_KEY_ID", "").strip()
+    RAZORPAY_KEY_SECRET: str = os.getenv("RAZORPAY_KEY_SECRET", "").strip()
+    RAZORPAY_WEBHOOK_SECRET: str = os.getenv("RAZORPAY_WEBHOOK_SECRET", "").strip()
+
+    # Plan pricing (paise). 99900 = ₹999
+    PRO_PLAN_AMOUNT_PAISE: int = int(os.getenv("PRO_PLAN_AMOUNT_PAISE", "99900"))
+
     # ---- Validation ----
     def validate(self):
         """

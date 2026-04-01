@@ -24,7 +24,14 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application startup and shutdown."""
     logger.info(f"Starting Niyam AI Compliance OS API (env={settings.ENVIRONMENT})")
+
+    # Start the deadline reminder scheduler (daily 8 AM IST)
+    from app.services.scheduler import deadline_scheduler
+    deadline_scheduler.start()
+
     yield
+
+    deadline_scheduler.shutdown()
     logger.info("Shutting down Niyam AI Compliance OS API...")
 
 

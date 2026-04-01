@@ -27,6 +27,7 @@ class MockDB:
         self.invoices_file = os.path.join(data_dir, "invoices.json")
         self.deadlines_file = os.path.join(data_dir, "deadlines.json")
         self.audit_log_file = os.path.join(data_dir, "audit_log.json")
+        self.reminder_logs_file = os.path.join(data_dir, "reminder_logs.json")
 
         self._ensure_file(self.users_file)
         self._ensure_file(self.businesses_file)
@@ -34,6 +35,7 @@ class MockDB:
         self._ensure_file(self.invoices_file)
         self._ensure_file(self.deadlines_file)
         self._ensure_file(self.audit_log_file)
+        self._ensure_file(self.reminder_logs_file)
 
     def _ensure_file(self, filepath: str):
         if not os.path.exists(filepath):
@@ -183,6 +185,31 @@ class MockDB:
                         dl["filed_at"] = filed_at
                     break
         self._read_modify_write(self.deadlines_file, _update)
+
+    def get_all_deadlines(self) -> List[Dict]:
+        """Return every deadline across all businesses (for scheduler)."""
+        return self._read_file(self.deadlines_file)
+
+    def get_all_users(self) -> List[Dict]:
+        """Return all users (for scheduler to look up emails)."""
+        return self._read_file(self.users_file)
+
+    # Reminder log operations
+    def reminder_was_sent(self, deadline_id: str, sent_date: str) -> bool:
+        """Check if a reminder was already sent for this deadline on this date."""
+        logs = self._read_file(self.reminder_logs_file)
+        return any(
+            l.get("deadline_id") == deadline_id and l.get("sent_date") == sent_date
+            for l in logs
+        )
+
+    def log_reminder_sent(self, deadline_id: str, sent_date: str):
+        """Record that a reminder was sent."""
+        def _append(logs):
+            logs.append({"deadline_id": deadline_id, "sent_date": sent_date})
+            if len(logs) > 5000:
+                del logs[:len(logs) - 5000]
+        self._read_modify_write(self.reminder_logs_file, _append)
 
     # Audit log operations
     def append_audit_log(self, entry: Dict) -> Dict:

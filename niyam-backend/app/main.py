@@ -9,7 +9,7 @@ from app.middleware import RequestIDMiddleware, RateLimitMiddleware, install_err
 from app.routes import (
     auth, dashboard, upload, compliance, gst, tds, roc,
     ocr, analytics, export, demo, itc, process_invoice, invoices, audit,
-    onboarding, settings as settings_routes
+    onboarding, payments, settings as settings_routes
 )
 
 # Configure logging
@@ -24,7 +24,14 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application startup and shutdown."""
     logger.info(f"Starting Niyam AI Compliance OS API (env={settings.ENVIRONMENT})")
+
+    # Start the deadline reminder scheduler (daily 8 AM IST)
+    from app.services.scheduler import deadline_scheduler
+    deadline_scheduler.start()
+
     yield
+
+    deadline_scheduler.shutdown()
     logger.info("Shutting down Niyam AI Compliance OS API...")
 
 
@@ -73,6 +80,7 @@ app.include_router(invoices.router)
 app.include_router(audit.router)
 app.include_router(onboarding.router)
 app.include_router(demo.router)
+app.include_router(payments.router)
 app.include_router(settings_routes.router)
 
 

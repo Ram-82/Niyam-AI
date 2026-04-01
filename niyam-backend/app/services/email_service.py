@@ -151,5 +151,60 @@ class EmailService:
         )
 
 
+    # ------------------------------------------------------------------
+    # Subscription emails
+    # ------------------------------------------------------------------
+    def send_plan_upgrade_email(self, user_email: str, plan: str) -> Optional[str]:
+        """Confirm successful plan upgrade."""
+        dashboard_url = f"{settings.FRONTEND_URL}/dashboard.html"
+        return self._send(
+            to=user_email,
+            subject=f"You're now on Niyam AI {plan.capitalize()}!",
+            html=f"""
+            <div style="font-family:sans-serif; max-width:480px; margin:0 auto;">
+                <h2 style="color:#1e293b;">Plan Upgraded to {plan.capitalize()}</h2>
+                <p>Your Niyam AI subscription is now active. You have full access
+                   to all {plan.capitalize()} features.</p>
+                <a href="{dashboard_url}"
+                   style="display:inline-block; padding:12px 28px; background:#2563eb;
+                          color:white; text-decoration:none; border-radius:8px;
+                          font-weight:600; margin:16px 0;">
+                    Go to Dashboard &rarr;
+                </a>
+                <hr style="border:none; border-top:1px solid #e2e8f0; margin:24px 0;">
+                <p style="color:#94a3b8; font-size:12px;">
+                    Niyam AI &mdash; GST/TDS/ROC compliance for Indian MSMEs
+                </p>
+            </div>
+            """,
+        )
+
+    def send_plan_downgrade_email(self, user_email: str) -> Optional[str]:
+        """Notify user their subscription expired / was cancelled."""
+        dashboard_url = f"{settings.FRONTEND_URL}/dashboard.html"
+        return self._send(
+            to=user_email,
+            subject="Your Niyam AI Pro subscription has ended",
+            html=f"""
+            <div style="font-family:sans-serif; max-width:480px; margin:0 auto;">
+                <h2 style="color:#1e293b;">Subscription Ended</h2>
+                <p>Your Niyam AI Pro subscription has expired or been cancelled.
+                   You've been moved back to the Free plan.</p>
+                <p>To continue using Pro features, please renew your subscription.</p>
+                <a href="{dashboard_url}"
+                   style="display:inline-block; padding:12px 28px; background:#2563eb;
+                          color:white; text-decoration:none; border-radius:8px;
+                          font-weight:600; margin:16px 0;">
+                    Renew Subscription
+                </a>
+                <hr style="border:none; border-top:1px solid #e2e8f0; margin:24px 0;">
+                <p style="color:#94a3b8; font-size:12px;">
+                    Niyam AI &mdash; GST/TDS/ROC compliance for Indian MSMEs
+                </p>
+            </div>
+            """,
+        )
+
+
 # Singleton — initialized once at import time
 email_service = EmailService()

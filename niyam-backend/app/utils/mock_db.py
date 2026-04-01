@@ -27,6 +27,8 @@ class MockDB:
         self.invoices_file = os.path.join(data_dir, "invoices.json")
         self.deadlines_file = os.path.join(data_dir, "deadlines.json")
         self.audit_log_file = os.path.join(data_dir, "audit_log.json")
+        self.reminder_logs_file = os.path.join(data_dir, "reminder_logs.json")
+        self.subscriptions_file = os.path.join(data_dir, "subscriptions.json")
 
         self._ensure_file(self.users_file)
         self._ensure_file(self.businesses_file)
@@ -34,6 +36,8 @@ class MockDB:
         self._ensure_file(self.invoices_file)
         self._ensure_file(self.deadlines_file)
         self._ensure_file(self.audit_log_file)
+        self._ensure_file(self.reminder_logs_file)
+        self._ensure_file(self.subscriptions_file)
 
     def _ensure_file(self, filepath: str):
         if not os.path.exists(filepath):
@@ -183,6 +187,75 @@ class MockDB:
                         dl["filed_at"] = filed_at
                     break
         self._read_modify_write(self.deadlines_file, _update)
+
+    # Subscription operations
+    def create_subscription(self, sub_data: Dict) -> Dict:
+        def _append(subs):
+            subs.append(sub_data)
+        self._read_modify_write(self.subscriptions_file, _append)
+        return sub_data
+
+    def get_active_subscription(self, user_id: str) -> Optional[Dict]:
+        subs = self._read_file(self.subscriptions_file)
+        for s in reversed(subs):
+            if s.get("user_id") == user_id and s.get("status") == "active":
+                return s
+        return None
+
+    def get_subscription_by_razorpay_id(self, rz_sub_id: str) -> Optional[Dict]:
+        subs = self._read_file(self.subscriptions_file)
+        for s in subs:
+            if s.get("razorpay_subscription_id") == rz_sub_id:
+                return s
+        return None
+
+    def update_subscription_status(self, sub_id: str, new_status: str):
+        def _update(subs):
+            for s in subs:
+                if s.get("id") == sub_id:
+                    s["status"] = new_status
+                    break
+        self._read_modify_write(self.subscriptions_file, _update)
+
+    def update_user_plan(self, user_id: str, plan: str):
+        def _update(users):
+            for u in users:
+                if u.get("id") == user_id:
+                    u["plan"] = plan
+                    break
+        self._read_modify_write(self.users_file, _update)
+
+    def find_user_by_razorpay_customer_id(self, customer_id: str) -> Optional[Dict]:
+        users = self._read_file(self.users_file)
+        for u in users:
+            if u.get("razorpay_customer_id") == customer_id:
+                return u
+        return None
+
+    def get_all_deadlines(self) -> List[Dict]:
+        """Return every deadline across all businesses (for scheduler)."""
+        return self._read_file(self.deadlines_file)
+
+    def get_all_users(self) -> List[Dict]:
+        """Return all users (for scheduler to look up emails)."""
+        return self._read_file(self.users_file)
+
+    # Reminder log operations
+    def reminder_was_sent(self, deadline_id: str, sent_date: str) -> bool:
+        """Check if a reminder was already sent for this deadline on this date."""
+        logs = self._read_file(self.reminder_logs_file)
+        return any(
+            l.get("deadline_id") == deadline_id and l.get("sent_date") == sent_date
+            for l in logs
+        )
+
+    def log_reminder_sent(self, deadline_id: str, sent_date: str):
+        """Record that a reminder was sent."""
+        def _append(logs):
+            logs.append({"deadline_id": deadline_id, "sent_date": sent_date})
+            if len(logs) > 5000:
+                del logs[:len(logs) - 5000]
+        self._read_modify_write(self.reminder_logs_file, _append)
 
     # Audit log operations
     def append_audit_log(self, entry: Dict) -> Dict:

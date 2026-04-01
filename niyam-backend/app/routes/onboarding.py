@@ -1,13 +1,16 @@
 """
 Onboarding Routes — guide new users through initial setup.
 
-GET  /api/onboarding/status   → check onboarding completion state
-POST /api/onboarding/seed     → seed deadlines for the business (called after profile setup)
+GET  /api/onboarding/status            → check onboarding completion state
+POST /api/onboarding/seed              → seed deadlines for the business
+POST /api/onboarding/load-sample-data  → load sample invoices into empty account
 """
 
+import json
 import logging
 import uuid
 from datetime import date, datetime, timezone
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -154,3 +157,90 @@ async def seed_deadlines(
               details={"count": count, "year": current_year})
 
     return {"success": True, "message": f"Seeded {count} deadlines", "seeded": count}
+
+
+# Path to the sample invoices JSON shipped with the repo
+_SAMPLE_INVOICES_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "sample_invoices.json"
+
+
+@router.post("/load-sample-data", response_model=dict)
+async def load_sample_data(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
+    """
+    Load sample invoices into an empty account so the dashboard shows data.
+
+    Only works if the business has zero invoices — prevents accidental
+    duplication or polluting real data.
+    """
+    user_id = _get_user_id(credentials)
+    db, is_mock = _get_db()
+
+    # Resolve business_id
+    if is_mock:
+        user = db.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        business_id = user.get("business_id")
+        invoices = db.get_invoices_by_business(business_id) if business_id else []
+    else:
+        user_resp = db.table("users").select("business_id").eq("id", user_id).single().execute()
+        business_id = user_resp.data.get("business_id") if user_resp.data else None
+        if not business_id:
+            raise HTTPException(status_code=404, detail="Business not found")
+        inv_resp = db.table("invoices").select("id").eq("business_id", business_id).limit(1).execute()
+        invoices = inv_resp.data or []
+
+    if invoices:
+        raise HTTPException(status_code=400, detail="You already have invoices. Sample data is for empty accounts only.")
+
+    # Load samples from JSON file
+    if not _SAMPLE_INVOICES_PATH.exists():
+        raise HTTPException(status_code=500, detail="Sample data file not found")
+
+    samples = json.loads(_SAMPLE_INVOICES_PATH.read_text())
+    now = datetime.now(timezone.utc).isoformat()
+    created = []
+
+    for sample in samples:
+        invoice_id = str(uuid.uuid4())
+        record = {
+            "id": invoice_id,
+            "business_id": business_id,
+            "document_id": None,
+            "source": "sample",
+            "invoice_number": sample.get("invoice_number"),
+            "invoice_date": sample.get("invoice_date"),
+            "vendor_name": sample.get("vendor_name"),
+            "vendor_gstin": sample.get("vendor_gstin"),
+            "taxable_value": sample.get("taxable_value", 0),
+            "cgst": sample.get("cgst", 0),
+            "sgst": sample.get("sgst", 0),
+            "igst": sample.get("igst", 0),
+            "total_amount": sample.get("total_amount", 0),
+            "hsn_codes": sample.get("hsn_codes", []),
+            "invoice_type": sample.get("invoice_type", "purchase"),
+            "confidence": sample.get("confidence", 90),
+            "needs_review": sample.get("needs_review", False),
+            "review_notes": sample.get("review_notes"),
+            "created_at": now,
+        }
+
+        if is_mock:
+            db.create_invoice(record)
+        else:
+            db.table("invoices").insert(record).execute()
+
+        created.append({"id": invoice_id, "invoice_number": record["invoice_number"]})
+
+    logger.info(f"Onboarding: loaded {len(created)} sample invoices for business={business_id[:8]}")
+
+    from app.services.audit_service import audit_log
+    audit_log(business_id, user_id, "sample_data_loaded",
+              details={"count": len(created)})
+
+    return {
+        "success": True,
+        "message": f"Loaded {len(created)} sample invoices",
+        "data": {"invoices": created, "count": len(created)},
+    }

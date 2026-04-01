@@ -1,8 +1,8 @@
 """
 Upload & Extract routes — the entry point of the compliance pipeline.
 
-POST /api/upload   — accept a document, save to disk, create DB record
-POST /api/extract  — run OCR + parser on an uploaded document
+POST /api/upload   — accept a document, persist to storage, create DB record
+POST /api/extract  — download from storage, run OCR + parser
 """
 
 import asyncio
@@ -10,7 +10,6 @@ import os
 import uuid
 import logging
 from datetime import datetime, timezone
-from pathlib import Path
 
 from fastapi import APIRouter, Request, UploadFile, File, Form, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -28,14 +27,11 @@ from app.models.document import (
 from app.services.ocr_service import OCRService
 from app.services.data_parser import DataParser
 from app.services.normalization import normalize_invoice
+from app.services.storage import storage_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["Upload & Extract"])
 security = HTTPBearer()
-
-# Upload directory (relative to backend root)
-UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "uploads"
-UPLOAD_DIR.mkdir(exist_ok=True)
 
 # Allowed MIME types
 ALLOWED_MIME = {
@@ -107,19 +103,13 @@ async def upload_document(
     if file_size == 0:
         raise HTTPException(status_code=400, detail="Empty file uploaded")
 
-    # Save file
     doc_id = str(uuid.uuid4())
     ext = ALLOWED_MIME[content_type]
     filename = file.filename or f"document{ext}"
-    safe_filename = f"{doc_id}{ext}"
-    file_path = UPLOAD_DIR / safe_filename
 
     # Mask user_id in log (show only first 8 chars)
     uid_masked = (user_id or "")[:8] + "****"
     logger.info(f"Upload start user={uid_masked} file={filename!r} size={file_size} type={content_type}")
-
-    with open(file_path, "wb") as f:
-        f.write(content)
 
     # Get user's business_id
     db, is_mock = _get_db()
@@ -130,15 +120,24 @@ async def upload_document(
         user_resp = db.table("users").select("business_id").eq("id", user_id).single().execute()
         business_id = user_resp.data.get("business_id", "unknown") if user_resp.data else "unknown"
 
+    # Persist file via StorageService (Supabase Storage in prod, local disk in dev)
+    storage_key = storage_service.build_storage_key(business_id, filename)
+    try:
+        storage_service.upload(storage_key, content, content_type)
+    except Exception as e:
+        logger.error(f"Upload storage failed: {e}")
+        raise HTTPException(status_code=502, detail="File storage failed")
+
     now = datetime.now(timezone.utc).isoformat()
 
-    # Create document record
+    # Create document record — storage_key is the canonical reference
     doc_record = {
         "id": doc_id,
         "business_id": business_id,
         "uploaded_by": user_id,
         "filename": filename,
-        "file_path": str(file_path),
+        "storage_key": storage_key,
+        "file_path": storage_key,       # backwards compat for extract route
         "file_size": file_size,
         "mime_type": content_type,
         "document_type": doc_type.value,
@@ -164,6 +163,69 @@ async def upload_document(
             "uploaded_at": now,
         },
     }
+
+
+# ================================================================
+# GET /api/documents/{document_id}/download
+# ================================================================
+@router.get("/documents/{document_id}/download")
+async def download_document(
+    document_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
+    """Download a previously uploaded document. Tenant-isolated."""
+    from fastapi.responses import Response
+
+    user_id = _get_user_id(credentials)
+    db, is_mock = _get_db()
+
+    # Resolve business_id for tenant check
+    if is_mock:
+        _user = db.get_user_by_id(user_id)
+        business_id = _user["business_id"] if _user else None
+    else:
+        _user_resp = db.table("users").select("business_id").eq("id", user_id).single().execute()
+        business_id = _user_resp.data.get("business_id") if _user_resp.data else None
+
+    if not business_id:
+        raise HTTPException(status_code=403, detail="No business found for this user")
+
+    # Fetch document with tenant isolation
+    if is_mock:
+        _doc = db.get_document_by_id(document_id)
+        doc = _doc if (_doc and _doc.get("business_id") == business_id) else None
+    else:
+        doc_resp = (
+            db.table("documents")
+            .select("*")
+            .eq("id", document_id)
+            .eq("business_id", business_id)
+            .single()
+            .execute()
+        )
+        doc = doc_resp.data
+
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    storage_key = doc.get("storage_key") or doc.get("file_path", "")
+    if not storage_key:
+        raise HTTPException(status_code=404, detail="Document file not available")
+
+    try:
+        content = storage_service.download(storage_key)
+    except Exception as e:
+        logger.error(f"Download failed for doc={document_id}: {e}")
+        raise HTTPException(status_code=404, detail="Document file not found in storage")
+
+    filename = doc.get("filename", "document")
+    mime_type = doc.get("mime_type", "application/octet-stream")
+
+    return Response(
+        content=content,
+        media_type=mime_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # ================================================================
@@ -210,11 +272,17 @@ async def extract_document(
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    file_path = doc.get("file_path", "")
+    storage_key = doc.get("storage_key") or doc.get("file_path", "")
     mime_type = doc.get("mime_type", "application/pdf")
+    ext = ALLOWED_MIME.get(mime_type, "")
 
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="Document file not found on disk")
+    # Download file from storage to a temp file for OCR processing
+    try:
+        file_path = storage_service.download_to_temp(storage_key, suffix=ext)
+    except Exception as e:
+        logger.error(f"Extract: failed to retrieve document {doc_id}: {e}")
+        raise HTTPException(status_code=404, detail="Document file not found in storage")
+    _temp_file = file_path  # track so we can clean up
 
     # Update status to processing
     if is_mock:
@@ -245,6 +313,13 @@ async def extract_document(
             status_code=504,
             detail=f"OCR timed out after {settings.OCR_TIMEOUT}s. File may be corrupt or too complex.",
         )
+    finally:
+        # Clean up the temp file downloaded from storage
+        if _temp_file and os.path.exists(_temp_file):
+            try:
+                os.unlink(_temp_file)
+            except OSError:
+                pass
 
     raw_text = ocr_result.get("text", "")
     ocr_quality = ocr_result.get("quality", "empty")

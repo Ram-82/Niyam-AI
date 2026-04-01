@@ -50,6 +50,12 @@ class Settings:
     SENDER_EMAIL: str = os.getenv("SENDER_EMAIL", "noreply@niyam.ai")
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
 
+    # ---- Storage ----
+    # Supabase Storage bucket for uploaded documents (production).
+    # In dev mode, files are saved to the local uploads/ directory.
+    SUPABASE_STORAGE_BUCKET: str = os.getenv("SUPABASE_STORAGE_BUCKET", "niyam-documents")
+    STORAGE_RETENTION_DAYS: int = int(os.getenv("STORAGE_RETENTION_DAYS", "30"))
+
     # ---- Validation ----
     def validate(self):
         """

@@ -1,127 +1,109 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign Up | Niyam AI</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://unpkg.com/feather-icons"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
     <style>
-        .auth-container {
-            min-height: calc(100vh - 80px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: var(--space-4);
-        }
-
-        .auth-card {
-            width: 100%;
-            max-width: 450px;
-        }
+        body { font-family: 'Inter', sans-serif; background: radial-gradient(at 0% 0%, #faf4ff 0px, transparent 50%), radial-gradient(at 100% 0%, #e2d7ff 0px, transparent 50%), radial-gradient(at 100% 100%, #fbcfe8 0px, transparent 50%), radial-gradient(at 0% 100%, #e0e7ff 0px, transparent 50%); background-attachment: fixed; min-height: 100vh; }
+        .input-field { @apply w-full px-4 py-3 rounded-xl border border-[#e2d7ff] bg-white/80 text-[#32294f] placeholder-[#b2a6d5] outline-none transition-all; }
+        .input-field:focus { @apply ring-2 ring-[#4a40e0]/30 border-[#4a40e0]; }
     </style>
 </head>
+<body class="text-[#32294f]">
 
-<body style="background-color: #f1f5f9;">
-
-    <header>
-        <div class="container nav">
-            <a href="index.html" class="logo">
-                <img src="logo.svg" alt="Niyam AI Logo" height="40">
-            </a>
+    <!-- Header -->
+    <nav class="fixed top-0 w-full z-50 backdrop-blur-xl bg-white/40 shadow-sm">
+        <div class="flex justify-between items-center px-8 py-4 max-w-screen-2xl mx-auto">
+            <a href="index.html" class="text-2xl font-black tracking-tighter text-[#4a40e0]">Niyam <span class="text-[#10b981]">AI</span></a>
+            <a href="login.html" class="px-5 py-2 text-sm font-semibold text-[#4a40e0] border border-[#4a40e0]/30 rounded-xl hover:bg-[#4a40e0]/5 transition-all">Login</a>
         </div>
-    </header>
+    </nav>
 
-    <div class="auth-container">
-        <div class="card auth-card">
-            <h2 style="margin-bottom: var(--space-1); font-size: 1.5rem;">Create your account</h2>
-            <p style="color: var(--text-light); margin-bottom: var(--space-3); font-size: 0.9rem;">Join 1000+ MSMEs
-                managing compliance with Niyam AI.</p>
+    <!-- Signup Form -->
+    <div class="min-h-screen flex items-center justify-center pt-24 pb-12 px-4">
+        <div class="w-full max-w-lg bg-white/70 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/50 p-10">
+            <h2 class="text-2xl font-extrabold text-[#32294f] mb-1">Create your account</h2>
+            <p class="text-[#5f557f] text-sm mb-8">Join 1000+ MSMEs managing compliance with Niyam AI.</p>
 
-            <div id="error-message"
-                style="display: none; background-color: #fee2e2; color: #ef4444; padding: 10px; border-radius: 4px; margin-bottom: 20px; font-size: 0.9rem;">
-            </div>
+            <div id="error-message" class="hidden bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm mb-6"></div>
 
-            <form id="signup-form">
-                <div class="form-group"><label for="name">Full Name</label><input type="text" id="name"
-                        placeholder="John Doe" required></div>
-                <div class="form-group"><label for="business">Business Name</label><input type="text" id="business"
-                        placeholder="Acme Solutions Pvt Ltd" required></div>
-                <div class="form-group"><label for="email">Email Address</label><input type="email" id="email"
-                        placeholder="john@example.com" required></div>
-                <div class="form-group"><label for="password">Password</label><input type="password" id="password"
-                        placeholder="••••••••" required></div>
-                <div class="form-group"><label for="phone">Phone Number (Optional)</label><input type="tel" id="phone"
-                        placeholder="+91 98765 43210"></div>
-
-                <div class="form-group">
-                    <label for="gstin">GSTIN (Optional)</label>
-                    <input type="text" id="gstin" placeholder="29ABCDE1234F1Z5" maxlength="15"
-                        style="text-transform: uppercase;">
-                    <small id="gstin-hint" style="display:none; font-size:0.75rem; margin-top:4px;"></small>
+            <form id="signup-form" class="space-y-4">
+                <div>
+                    <label for="name" class="block text-sm font-semibold text-[#32294f] mb-1.5">Full Name</label>
+                    <input type="text" id="name" placeholder="John Doe" required class="w-full px-4 py-3 rounded-xl border border-[#e2d7ff] bg-white/80 text-[#32294f] placeholder-[#b2a6d5] focus:ring-2 focus:ring-[#4a40e0]/30 focus:border-[#4a40e0] outline-none transition-all">
                 </div>
-                <div class="form-group">
-                    <label for="pan">PAN (Optional)</label>
-                    <input type="text" id="pan" placeholder="ABCDE1234F" maxlength="10"
-                        style="text-transform: uppercase;">
-                    <small id="pan-hint" style="display:none; font-size:0.75rem; margin-top:4px;"></small>
+                <div>
+                    <label for="business" class="block text-sm font-semibold text-[#32294f] mb-1.5">Business Name</label>
+                    <input type="text" id="business" placeholder="Acme Solutions Pvt Ltd" required class="w-full px-4 py-3 rounded-xl border border-[#e2d7ff] bg-white/80 text-[#32294f] placeholder-[#b2a6d5] focus:ring-2 focus:ring-[#4a40e0]/30 focus:border-[#4a40e0] outline-none transition-all">
                 </div>
-
-                <div style="margin-bottom: var(--space-3); display: flex; align-items: flex-start; gap: 10px;">
-                    <input type="checkbox" id="terms" style="width: auto; margin-top: 4px;" required>
-                    <label for="terms" style="display: inline; font-size: 0.8rem;">I agree to the <a href="#"
-                            style="color: var(--primary-color);">Terms of Service</a> and <a href="#"
-                            style="color: var(--primary-color);">Privacy Policy</a></label>
+                <div>
+                    <label for="email" class="block text-sm font-semibold text-[#32294f] mb-1.5">Email Address</label>
+                    <input type="email" id="email" placeholder="john@example.com" required class="w-full px-4 py-3 rounded-xl border border-[#e2d7ff] bg-white/80 text-[#32294f] placeholder-[#b2a6d5] focus:ring-2 focus:ring-[#4a40e0]/30 focus:border-[#4a40e0] outline-none transition-all">
+                </div>
+                <div>
+                    <label for="password" class="block text-sm font-semibold text-[#32294f] mb-1.5">Password</label>
+                    <input type="password" id="password" placeholder="••••••••" required class="w-full px-4 py-3 rounded-xl border border-[#e2d7ff] bg-white/80 text-[#32294f] placeholder-[#b2a6d5] focus:ring-2 focus:ring-[#4a40e0]/30 focus:border-[#4a40e0] outline-none transition-all">
+                </div>
+                <div>
+                    <label for="phone" class="block text-sm font-semibold text-[#32294f] mb-1.5">Phone Number (Optional)</label>
+                    <input type="tel" id="phone" placeholder="+91 98765 43210" class="w-full px-4 py-3 rounded-xl border border-[#e2d7ff] bg-white/80 text-[#32294f] placeholder-[#b2a6d5] focus:ring-2 focus:ring-[#4a40e0]/30 focus:border-[#4a40e0] outline-none transition-all">
+                </div>
+                <div>
+                    <label for="gstin" class="block text-sm font-semibold text-[#32294f] mb-1.5">GSTIN (Optional)</label>
+                    <input type="text" id="gstin" placeholder="29ABCDE1234F1Z5" maxlength="15" style="text-transform:uppercase;" class="w-full px-4 py-3 rounded-xl border border-[#e2d7ff] bg-white/80 text-[#32294f] placeholder-[#b2a6d5] focus:ring-2 focus:ring-[#4a40e0]/30 focus:border-[#4a40e0] outline-none transition-all">
+                    <small id="gstin-hint" class="hidden text-xs mt-1 block"></small>
+                </div>
+                <div>
+                    <label for="pan" class="block text-sm font-semibold text-[#32294f] mb-1.5">PAN (Optional)</label>
+                    <input type="text" id="pan" placeholder="ABCDE1234F" maxlength="10" style="text-transform:uppercase;" class="w-full px-4 py-3 rounded-xl border border-[#e2d7ff] bg-white/80 text-[#32294f] placeholder-[#b2a6d5] focus:ring-2 focus:ring-[#4a40e0]/30 focus:border-[#4a40e0] outline-none transition-all">
+                    <small id="pan-hint" class="hidden text-xs mt-1 block"></small>
                 </div>
 
-                <button type="submit" id="signup-btn" class="btn btn-primary" style="width: 100%;">Create
-                    Account</button>
+                <div class="flex items-start gap-3 pt-1">
+                    <input type="checkbox" id="terms" required class="mt-1 accent-[#4a40e0]">
+                    <label for="terms" class="text-xs text-[#5f557f]">I agree to the <a href="#" class="text-[#4a40e0] font-medium">Terms of Service</a> and <a href="#" class="text-[#4a40e0] font-medium">Privacy Policy</a></label>
+                </div>
+
+                <button type="submit" id="signup-btn"
+                    class="w-full py-3.5 bg-[#4a40e0] text-white font-bold rounded-xl shadow-lg shadow-[#4a40e0]/25 hover:scale-[1.01] transition-transform mt-2">
+                    Create Account
+                </button>
             </form>
 
-            <p style="margin-top: var(--space-3); text-align: center; font-size: 0.9rem;">Already have an account? <a
-                    href="login.html" style="color: var(--primary-color); font-weight: 600;">Log in</a></p>
+            <p class="text-center text-sm text-[#5f557f] mt-8">Already have an account?
+                <a href="login.html" class="text-[#4a40e0] font-semibold hover:underline">Log in</a>
+            </p>
         </div>
     </div>
 
     <script src="config.js"></script>
     <script>
-        feather.replace();
         const API_URL = CONFIG.API_URL;
-
-        // GSTIN format: 2 digits + 5 letters + 4 digits + 1 letter + 1 alphanumeric + Z + 1 alphanumeric
         const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/;
-        // PAN format: 3 letters + entity char + 1 letter + 4 digits + 1 letter
         const PAN_RE = /^[A-Z]{3}[ABCFGHLJPT][A-Z][0-9]{4}[A-Z]$/;
 
-        // Live validation hints
         document.getElementById('gstin').addEventListener('input', function () {
             const hint = document.getElementById('gstin-hint');
             const val = this.value.toUpperCase().trim();
             if (!val) { hint.style.display = 'none'; return; }
+            hint.style.display = 'block'; hint.classList.remove('hidden');
             if (val.length === 15 && GSTIN_RE.test(val)) {
                 const sc = parseInt(val.slice(0, 2), 10);
-                if (sc >= 1 && sc <= 37) {
-                    hint.style.display = 'block'; hint.style.color = '#16a34a'; hint.textContent = 'Valid GSTIN format';
-                } else {
-                    hint.style.display = 'block'; hint.style.color = '#ef4444'; hint.textContent = 'Invalid state code (01-37)';
-                }
-            } else {
-                hint.style.display = 'block'; hint.style.color = '#ef4444';
-                hint.textContent = val.length < 15 ? `${15 - val.length} more characters needed` : 'Invalid GSTIN format';
-            }
+                if (sc >= 1 && sc <= 37) { hint.style.color = '#16a34a'; hint.textContent = 'Valid GSTIN format'; }
+                else { hint.style.color = '#ef4444'; hint.textContent = 'Invalid state code (01-37)'; }
+            } else { hint.style.color = '#ef4444'; hint.textContent = val.length < 15 ? `${15 - val.length} more characters needed` : 'Invalid GSTIN format'; }
         });
 
         document.getElementById('pan').addEventListener('input', function () {
             const hint = document.getElementById('pan-hint');
             const val = this.value.toUpperCase().trim();
             if (!val) { hint.style.display = 'none'; return; }
-            if (val.length === 10 && PAN_RE.test(val)) {
-                hint.style.display = 'block'; hint.style.color = '#16a34a'; hint.textContent = 'Valid PAN format';
-            } else {
-                hint.style.display = 'block'; hint.style.color = '#ef4444';
-                hint.textContent = val.length < 10 ? `${10 - val.length} more characters needed` : 'Invalid PAN format (e.g. ABCDE1234F)';
-            }
+            hint.style.display = 'block'; hint.classList.remove('hidden');
+            if (val.length === 10 && PAN_RE.test(val)) { hint.style.color = '#16a34a'; hint.textContent = 'Valid PAN format'; }
+            else { hint.style.color = '#ef4444'; hint.textContent = val.length < 10 ? `${10 - val.length} more characters needed` : 'Invalid PAN format (e.g. ABCDE1234F)'; }
         });
 
         document.getElementById('signup-form').addEventListener('submit', async (e) => {
@@ -137,77 +119,26 @@
             const signupBtn = document.getElementById('signup-btn');
             errorDiv.style.display = 'none'; errorDiv.innerText = '';
 
-            // Client-side validation
-            if (gstin && !GSTIN_RE.test(gstin)) {
-                errorDiv.innerText = 'Invalid GSTIN format. Expected 15-character format like 29ABCDE1234F1Z5';
-                errorDiv.style.display = 'block'; return;
-            }
-            if (gstin) {
-                const sc = parseInt(gstin.slice(0, 2), 10);
-                if (sc < 1 || sc > 37) {
-                    errorDiv.innerText = 'Invalid GSTIN: state code must be between 01 and 37';
-                    errorDiv.style.display = 'block'; return;
-                }
-            }
-            if (pan && !PAN_RE.test(pan)) {
-                errorDiv.innerText = 'Invalid PAN format. Expected 10-character format like ABCDE1234F';
-                errorDiv.style.display = 'block'; return;
-            }
-            if (gstin && pan && gstin.slice(2, 12) !== pan) {
-                errorDiv.innerText = 'GSTIN and PAN do not match. Characters 3-12 of GSTIN must equal your PAN.';
-                errorDiv.style.display = 'block'; return;
-            }
+            if (gstin && !GSTIN_RE.test(gstin)) { errorDiv.innerText = 'Invalid GSTIN format. Expected 15-character format like 29ABCDE1234F1Z5'; errorDiv.style.display = 'block'; errorDiv.classList.remove('hidden'); return; }
+            if (gstin) { const sc = parseInt(gstin.slice(0, 2), 10); if (sc < 1 || sc > 37) { errorDiv.innerText = 'Invalid GSTIN: state code must be between 01 and 37'; errorDiv.style.display = 'block'; errorDiv.classList.remove('hidden'); return; } }
+            if (pan && !PAN_RE.test(pan)) { errorDiv.innerText = 'Invalid PAN format. Expected 10-character format like ABCDE1234F'; errorDiv.style.display = 'block'; errorDiv.classList.remove('hidden'); return; }
+            if (gstin && pan && gstin.slice(2, 12) !== pan) { errorDiv.innerText = 'GSTIN and PAN do not match. Characters 3-12 of GSTIN must equal your PAN.'; errorDiv.style.display = 'block'; errorDiv.classList.remove('hidden'); return; }
 
             signupBtn.innerText = 'Creating Account...'; signupBtn.disabled = true;
             try {
-                const response = await fetch(`${API_URL}/auth/signup`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        full_name: fullName, business_name: businessName,
-                        email: email, password: password,
-                        phone: phone || null,
-                        gstin: gstin || null,
-                        pan: pan || null,
-                    })
-                });
+                const response = await fetch(`${API_URL}/auth/signup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ full_name: fullName, business_name: businessName, email: email, password: password, phone: phone || null, gstin: gstin || null, pan: pan || null }) });
                 const data = await response.json();
                 if (!response.ok) {
                     let errorMessage = 'Registration failed';
-                    if (data.detail) {
-                        if (typeof data.detail === 'string') { errorMessage = data.detail; }
-                        else if (Array.isArray(data.detail)) { errorMessage = data.detail.map(err => err.msg || JSON.stringify(err)).join('\n'); }
-                        else { errorMessage = JSON.stringify(data.detail); }
-                    }
+                    if (data.detail) { if (typeof data.detail === 'string') { errorMessage = data.detail; } else if (Array.isArray(data.detail)) { errorMessage = data.detail.map(err => err.msg || JSON.stringify(err)).join('\n'); } else { errorMessage = JSON.stringify(data.detail); } }
                     throw new Error(errorMessage);
                 }
                 if (data.success) {
-                    // Store tokens for after verification
-                    localStorage.setItem('niyam_access_token', data.data.access_token);
-                    localStorage.setItem('niyam_refresh_token', data.data.refresh_token);
-                    localStorage.setItem('niyam_user_name', data.data.user_name);
-                    localStorage.setItem('niyam_business_name', data.data.business_name);
-                    localStorage.setItem('niyam_verify_email', email);
-
-                    // Redirect to email verification
-                    if (data.requires_verification) {
-                        const devCode = data._dev_verification_code || '';
-                        const verifyUrl = `verify-email.html?email=${encodeURIComponent(email)}` +
-                            (devCode ? `&code=${devCode}` : '');
-                        window.location.href = verifyUrl;
-                    } else {
-                        window.location.href = 'dashboard.html';
-                    }
+                    localStorage.setItem('niyam_access_token', data.data.access_token); localStorage.setItem('niyam_refresh_token', data.data.refresh_token); localStorage.setItem('niyam_user_name', data.data.user_name); localStorage.setItem('niyam_business_name', data.data.business_name); localStorage.setItem('niyam_verify_email', email);
+                    if (data.requires_verification) { const devCode = data._dev_verification_code || ''; const verifyUrl = `verify-email.html?email=${encodeURIComponent(email)}` + (devCode ? `&code=${devCode}` : ''); window.location.href = verifyUrl; } else { window.location.href = 'dashboard.html'; }
                 }
-            } catch (error) {
-                console.error('Signup error:', error);
-                errorDiv.innerText = error.message;
-                errorDiv.style.display = 'block';
-            } finally {
-                signupBtn.innerText = 'Create Account'; signupBtn.disabled = false;
-            }
+            } catch (error) { console.error('Signup error:', error); errorDiv.innerText = error.message; errorDiv.style.display = 'block'; errorDiv.classList.remove('hidden'); } finally { signupBtn.innerText = 'Create Account'; signupBtn.disabled = false; }
         });
     </script>
 </body>
-
 </html>

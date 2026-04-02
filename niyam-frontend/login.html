@@ -1,70 +1,61 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login | Niyam AI</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://unpkg.com/feather-icons"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
     <style>
-        .auth-container {
-            min-height: calc(100vh - 80px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: var(--space-4);
-        }
-
-        .auth-card {
-            width: 100%;
-            max-width: 400px;
-        }
+        body { font-family: 'Inter', sans-serif; background: radial-gradient(at 0% 0%, #faf4ff 0px, transparent 50%), radial-gradient(at 100% 0%, #e2d7ff 0px, transparent 50%), radial-gradient(at 100% 100%, #fbcfe8 0px, transparent 50%), radial-gradient(at 0% 100%, #e0e7ff 0px, transparent 50%); background-attachment: fixed; min-height: 100vh; }
     </style>
 </head>
+<body class="text-[#32294f]">
 
-<body style="background-color: #f1f5f9;">
-
-    <header>
-        <div class="container nav">
-            <a href="index.html" class="logo">
-                <img src="logo.svg" alt="Niyam AI Logo" height="40">
-            </a>
+    <!-- Header -->
+    <nav class="fixed top-0 w-full z-50 backdrop-blur-xl bg-white/40 shadow-sm">
+        <div class="flex justify-between items-center px-8 py-4 max-w-screen-2xl mx-auto">
+            <a href="index.html" class="text-2xl font-black tracking-tighter text-[#4a40e0]">Niyam <span class="text-[#10b981]">AI</span></a>
+            <a href="signup.html" class="px-5 py-2 text-sm font-bold bg-[#4a40e0] text-white rounded-xl shadow-lg hover:scale-[1.02] transition-transform">Sign Up</a>
         </div>
-    </header>
+    </nav>
 
-    <div class="auth-container">
-        <div class="card auth-card">
-            <h2 style="margin-bottom: var(--space-1); font-size: 1.5rem;">Welcome back</h2>
-            <p style="color: var(--text-light); margin-bottom: var(--space-3); font-size: 0.9rem;">Please enter your
-                details to sign in.</p>
+    <!-- Login Form -->
+    <div class="min-h-screen flex items-center justify-center pt-20 px-4">
+        <div class="w-full max-w-md bg-white/70 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/50 p-10">
+            <h2 class="text-2xl font-extrabold text-[#32294f] mb-1">Welcome back</h2>
+            <p class="text-[#5f557f] text-sm mb-8">Please enter your details to sign in.</p>
 
-            <div id="error-message"
-                style="display: none; background-color: #fee2e2; color: #ef4444; padding: 10px; border-radius: 4px; margin-bottom: 20px; font-size: 0.9rem;">
-            </div>
+            <div id="error-message" class="hidden bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm mb-6"></div>
 
-            <form id="login-form">
-                <div class="form-group"><label for="email">Email Address</label><input type="email" id="email"
-                        placeholder="john@example.com" required></div>
-                <div class="form-group">
-                    <div style="display: flex; justify-content: space-between; align-items: center;"><label
-                            for="password">Password</label><a href="#"
-                            style="font-size: 0.8rem; color: var(--primary-color);">Forgot password?</a></div><input
-                        type="password" id="password" placeholder="••••••••" required>
+            <form id="login-form" class="space-y-5">
+                <div>
+                    <label for="email" class="block text-sm font-semibold text-[#32294f] mb-1.5">Email Address</label>
+                    <input type="email" id="email" placeholder="john@example.com" required
+                        class="w-full px-4 py-3 rounded-xl border border-[#e2d7ff] bg-white/80 text-[#32294f] placeholder-[#b2a6d5] focus:ring-2 focus:ring-[#4a40e0]/30 focus:border-[#4a40e0] outline-none transition-all">
                 </div>
-
-                <button type="submit" id="login-btn" class="btn btn-primary"
-                    style="width: 100%; margin-top: var(--space-2);">Log In</button>
+                <div>
+                    <div class="flex justify-between items-center mb-1.5">
+                        <label for="password" class="text-sm font-semibold text-[#32294f]">Password</label>
+                        <a href="#" class="text-xs text-[#4a40e0] font-medium hover:underline">Forgot password?</a>
+                    </div>
+                    <input type="password" id="password" placeholder="••••••••" required
+                        class="w-full px-4 py-3 rounded-xl border border-[#e2d7ff] bg-white/80 text-[#32294f] placeholder-[#b2a6d5] focus:ring-2 focus:ring-[#4a40e0]/30 focus:border-[#4a40e0] outline-none transition-all">
+                </div>
+                <button type="submit" id="login-btn"
+                    class="w-full py-3.5 bg-[#4a40e0] text-white font-bold rounded-xl shadow-lg shadow-[#4a40e0]/25 hover:scale-[1.01] transition-transform">
+                    Log In
+                </button>
             </form>
 
-            <p style="margin-top: var(--space-3); text-align: center; font-size: 0.9rem;">Don't have an account? <a
-                    href="signup.html" style="color: var(--primary-color); font-weight: 600;">Sign up</a></p>
+            <p class="text-center text-sm text-[#5f557f] mt-8">Don't have an account?
+                <a href="signup.html" class="text-[#4a40e0] font-semibold hover:underline">Sign up</a>
+            </p>
         </div>
     </div>
 
     <script src="config.js"></script>
     <script>
-        feather.replace();
         const API_URL = CONFIG.API_URL;
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -78,7 +69,6 @@
                 const response = await fetch(`${API_URL}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
                 const data = await response.json();
                 if (!response.ok) {
-                    // Check if email verification is needed (403 with requires_verification)
                     if (response.status === 403 && data.detail && typeof data.detail === 'object' && data.detail.requires_verification) {
                         localStorage.setItem('niyam_verify_email', data.detail.email || email);
                         const devCode = data.detail._dev_verification_code || '';
@@ -96,9 +86,8 @@
                     throw new Error(errorMessage);
                 }
                 if (data.success) { localStorage.setItem('niyam_access_token', data.data.access_token); localStorage.setItem('niyam_refresh_token', data.data.refresh_token); localStorage.setItem('niyam_user_name', data.data.user_name); localStorage.setItem('niyam_business_name', data.data.business_name); window.location.href = 'dashboard.html'; }
-            } catch (error) { console.error('Login error:', error); errorDiv.innerText = error.message; errorDiv.style.display = 'block'; } finally { loginBtn.innerText = 'Log In'; loginBtn.disabled = false; }
+            } catch (error) { console.error('Login error:', error); errorDiv.innerText = error.message; errorDiv.style.display = 'block'; errorDiv.classList.remove('hidden'); } finally { loginBtn.innerText = 'Log In'; loginBtn.disabled = false; }
         });
     </script>
 </body>
-
 </html>

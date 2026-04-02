@@ -3,8 +3,8 @@
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>Niyam AI | The Intelligent Curator</title>
-    <meta name="description" content="India's First Compliance OS for MSMEs. Track GST, TDS, and ROC in one dashboard with AI-powered insights.">
+    <title>Niyam AI | Compliance OS for Indian MSMEs</title>
+    <meta name="description" content="India's First Compliance OS for MSMEs. Track GST, TDS, and ROC in one dashboard. Stop penalties and grow your business.">
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
@@ -64,7 +64,8 @@
                         "on-surface": "#32294f",
                         "primary-dim": "#3d30d4",
                         "on-primary": "#f4f1ff",
-                        "tertiary": "#6a37d4"
+                        "tertiary": "#6a37d4",
+                        "success": "#10b981"
                     },
                     fontFamily: {
                         "headline": ["Inter"],
@@ -113,9 +114,10 @@
         .hero-img-placeholder {
             background: linear-gradient(135deg, #c4b5fd 0%, #a78bfa 40%, #e0c4ff 80%, #ede4ff 100%);
         }
-        .chart-placeholder {
-            background: linear-gradient(180deg, #f5eeff 0%, #e8deff 50%, #ddd6fe 100%);
-        }
+        .mockup-bar { background: #e2e8f0; }
+        .mockup-dot-red { background: #ff5f56; }
+        .mockup-dot-yellow { background: #ffbd2e; }
+        .mockup-dot-green { background: #27c93f; }
     </style>
 </head>
 <body class="text-on-surface">
@@ -123,223 +125,196 @@
 <!-- TopNavBar -->
 <nav class="fixed top-0 w-full z-50 backdrop-blur-xl shadow-sm bg-white/40">
     <div class="flex justify-between items-center px-8 py-4 max-w-screen-2xl mx-auto">
-        <div class="text-2xl font-black tracking-tighter text-[#4a40e0]">Niyam AI</div>
-        <div class="hidden md:flex space-x-8 font-['Inter'] tracking-tight font-medium text-sm">
-            <a class="text-[#4a40e0] font-bold border-b-2 border-[#4a40e0] pb-1" href="#">Platform</a>
-            <a class="text-[#32294f] opacity-80 hover:text-[#4a40e0] transition-colors duration-300" href="#curator">Curations</a>
-            <a class="text-[#32294f] opacity-80 hover:text-[#4a40e0] transition-colors duration-300" href="#pulse">Insights</a>
-            <a class="text-[#32294f] opacity-80 hover:text-[#4a40e0] transition-colors duration-300" href="#pulse">Compliance</a>
-            <a class="text-[#32294f] opacity-80 hover:text-[#4a40e0] transition-colors duration-300" href="about.html">Resources</a>
+        <div class="flex items-center gap-2">
+            <img src="logo.svg" alt="Niyam AI" class="h-8">
+            <span class="text-2xl font-black tracking-tighter text-primary">Niyam <span class="text-success">AI</span></span>
         </div>
-        <div class="flex items-center space-x-4">
-            <a href="login.html" class="px-5 py-2 text-sm font-medium text-[#32294f] hover:bg-surface-container-high rounded-xl transition-all duration-300">Login</a>
-            <a href="signup.html" class="px-5 py-2 text-sm font-bold bg-primary text-on-primary rounded-xl shadow-lg shadow-primary/20 scale-95 active:scale-90 transition-transform">Get Started</a>
+        <div class="hidden md:flex space-x-8 font-medium text-sm">
+            <a class="text-on-surface hover:text-primary transition-colors" href="#">Home</a>
+            <a class="text-on-surface/70 hover:text-primary transition-colors" href="#features">Features</a>
+            <a class="text-on-surface/70 hover:text-primary transition-colors" href="#how-it-works">Pricing</a>
+            <a class="text-on-surface/70 hover:text-primary transition-colors" href="about.html">About</a>
+        </div>
+        <div class="flex items-center space-x-3">
+            <a href="login.html" class="px-5 py-2.5 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition-all">Login</a>
+            <a href="signup.html" class="px-5 py-2.5 text-sm font-bold bg-primary text-on-primary rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform">Sign Up</a>
         </div>
     </div>
 </nav>
 
 <main class="pt-24">
 
-    <!-- Status Header -->
-    <div class="max-w-7xl mx-auto px-8 mb-12">
-        <div class="inline-flex items-center space-x-3 bg-surface-container-low px-4 py-2 rounded-full border border-primary/10">
-            <span class="relative flex h-3 w-3">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
-            </span>
-            <span class="text-xs font-bold tracking-widest uppercase text-primary">Agentic Compliance Active</span>
-            <span class="text-xs text-on-surface-variant border-l border-outline-variant/30 pl-3">2,491 scans in last 60s</span>
+    <!-- ============================================================ -->
+    <!-- HERO: Stop GST Penalties. Stay Compliant. -->
+    <!-- ============================================================ -->
+    <section class="max-w-5xl mx-auto px-8 py-24 text-center">
+        <h1 class="text-5xl md:text-7xl font-extrabold tracking-tighter text-on-surface mb-6 leading-[0.95]">
+            Stop GST Penalties.<br>Stay Compliant.
+        </h1>
+        <p class="text-xl text-on-surface-variant max-w-2xl mx-auto mb-10 leading-relaxed">
+            India's First Compliance OS for MSMEs - Track GST, TDS, ROC in One Dashboard with AI-powered insights.
+        </p>
+        <div class="flex flex-wrap justify-center gap-4">
+            <a href="signup.html" class="inline-block text-on-primary px-8 py-4 rounded-xl font-bold shadow-xl shadow-primary/25 hover:scale-[1.02] transition-transform bg-primary text-lg">
+                Start Free Trial
+            </a>
+            <a href="demo.html" class="inline-block px-8 py-4 rounded-xl font-bold text-lg hover:scale-[1.02] transition-transform text-white bg-success shadow-xl shadow-success/25">
+                Try Demo &mdash; No Signup
+            </a>
         </div>
-    </div>
+    </section>
 
-    <!-- Hero Section -->
-    <section class="max-w-7xl mx-auto px-8 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center mb-24">
-        <div class="lg:col-span-7">
-            <h1 class="text-5xl md:text-7xl font-extrabold tracking-tighter text-on-surface mb-6 leading-[0.95]">
-                Precise <span class="text-primary italic">Intelligence</span> for Modern Compliance.
-            </h1>
-            <p class="text-xl text-on-surface-variant max-w-xl mb-10 leading-relaxed">
-                Niyam AI curates complex regulatory landscapes into actionable kinetic data. No more spreadsheets. Just autonomous, real-time risk mitigation.
+    <!-- ============================================================ -->
+    <!-- SECTION: The MSME Compliance Chaos -->
+    <!-- ============================================================ -->
+    <section id="features" class="max-w-7xl mx-auto px-8 mb-28">
+        <h2 class="text-3xl md:text-4xl font-extrabold text-on-surface text-center mb-4">The MSME Compliance Chaos</h2>
+        <div class="w-16 h-1 bg-primary mx-auto mb-12"></div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="bg-white/60 backdrop-blur-md p-8 rounded-2xl border border-white/40 text-center shadow-lg glass-card-glow">
+                <span class="material-symbols-outlined text-error text-4xl mb-4">grid_view</span>
+                <h3 class="text-lg font-bold text-on-surface mb-2">GST Portal</h3>
+                <p class="text-sm text-on-surface-variant">Fragmented logins and slow interfaces.</p>
+            </div>
+            <div class="bg-white/60 backdrop-blur-md p-8 rounded-2xl border border-white/40 text-center shadow-lg glass-card-glow">
+                <span class="material-symbols-outlined text-error text-4xl mb-4">description</span>
+                <h3 class="text-lg font-bold text-on-surface mb-2">Manual Excel</h3>
+                <p class="text-sm text-on-surface-variant">Prone to errors and data loss.</p>
+            </div>
+            <div class="bg-white/60 backdrop-blur-md p-8 rounded-2xl border border-white/40 text-center shadow-lg glass-card-glow">
+                <span class="material-symbols-outlined text-error text-4xl mb-4">chat_bubble</span>
+                <h3 class="text-lg font-bold text-on-surface mb-2">WhatsApp/Email</h3>
+                <p class="text-sm text-on-surface-variant">Lost documents and communication gaps.</p>
+            </div>
+            <div class="bg-white/60 backdrop-blur-md p-8 rounded-2xl border border-white/40 text-center shadow-lg glass-card-glow">
+                <span class="material-symbols-outlined text-error text-4xl mb-4">warning</span>
+                <h3 class="text-lg font-bold text-on-surface mb-2">TDS Portal</h3>
+                <p class="text-sm text-on-surface-variant">Complex filing cycles and deadlines.</p>
+            </div>
+        </div>
+        <p class="text-center mt-8 font-bold text-error text-lg">Result: No Integration &amp; Heavy Penalties</p>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- SECTION: One Dashboard, Complete Control -->
+    <!-- ============================================================ -->
+    <section class="py-24" style="background: radial-gradient(circle at 30% 50%, rgba(226, 215, 255, 0.3) 0%, transparent 60%);">
+        <div class="max-w-7xl mx-auto px-8 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <div>
+                <h2 class="text-3xl md:text-4xl font-extrabold text-on-surface mb-6">One Dashboard, Complete Control</h2>
+                <p class="text-on-surface-variant mb-8 leading-relaxed">
+                    Niyam AI aggregates all your compliance needs into one intelligent system. Never miss a deadline again with automated alerts and AI-driven analysis of your financial health.
+                </p>
+                <div class="space-y-4">
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-success" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+                        <span class="font-medium">Real-time GST &amp; TDS tracking</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-success" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+                        <span class="font-medium">AI-powered penalty risk assessment</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-success" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+                        <span class="font-medium">Seamless invoice and bank integration</span>
+                    </div>
+                </div>
+            </div>
+            <!-- Dashboard Mockup -->
+            <div class="bg-white/70 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/50 overflow-hidden">
+                <div class="mockup-bar h-8 flex items-center px-3 gap-1.5">
+                    <span class="mockup-dot-red w-2.5 h-2.5 rounded-full"></span>
+                    <span class="mockup-dot-yellow w-2.5 h-2.5 rounded-full"></span>
+                    <span class="mockup-dot-green w-2.5 h-2.5 rounded-full"></span>
+                </div>
+                <div class="p-6 bg-surface-container-low/50 space-y-4">
+                    <!-- Metric cards row -->
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="bg-white/80 rounded-xl p-4 border border-outline-variant/20">
+                            <div class="text-[10px] uppercase tracking-wider text-on-surface-variant font-bold mb-1">Deadlines</div>
+                            <div class="text-2xl font-black text-primary">12</div>
+                        </div>
+                        <div class="bg-white/80 rounded-xl p-4 border border-outline-variant/20">
+                            <div class="text-[10px] uppercase tracking-wider text-on-surface-variant font-bold mb-1">Health Score</div>
+                            <div class="text-2xl font-black text-success">87%</div>
+                        </div>
+                        <div class="bg-white/80 rounded-xl p-4 border border-outline-variant/20">
+                            <div class="text-[10px] uppercase tracking-wider text-on-surface-variant font-bold mb-1">Penalty Risk</div>
+                            <div class="text-2xl font-black text-error">&#8377;2.4K</div>
+                        </div>
+                    </div>
+                    <!-- Chart area -->
+                    <div class="bg-white/80 rounded-xl p-6 border border-outline-variant/20 h-32 flex items-end gap-2">
+                        <div class="w-full flex items-end gap-1.5 h-full">
+                            <div class="flex-1 bg-primary/20 rounded-t-md" style="height:40%"></div>
+                            <div class="flex-1 bg-primary/30 rounded-t-md" style="height:60%"></div>
+                            <div class="flex-1 bg-primary/40 rounded-t-md" style="height:45%"></div>
+                            <div class="flex-1 bg-primary/50 rounded-t-md" style="height:80%"></div>
+                            <div class="flex-1 bg-primary/60 rounded-t-md" style="height:70%"></div>
+                            <div class="flex-1 bg-primary rounded-t-md" style="height:90%"></div>
+                            <div class="flex-1 bg-primary/80 rounded-t-md" style="height:75%"></div>
+                            <div class="flex-1 bg-primary/50 rounded-t-md" style="height:55%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- SECTION: How It Works -->
+    <!-- ============================================================ -->
+    <section id="how-it-works" class="max-w-5xl mx-auto px-8 py-28">
+        <h2 class="text-3xl md:text-4xl font-extrabold text-on-surface text-center mb-4">How It Works</h2>
+        <div class="w-16 h-1 bg-primary mx-auto mb-16"></div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-12">
+            <div class="text-center">
+                <div class="w-16 h-16 vibrant-gradient text-white rounded-full flex items-center justify-center mx-auto mb-6 text-2xl font-black shadow-lg shadow-primary/30">1</div>
+                <h3 class="text-xl font-bold text-on-surface mb-3">Connect &amp; Upload</h3>
+                <p class="text-on-surface-variant text-sm leading-relaxed">Securely link your bank accounts and upload invoices via email or WhatsApp.</p>
+            </div>
+            <div class="text-center">
+                <div class="w-16 h-16 vibrant-gradient text-white rounded-full flex items-center justify-center mx-auto mb-6 text-2xl font-black shadow-lg shadow-primary/30">2</div>
+                <h3 class="text-xl font-bold text-on-surface mb-3">AI Analysis</h3>
+                <p class="text-on-surface-variant text-sm leading-relaxed">Our AI categorizes transactions and calculates tax liabilities in real-time.</p>
+            </div>
+            <div class="text-center">
+                <div class="w-16 h-16 vibrant-gradient text-white rounded-full flex items-center justify-center mx-auto mb-6 text-2xl font-black shadow-lg shadow-primary/30">3</div>
+                <h3 class="text-xl font-bold text-on-surface mb-3">Stay Compliant</h3>
+                <p class="text-on-surface-variant text-sm leading-relaxed">Get automated alerts for deadlines and file reports directly from the dashboard.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- SECTION: Testimonial -->
+    <!-- ============================================================ -->
+    <section class="vibrant-gradient py-20">
+        <div class="max-w-4xl mx-auto px-8 text-center text-white">
+            <p class="text-2xl md:text-3xl font-medium italic mb-6 leading-relaxed">
+                "Saved &#8377;50,000+ in penalties in just 3 months. Niyam AI is a lifesaver for my business."
             </p>
-            <div class="flex flex-wrap gap-4">
-                <a href="dashboard.html" class="inline-block text-on-primary px-8 py-4 rounded-xl font-bold shadow-xl shadow-primary/25 hover:scale-[1.02] transition-transform vibrant-gradient">
-                    Launch Dashboard
-                </a>
-                <a href="demo.html" class="inline-block bg-surface-container-high text-primary px-8 py-4 rounded-xl font-bold hover:bg-surface-container-highest transition-colors">
-                    View Compliance Matrix
-                </a>
-            </div>
-        </div>
-        <div class="lg:col-span-5 relative">
-            <div class="aspect-square rounded-3xl overflow-hidden relative hero-img-placeholder">
-                <div class="absolute inset-0 bg-gradient-to-tr from-primary/20 to-transparent"></div>
-                <!-- Floating Kinetic Indicators -->
-                <div class="absolute top-8 left-8 glass-panel p-4 rounded-2xl shadow-xl">
-                    <div class="flex items-center space-x-3">
-                        <span class="material-symbols-outlined text-primary">verified_user</span>
-                        <div>
-                            <div class="text-[10px] uppercase tracking-tighter font-bold text-on-surface-variant">Global Risk</div>
-                            <div class="text-lg font-black text-primary">0.04%</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="absolute bottom-12 right-8 glass-panel p-4 rounded-2xl shadow-xl">
-                    <div class="flex items-center space-x-3">
-                        <span class="material-symbols-outlined text-primary">monitoring</span>
-                        <div>
-                            <div class="text-[10px] uppercase tracking-tighter font-bold text-on-surface-variant">Curation Speed</div>
-                            <div class="text-lg font-black text-primary">12ms</div>
-                        </div>
-                    </div>
-                </div>
+            <div class="flex items-center justify-center gap-3">
+                <span class="font-bold text-lg">Rajesh K.</span>
+                <span class="opacity-80">| Business Owner, Bangalore</span>
             </div>
         </div>
     </section>
 
-    <!-- Bento Grid: The Curator Experience -->
-    <section id="curator" class="max-w-7xl mx-auto px-8 mb-32">
-        <div class="mb-12">
-            <h2 class="text-3xl font-bold tracking-tight text-on-surface">The Intelligence Curator</h2>
-            <div class="w-12 h-1 bg-primary mt-2"></div>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-12 gap-6">
-            <!-- Large Feature Card -->
-            <div class="md:col-span-2 lg:col-span-8 bg-surface-container-low p-1 rounded-3xl overflow-hidden glass-card-glow shadow-2xl">
-                <div class="bg-surface rounded-[calc(1.5rem-4px)] h-full p-10 flex flex-col justify-between border-l-4 border-primary">
-                    <div>
-                        <span class="text-primary font-black tracking-widest text-xs uppercase mb-4 block">Core Engine</span>
-                        <h3 class="text-3xl font-extrabold text-on-surface mb-6 max-w-md">Autonomous Risk Synthesis across 140+ Jurisdictions.</h3>
-                        <p class="text-on-surface-variant max-w-lg mb-8">
-                            Our Liquid Intelligence model doesn't just read laws; it understands legislative intent, mapping dynamic shifts in global policy to your specific enterprise footprint instantly.
-                        </p>
-                    </div>
-                    <div class="grid grid-cols-3 gap-8 border-t border-outline-variant/20 pt-8">
-                        <div>
-                            <div class="text-2xl font-black text-on-surface">99.9<span class="text-primary">%</span></div>
-                            <div class="text-xs text-on-surface-variant uppercase font-bold tracking-tighter">Accuracy Rate</div>
-                        </div>
-                        <div>
-                            <div class="text-2xl font-black text-on-surface">24<span class="text-primary">h</span></div>
-                            <div class="text-xs text-on-surface-variant uppercase font-bold tracking-tighter">Deep Monitoring</div>
-                        </div>
-                        <div>
-                            <div class="text-2xl font-black text-on-surface">1M<span class="text-primary">+</span></div>
-                            <div class="text-xs text-on-surface-variant uppercase font-bold tracking-tighter">Policy Nodes</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <!-- Secondary Bento Card -->
-            <div class="md:col-span-2 lg:col-span-4 bg-tertiary-container/30 p-8 rounded-3xl flex flex-col justify-between glass-card-glow shadow-2xl">
-                <div>
-                    <span class="material-symbols-outlined text-tertiary text-4xl mb-6" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
-                    <h4 class="text-2xl font-bold text-on-tertiary-container mb-4 leading-tight">Insight Curator</h4>
-                    <p class="text-on-tertiary-container/70 text-sm">Real-time narrative generation for compliance committees and stakeholders.</p>
-                </div>
-                <div class="mt-8 bg-white/40 backdrop-blur-md p-4 rounded-xl">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-[10px] font-bold text-tertiary uppercase">Drafting Report...</span>
-                        <span class="text-[10px] font-bold text-tertiary">88%</span>
-                    </div>
-                    <div class="w-full bg-tertiary/10 h-1 rounded-full overflow-hidden">
-                        <div class="bg-tertiary h-full w-[88%]"></div>
-                    </div>
-                </div>
-            </div>
-            <!-- Small Bento Cards -->
-            <div class="md:col-span-2 lg:col-span-4 bg-surface-container-high p-8 rounded-3xl glass-card-glow shadow-2xl">
-                <h4 class="text-lg font-bold text-on-surface mb-2">Policy Tracking</h4>
-                <p class="text-sm text-on-surface-variant mb-6">Visual mapping of legislative shifts in real-time.</p>
-                <div class="w-full h-32 rounded-xl chart-placeholder"></div>
-            </div>
-            <div class="md:col-span-2 lg:col-span-4 bg-primary p-8 rounded-3xl text-on-primary relative overflow-hidden group glass-card-glow shadow-2xl">
-                <div class="relative z-10">
-                    <h4 class="text-xl font-bold mb-2">Zero-Friction API</h4>
-                    <p class="text-sm text-on-primary/80 mb-6">Integrate intelligence directly into your existing GRC ecosystem.</p>
-                    <button class="bg-on-primary text-primary px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest group-hover:scale-105 transition-transform">
-                        View Documentation
-                    </button>
-                </div>
-                <div class="absolute -right-8 -bottom-8 opacity-20">
-                    <span class="material-symbols-outlined text-[160px]">terminal</span>
-                </div>
-            </div>
-            <div class="md:col-span-4 lg:col-span-4 bg-surface-container-low p-8 rounded-3xl flex items-center justify-center border-2 border-dashed border-outline-variant/30 glass-card-glow shadow-2xl">
-                <div class="text-center">
-                    <div class="text-primary mb-2 font-bold">Custom Module?</div>
-                    <p class="text-xs text-on-surface-variant">Request a curated risk model tailored to your firm.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Compliance Pulse Section -->
-    <section id="pulse" class="py-32" style="background: radial-gradient(circle at 70% 30%, rgba(226, 215, 255, 0.4) 0%, transparent 70%);">
-        <div class="max-w-7xl mx-auto px-8">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
-                <div>
-                    <h2 class="text-4xl font-extrabold text-on-surface mb-8">Global Regulatory <span class="text-primary">Pulse</span></h2>
-                    <div class="space-y-6">
-                        <div class="bg-surface p-6 rounded-2xl flex items-start space-x-4 shadow-sm">
-                            <div class="bg-primary/10 p-3 rounded-xl">
-                                <span class="material-symbols-outlined text-primary">gavel</span>
-                            </div>
-                            <div>
-                                <h5 class="font-bold text-on-surface">EU AI Act V4.1</h5>
-                                <p class="text-sm text-on-surface-variant">Automatically updated curated risk vector in your workspace.</p>
-                            </div>
-                            <span class="ml-auto bg-primary/20 text-primary text-[10px] font-bold px-2 py-1 rounded">STABLE</span>
-                        </div>
-                        <div class="bg-surface p-6 rounded-2xl flex items-start space-x-4 shadow-sm border-l-4 border-error">
-                            <div class="bg-error/10 p-3 rounded-xl">
-                                <span class="material-symbols-outlined text-error">warning</span>
-                            </div>
-                            <div>
-                                <h5 class="font-bold text-on-surface">SEC Cybersecurity Disclosure</h5>
-                                <p class="text-sm text-on-surface-variant">Attention required for Section 3 compliance updates.</p>
-                            </div>
-                            <span class="ml-auto bg-error/20 text-error text-[10px] font-bold px-2 py-1 rounded">ACTION</span>
-                        </div>
-                        <div class="bg-surface p-6 rounded-2xl flex items-start space-x-4 shadow-sm">
-                            <div class="bg-primary/10 p-3 rounded-xl">
-                                <span class="material-symbols-outlined text-primary">lock</span>
-                            </div>
-                            <div>
-                                <h5 class="font-bold text-on-surface">Data Privacy Shield</h5>
-                                <p class="text-sm text-on-surface-variant">Transatlantic data flow protocols verified.</p>
-                            </div>
-                            <span class="ml-auto bg-primary/20 text-primary text-[10px] font-bold px-2 py-1 rounded">VERIFIED</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="relative">
-                    <div class="absolute -inset-4 bg-gradient-to-r from-primary/10 to-tertiary/10 rounded-full blur-3xl"></div>
-                    <div class="relative bg-surface rounded-full aspect-square border border-outline-variant/30 p-12 flex items-center justify-center overflow-hidden">
-                        <div class="text-center z-10">
-                            <div class="text-6xl font-black text-primary mb-2">912</div>
-                            <div class="text-sm font-bold uppercase tracking-[0.2em] text-on-surface-variant">Active Monitored Protocols</div>
-                        </div>
-                        <div class="absolute inset-0 border-[40px] border-surface-container-high rounded-full opacity-30"></div>
-                        <div class="absolute inset-12 border border-primary/20 rounded-full animate-[spin_20s_linear_infinite]"></div>
-                        <div class="absolute top-1/4 left-1/4 h-2 w-2 bg-primary rounded-full shadow-[0_0_15px_#4a40e0]"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- CTA Section -->
-    <section class="max-w-7xl mx-auto px-8 py-32 text-center">
-        <h2 class="text-5xl font-black text-on-surface mb-8 tracking-tighter">Ready for Intelligence?</h2>
+    <!-- ============================================================ -->
+    <!-- SECTION: CTA -->
+    <!-- ============================================================ -->
+    <section class="max-w-5xl mx-auto px-8 py-28 text-center">
+        <h2 class="text-4xl md:text-5xl font-black text-on-surface mb-6 tracking-tighter">Ready to Stop Penalties?</h2>
         <p class="text-xl text-on-surface-variant mb-12 max-w-2xl mx-auto">
-            Join the world's most sophisticated compliance teams using Niyam AI to stay ahead of the regulatory curve.
+            Join thousands of Indian MSMEs using Niyam AI to stay compliant and grow their business.
         </p>
         <div class="flex flex-col md:flex-row justify-center gap-6">
-            <a href="signup.html" class="inline-block text-on-primary px-12 py-5 rounded-2xl font-bold shadow-2xl shadow-primary/30 text-lg hover:scale-105 transition-transform vibrant-gradient">
-                Start Your Analysis
+            <a href="signup.html" class="inline-block text-white px-12 py-5 rounded-2xl font-bold shadow-2xl shadow-primary/30 text-lg hover:scale-105 transition-transform vibrant-gradient">
+                Start Free Trial
             </a>
-            <a href="about.html" class="inline-block bg-surface-container-high text-primary px-12 py-5 rounded-2xl font-bold text-lg hover:bg-surface-container-highest transition-colors">
-                Talk to an Expert
+            <a href="demo.html" class="inline-block bg-surface-container-high text-primary px-12 py-5 rounded-2xl font-bold text-lg hover:bg-surface-container-highest transition-colors">
+                Try Demo First
             </a>
         </div>
     </section>
@@ -347,45 +322,61 @@
 </main>
 
 <!-- Footer -->
-<footer class="bg-[#faf4ff] border-t border-[#4a40e0]/10 py-12 px-8">
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-8 max-w-7xl mx-auto">
+<footer class="bg-[#faf4ff] border-t border-primary/10 py-12 px-8">
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-8 max-w-7xl mx-auto">
         <div class="md:col-span-1">
-            <div class="text-lg font-bold text-[#32294f] mb-4">Niyam AI</div>
+            <div class="flex items-center gap-2 mb-4">
+                <img src="logo.svg" alt="Niyam AI" class="h-6">
+                <span class="text-lg font-bold text-on-surface">Niyam AI</span>
+            </div>
             <p class="text-on-surface-variant text-xs leading-relaxed max-w-xs">
-                Leading the frontier of agentic compliance. Precision intelligence for a dynamic regulatory world.
+                AI-powered compliance engine for MSMEs and professionals.
             </p>
         </div>
         <div>
-            <h6 class="font-['Inter'] text-xs uppercase tracking-widest text-primary font-bold mb-4">Solutions</h6>
-            <ul class="space-y-2 text-xs text-[#32294f]/60 font-medium">
-                <li><a class="hover:text-[#4a40e0] transition-colors" href="dashboard.html">Risk Curation</a></li>
-                <li><a class="hover:text-[#4a40e0] transition-colors" href="dashboard.html#compliance-flow">Compliance Audit</a></li>
-                <li><a class="hover:text-[#4a40e0] transition-colors" href="#">API Access</a></li>
-                <li><a class="hover:text-[#4a40e0] transition-colors" href="dashboard.html#gst">Policy Mapping</a></li>
+            <h6 class="text-xs uppercase tracking-widest text-primary font-bold mb-4">Product</h6>
+            <ul class="space-y-2 text-xs text-on-surface/60 font-medium">
+                <li><a class="hover:text-primary transition-colors" href="dashboard.html">Dashboard</a></li>
+                <li><a class="hover:text-primary transition-colors" href="dashboard.html#compliance-flow">Compliance Flow</a></li>
+                <li><a class="hover:text-primary transition-colors" href="dashboard.html#gst">GST Reconciliation</a></li>
+                <li><a class="hover:text-primary transition-colors" href="dashboard.html#reports">Reports &amp; Analytics</a></li>
             </ul>
         </div>
         <div>
-            <h6 class="font-['Inter'] text-xs uppercase tracking-widest text-primary font-bold mb-4">Company</h6>
-            <ul class="space-y-2 text-xs text-[#32294f]/60 font-medium">
-                <li><a class="hover:text-[#4a40e0] transition-colors" href="#">Privacy Policy</a></li>
-                <li><a class="hover:text-[#4a40e0] transition-colors" href="#">Terms of Service</a></li>
-                <li><a class="hover:text-[#4a40e0] transition-colors" href="#">Security</a></li>
-                <li><a class="hover:text-[#4a40e0] transition-colors" href="about.html">Contact</a></li>
+            <h6 class="text-xs uppercase tracking-widest text-primary font-bold mb-4">Resources</h6>
+            <ul class="space-y-2 text-xs text-on-surface/60 font-medium">
+                <li><a class="hover:text-primary transition-colors" href="about.html">About</a></li>
+                <li><a class="hover:text-primary transition-colors" href="#">FAQ</a></li>
+                <li><a class="hover:text-primary transition-colors" href="#">Documentation</a></li>
+                <li><a class="hover:text-primary transition-colors" href="#">Blog</a></li>
             </ul>
         </div>
         <div>
-            <h6 class="font-['Inter'] text-xs uppercase tracking-widest text-primary font-bold mb-4">Contact</h6>
-            <div class="text-xs text-[#32294f]/60 leading-relaxed">
-                Intelligence Square<br/>
-                Level 12, Tech District<br/>
-                Bangalore, KA 560001
-            </div>
+            <h6 class="text-xs uppercase tracking-widest text-primary font-bold mb-4">Legal</h6>
+            <ul class="space-y-2 text-xs text-on-surface/60 font-medium">
+                <li><a class="hover:text-primary transition-colors" href="#">Privacy Policy</a></li>
+                <li><a class="hover:text-primary transition-colors" href="#">Terms of Service</a></li>
+                <li><a class="hover:text-primary transition-colors" href="#">Disclaimer</a></li>
+                <li><a class="hover:text-primary transition-colors" href="about.html">Contact</a></li>
+            </ul>
+        </div>
+        <div>
+            <h6 class="text-xs uppercase tracking-widest text-primary font-bold mb-4">Community</h6>
+            <ul class="space-y-2 text-xs text-on-surface/60 font-medium">
+                <li><a class="hover:text-primary transition-colors" href="#">LinkedIn</a></li>
+                <li><a class="hover:text-primary transition-colors" href="#">Twitter</a></li>
+                <li><a class="hover:text-primary transition-colors" href="mailto:support@niyam.ai">Email Support</a></li>
+            </ul>
         </div>
     </div>
-    <div class="max-w-7xl mx-auto mt-12 pt-8 border-t border-outline-variant/10 text-center">
-        <p class="font-['Inter'] text-[10px] uppercase tracking-[0.2em] text-[#32294f]/40">
-            &copy; <script>document.write(new Date().getFullYear())</script> Niyam AI. THE INTELLIGENT CURATOR.
+    <div class="max-w-7xl mx-auto mt-12 pt-8 border-t border-outline-variant/10 flex flex-col md:flex-row justify-between items-center text-center">
+        <p class="text-[11px] text-on-surface/40">
+            &copy; <script>document.write(new Date().getFullYear())</script> Niyam AI. All rights reserved.
         </p>
+        <div class="flex items-center gap-2 text-[11px] text-on-surface/40 mt-2 md:mt-0">
+            <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-success"></span></span>
+            System Status: Operational
+        </div>
     </div>
 </footer>
 

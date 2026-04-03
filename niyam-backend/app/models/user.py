@@ -1,11 +1,28 @@
-from pydantic import BaseModel, EmailStr, Field
+import re
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional
 from datetime import datetime
+
+_STRICT_EMAIL_RE = re.compile(
+    r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,10}$"
+)
+
+
+def _validate_email_strict(v: str) -> str:
+    if not _STRICT_EMAIL_RE.match(v):
+        raise ValueError("Invalid email address — check the domain (e.g. john@example.com)")
+    return v
+
 
 class UserBase(BaseModel):
     email: EmailStr
     full_name: str = Field(..., min_length=2, max_length=100)
     phone: Optional[str] = None
+
+    @field_validator("email")
+    @classmethod
+    def email_strict(cls, v: str) -> str:
+        return _validate_email_strict(v)
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=8)
@@ -16,6 +33,11 @@ class UserCreate(UserBase):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+    @field_validator("email")
+    @classmethod
+    def email_strict(cls, v: str) -> str:
+        return _validate_email_strict(v)
 
 class UserResponse(UserBase):
     id: str

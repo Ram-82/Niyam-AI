@@ -73,7 +73,7 @@
             const errorDiv = document.getElementById('error-message');
             const loginBtn = document.getElementById('login-btn');
             errorDiv.style.display = 'none'; errorDiv.innerText = '';
-            const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
+            const EMAIL_RE = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,10}$/;
             if (!EMAIL_RE.test(email)) {
                 errorDiv.innerText = 'Please enter a valid email address (e.g. john@example.com)';
                 errorDiv.style.display = 'block'; loginBtn.innerText = 'Log In'; loginBtn.disabled = false; return;

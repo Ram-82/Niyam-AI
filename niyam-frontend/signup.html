@@ -138,7 +138,7 @@
             errorDiv.style.display = 'none'; errorDiv.innerText = '';
 
             // Email validation — reject invalid domains like "user@example.comXYZ"
-            const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
+            const EMAIL_RE = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,10}$/;
             if (!EMAIL_RE.test(email)) {
                 errorDiv.innerText = 'Please enter a valid email address (e.g. john@example.com)';
                 errorDiv.style.display = 'block'; return;

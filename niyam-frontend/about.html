@@ -119,11 +119,54 @@
             <a class="text-primary font-semibold" href="about.html">About</a>
         </div>
         <div class="flex items-center space-x-3">
-            <a href="login.html" class="px-5 py-2.5 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition-all">Login</a>
-            <a href="signup.html" class="px-5 py-2.5 text-sm font-bold bg-primary text-on-primary rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform">Sign Up</a>
+            <a href="login.html" class="hidden md:inline-block px-5 py-2.5 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition-all">Login</a>
+            <a href="signup.html" class="hidden md:inline-block px-5 py-2.5 text-sm font-bold bg-primary text-on-primary rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform">Sign Up</a>
+            <button id="mobile-menu-btn" class="md:hidden flex flex-col justify-center items-center w-10 h-10 rounded-xl hover:bg-primary/5 transition-all gap-1.5" aria-label="Open menu" aria-expanded="false">
+                <span class="hamburger-bar block w-5 h-0.5 bg-on-surface rounded-full transition-all duration-300"></span>
+                <span class="hamburger-bar block w-5 h-0.5 bg-on-surface rounded-full transition-all duration-300"></span>
+                <span class="hamburger-bar block w-5 h-0.5 bg-on-surface rounded-full transition-all duration-300"></span>
+            </button>
+        </div>
+    </div>
+    <div id="mobile-menu" class="md:hidden hidden bg-white/90 backdrop-blur-xl border-t border-primary/10 px-6 py-4 flex flex-col gap-1">
+        <a href="index.html" class="py-3 px-3 rounded-xl text-sm font-medium text-on-surface/70 hover:bg-primary/5 hover:text-primary transition-all">Home</a>
+        <a href="index.html#features" class="py-3 px-3 rounded-xl text-sm font-medium text-on-surface/70 hover:bg-primary/5 hover:text-primary transition-all">Features</a>
+        <a href="index.html#how-it-works" class="py-3 px-3 rounded-xl text-sm font-medium text-on-surface/70 hover:bg-primary/5 hover:text-primary transition-all">Pricing</a>
+        <a href="about.html" class="py-3 px-3 rounded-xl text-sm font-medium text-primary font-semibold">About</a>
+        <div class="flex gap-3 pt-3 border-t border-primary/10 mt-2">
+            <a href="login.html" class="flex-1 text-center py-2.5 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition-all">Login</a>
+            <a href="signup.html" class="flex-1 text-center py-2.5 text-sm font-bold bg-primary text-on-primary rounded-xl shadow-lg shadow-primary/20">Sign Up</a>
         </div>
     </div>
 </nav>
+<script>
+    (function() {
+        const btn = document.getElementById('mobile-menu-btn');
+        const menu = document.getElementById('mobile-menu');
+        const bars = btn.querySelectorAll('.hamburger-bar');
+        btn.addEventListener('click', function() {
+            const isOpen = !menu.classList.contains('hidden');
+            if (isOpen) { closeMobileMenu(); } else {
+                menu.classList.remove('hidden');
+                btn.setAttribute('aria-expanded', 'true');
+                bars[0].style.transform = 'translateY(8px) rotate(45deg)';
+                bars[1].style.opacity = '0';
+                bars[2].style.transform = 'translateY(-8px) rotate(-45deg)';
+            }
+        });
+        document.addEventListener('click', function(e) {
+            if (!btn.contains(e.target) && !menu.contains(e.target)) closeMobileMenu();
+        });
+    })();
+    function closeMobileMenu() {
+        const btn = document.getElementById('mobile-menu-btn');
+        const menu = document.getElementById('mobile-menu');
+        const bars = btn.querySelectorAll('.hamburger-bar');
+        menu.classList.add('hidden');
+        btn.setAttribute('aria-expanded', 'false');
+        bars[0].style.transform = ''; bars[1].style.opacity = ''; bars[2].style.transform = '';
+    }
+</script>
 
 <main class="pt-24">
 

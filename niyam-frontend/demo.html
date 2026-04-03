@@ -1,57 +1,120 @@
 <!DOCTYPE html>
-<html lang="en">
+<html class="light" lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Live Demo | Niyam AI</title>
     <meta name="description" content="Try the Niyam AI compliance pipeline on sample data. No signup required.">
-    <link rel="stylesheet" href="style.css">
-    <script src="https://unpkg.com/feather-icons"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-surface-variant": "#5f557f",
+                        "outline": "#7b719c",
+                        "surface-container-high": "#e8deff",
+                        "surface-container": "#ede4ff",
+                        "on-surface": "#32294f",
+                        "on-primary": "#f4f1ff",
+                        "primary": "#4a40e0",
+                        "primary-dim": "#3d30d4",
+                        "tertiary": "#6a37d4",
+                        "success": "#10b981",
+                        "error": "#b41340",
+                        "outline-variant": "#b2a6d5",
+                        "background": "#faf4ff",
+                        "surface": "#faf4ff",
+                    },
+                    fontFamily: { "body": ["Inter"] },
+                },
+            },
+        }
+    </script>
     <style>
-        .demo-page { max-width: 1100px; margin: 0 auto; padding: 20px; }
-        .demo-header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 16px 0; border-bottom: 1px solid #e2e8f0; margin-bottom: 24px;
+        body {
+            font-family: 'Inter', sans-serif;
+            background: radial-gradient(at 0% 0%, #faf4ff 0px, transparent 50%),
+                        radial-gradient(at 100% 0%, #e2d7ff 0px, transparent 50%),
+                        radial-gradient(at 100% 100%, #fbcfe8 0px, transparent 50%),
+                        radial-gradient(at 0% 100%, #e0e7ff 0px, transparent 50%);
+            background-attachment: fixed;
+            color: #32294f;
+            min-height: 100vh;
         }
-        .demo-header-actions { display: flex; gap: 10px; align-items: center; }
-        .demo-banner {
-            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-            color: white; border-radius: 12px; padding: 24px 32px; margin-bottom: 24px;
+        .glass-card {
+            background: rgba(255, 255, 255, 0.55);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
         }
-        .demo-banner h1 { font-size: 1.5rem; margin-bottom: 6px; }
-        .demo-banner p { opacity: 0.9; font-size: 0.9rem; }
-        .demo-cta-bar {
-            background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px;
-            padding: 20px 28px; margin-top: 32px; display: flex;
-            justify-content: space-between; align-items: center;
+        .vibrant-gradient {
+            background: linear-gradient(135deg, #4a40e0 0%, #7c3aed 50%, #db2777 100%);
         }
+        /* Keep existing demo.js classes working */
+        .cf-loading { text-align: center; padding: 60px 20px; }
+        .cf-spinner {
+            width: 40px; height: 40px;
+            border: 4px solid rgba(74,64,224,0.15);
+            border-top: 4px solid #4a40e0;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .cf-readiness-banner { padding: 16px 20px; border-radius: 12px; font-size: 0.9rem; }
+        /* card class for demo.js compatibility */
+        .card {
+            background: rgba(255, 255, 255, 0.55);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 16px;
+            padding: 20px;
+        }
+        /* badge class for demo.js */
+        .badge {
+            padding: 3px 10px; border-radius: 9999px;
+            font-size: 0.7rem; font-weight: 600;
+        }
+        .badge-success { background: #dcfce7; color: #166534; }
+        .badge-error { background: #fee2e2; color: #991b1b; }
+        .badge-warning { background: #fef3c7; color: #92400e; }
+        /* btn classes used by demo.js */
+        .btn { display: inline-block; padding: 8px 20px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; text-decoration: none; cursor: pointer; transition: all 0.2s; border: none; }
+        .btn-primary { background: #4a40e0; color: #f4f1ff; }
+        .btn-primary:hover { background: #3d30d4; }
+        .btn-outline { background: transparent; border: 1px solid #b2a6d5; color: #32294f; }
+        .btn-outline:hover { background: rgba(74,64,224,0.05); }
     </style>
 </head>
-<body style="background-color: #f1f5f9;">
+<body>
 
-    <div class="demo-page">
+    <div class="max-w-[1100px] mx-auto px-5 py-6">
         <!-- Header -->
-        <div class="demo-header">
-            <a href="index.html" class="logo">
-                <img src="logo.svg" alt="Niyam AI Logo" height="36">
+        <div class="flex justify-between items-center pb-4 border-b border-outline-variant/20 mb-6">
+            <a href="index.html" class="flex items-center gap-2">
+                <img src="logo.svg" alt="Niyam AI" class="h-8">
+                <span class="text-xl font-black tracking-tighter text-primary">Niyam <span class="text-success">AI</span></span>
             </a>
-            <div class="demo-header-actions">
-                <span style="font-size:0.8rem; color:var(--text-light); padding:4px 10px; background:#f0fdf4; border-radius:20px; border:1px solid #bbf7d0;">Demo Mode</span>
-                <a href="login.html" class="btn btn-outline" style="padding:6px 14px; font-size:0.85rem;">Login</a>
-                <a href="signup.html" class="btn btn-primary" style="padding:6px 14px; font-size:0.85rem;">Sign Up Free</a>
+            <div class="flex gap-3 items-center">
+                <span class="text-xs font-semibold text-success bg-success/10 px-3 py-1.5 rounded-full border border-success/20">Demo Mode</span>
+                <a href="login.html" class="px-4 py-2 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition-all">Login</a>
+                <a href="signup.html" class="px-4 py-2 text-sm font-bold bg-primary text-on-primary rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform">Sign Up Free</a>
             </div>
         </div>
 
         <!-- Banner -->
-        <div class="demo-banner">
-            <h1>Niyam AI — Live Demo</h1>
-            <p>Full compliance pipeline running on sample invoice data. No signup needed.</p>
+        <div class="vibrant-gradient rounded-2xl p-8 mb-6 text-white shadow-xl shadow-primary/20">
+            <h1 class="text-2xl font-extrabold mb-2">Niyam AI — Live Demo</h1>
+            <p class="opacity-90 text-sm">Full compliance pipeline running on sample invoice data. No signup needed.</p>
         </div>
 
         <!-- Loading -->
         <div id="demo-loading" class="cf-loading">
             <div class="cf-spinner"></div>
-            <p>Running full pipeline on demo dataset...</p>
+            <p class="text-on-surface-variant text-sm">Running full pipeline on demo dataset...</p>
         </div>
 
         <!-- Results container -->
@@ -64,32 +127,32 @@
 
             <!-- Top Actions -->
             <div class="card" style="margin-bottom:20px;">
-                <h3 style="margin-bottom:16px;">Top Priority Actions</h3>
+                <h3 class="text-lg font-bold text-on-surface mb-4">Top Priority Actions</h3>
                 <div id="demo-top-actions"></div>
             </div>
 
             <!-- Two columns: Financials + Compliance -->
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
                 <div class="card">
-                    <h3 style="margin-bottom:16px;">Financial Summary</h3>
+                    <h3 class="text-lg font-bold text-on-surface mb-4">Financial Summary</h3>
                     <div id="demo-financials"></div>
                 </div>
                 <div class="card">
-                    <h3 style="margin-bottom:16px;">Compliance Overview</h3>
+                    <h3 class="text-lg font-bold text-on-surface mb-4">Compliance Overview</h3>
                     <div id="demo-compliance-overview"></div>
                 </div>
             </div>
 
             <!-- Invoice Records -->
             <div class="card" style="margin-bottom:20px;">
-                <h3 style="margin-bottom:16px;">Invoice Records</h3>
+                <h3 class="text-lg font-bold text-on-surface mb-4">Invoice Records</h3>
                 <div id="demo-invoices"></div>
             </div>
 
             <!-- ITC Results -->
             <div class="card" style="margin-bottom:20px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                    <h3>ITC Match Results</h3>
+                    <h3 class="text-lg font-bold text-on-surface">ITC Match Results</h3>
                     <div id="demo-itc-financials" style="display:flex; gap:16px;"></div>
                 </div>
                 <div id="demo-itc-matches"></div>
@@ -97,20 +160,20 @@
 
             <!-- Compliance Flags -->
             <div class="card" style="margin-bottom:20px;">
-                <h3 style="margin-bottom:16px;">Compliance Flags</h3>
+                <h3 class="text-lg font-bold text-on-surface mb-4">Compliance Flags</h3>
                 <div id="demo-flags"></div>
             </div>
 
             <!-- Elapsed -->
-            <p id="demo-elapsed" style="text-align:center; color:var(--text-light); font-size:0.8rem; margin-top:20px;"></p>
+            <p id="demo-elapsed" class="text-center text-on-surface-variant text-xs mt-5"></p>
 
             <!-- CTA -->
-            <div class="demo-cta-bar">
+            <div class="glass-card rounded-2xl p-6 mt-8 flex flex-col sm:flex-row justify-between items-center gap-4 border-success/20" style="background: rgba(16,185,129,0.05); border: 1px solid rgba(16,185,129,0.2);">
                 <div>
-                    <p style="font-weight:700; font-size:1rem;">Ready to manage your own compliance?</p>
-                    <p style="font-size:0.85rem; color:var(--text-light);">Sign up to upload your invoices, track GST/TDS/ROC deadlines, and get real-time alerts.</p>
+                    <p class="font-bold text-on-surface">Ready to manage your own compliance?</p>
+                    <p class="text-sm text-on-surface-variant">Sign up to upload your invoices, track GST/TDS/ROC deadlines, and get real-time alerts.</p>
                 </div>
-                <a href="signup.html" class="btn btn-primary" style="white-space:nowrap;">Start Free Trial</a>
+                <a href="signup.html" class="btn btn-primary whitespace-nowrap">Start Free Trial</a>
             </div>
         </div>
     </div>
@@ -118,7 +181,6 @@
     <script src="config.js"></script>
     <script src="demo.js"></script>
     <script>
-        feather.replace();
         // Auto-run demo on page load
         if (typeof runDemo === 'function') {
             runDemo();

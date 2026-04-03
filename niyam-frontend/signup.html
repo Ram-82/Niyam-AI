@@ -137,6 +137,13 @@
             const signupBtn = document.getElementById('signup-btn');
             errorDiv.style.display = 'none'; errorDiv.innerText = '';
 
+            // Email validation — reject invalid domains like "user@example.comXYZ"
+            const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
+            if (!EMAIL_RE.test(email)) {
+                errorDiv.innerText = 'Please enter a valid email address (e.g. john@example.com)';
+                errorDiv.style.display = 'block'; return;
+            }
+
             // Client-side validation
             if (gstin && !GSTIN_RE.test(gstin)) {
                 errorDiv.innerText = 'Invalid GSTIN format. Expected 15-character format like 29ABCDE1234F1Z5';

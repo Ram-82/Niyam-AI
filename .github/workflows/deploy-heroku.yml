@@ -30,6 +30,10 @@ jobs:
           HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
         run: |
           set -e
+          if [ -z "$HEROKU_API_KEY" ] || [ -z "$HEROKU_APP_NAME" ]; then
+            echo "::error::HEROKU_API_KEY and HEROKU_APP_NAME secrets must be set in the repository settings."
+            exit 1
+          fi
           cd niyam-backend
           git init
           git config user.name "github-actions"

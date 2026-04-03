@@ -118,8 +118,10 @@ async def create_subscription(
                     db.table("users").update({"razorpay_customer_id": customer_id}).eq("id", user_id).execute()
 
             # Create subscription via Razorpay
+            if not settings.RAZORPAY_PLAN_ID:
+                raise HTTPException(status_code=503, detail="Razorpay plan ID not configured")
             rz_sub = rz_client.subscription.create({
-                "plan_id": settings.RAZORPAY_KEY_ID,  # replaced with real plan ID in prod
+                "plan_id": settings.RAZORPAY_PLAN_ID,
                 "customer_id": customer_id,
                 "total_count": 12,
             })

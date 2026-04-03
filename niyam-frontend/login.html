@@ -73,6 +73,11 @@
             const errorDiv = document.getElementById('error-message');
             const loginBtn = document.getElementById('login-btn');
             errorDiv.style.display = 'none'; errorDiv.innerText = '';
+            const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
+            if (!EMAIL_RE.test(email)) {
+                errorDiv.innerText = 'Please enter a valid email address (e.g. john@example.com)';
+                errorDiv.style.display = 'block'; loginBtn.innerText = 'Log In'; loginBtn.disabled = false; return;
+            }
             loginBtn.innerText = 'Logging in...'; loginBtn.disabled = true;
             try {
                 const response = await fetch(`${API_URL}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });

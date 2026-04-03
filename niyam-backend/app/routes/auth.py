@@ -6,7 +6,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.models.user import UserCreate, UserLogin, UserResponse, BusinessResponse
 from app.services.auth_service import AuthService
 from app.utils.security import verify_token, blacklist_token
-from app.utils.verification import verification_store
+from app.utils.verification import verification_store, password_reset_store
 from app.services.email_service import email_service
 from app.config import settings
 
@@ -220,6 +220,54 @@ async def logout(
         "success": True,
         "message": "Logout successful. Token has been invalidated."
     }
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+@router.post("/forgot-password", response_model=dict)
+async def forgot_password(body: ForgotPasswordRequest):
+    """Send a 6-digit password reset code to the user's email."""
+    auth_service = AuthService()
+    # Always return same message to avoid user enumeration
+    if auth_service.check_user_exists(body.email):
+        code = password_reset_store.generate(body.email)
+        logger.info(f"Password reset code generated for {body.email[:4]}****")
+        email_service.send_password_reset_email(body.email, code)
+        response: dict = {"success": True, "message": "If the email is registered, a reset code has been sent."}
+        if settings.ENVIRONMENT != "production":
+            response["_dev_reset_code"] = code
+        return response
+    return {"success": True, "message": "If the email is registered, a reset code has been sent."}
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    code: str
+    new_password: str
+
+
+@router.post("/reset-password", response_model=dict)
+async def reset_password(body: ResetPasswordRequest):
+    """Verify reset code and update the user's password."""
+    if len(body.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters.")
+
+    success, message = password_reset_store.verify(body.email, body.code)
+    if not success:
+        raise HTTPException(status_code=400, detail=message)
+
+    from app.utils.security import hash_password
+    auth_service = AuthService()
+    try:
+        auth_service.update_user_password(body.email, hash_password(body.new_password))
+    except Exception as e:
+        logger.error(f"Password update failed for {body.email[:4]}****: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update password. Please try again.")
+
+    logger.info(f"Password reset successful for {body.email[:4]}****")
+    return {"success": True, "message": "Password updated successfully. You can now log in."}
 
 
 @router.post("/refresh", response_model=dict)

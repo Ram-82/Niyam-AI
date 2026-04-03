@@ -1,136 +1,111 @@
 <!DOCTYPE html>
-<html lang="en">
+<html class="light" lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OCR Demo | Niyam AI</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://unpkg.com/feather-icons"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-surface-variant": "#5f557f",
+                        "outline": "#7b719c",
+                        "surface-container-high": "#e8deff",
+                        "surface-container": "#ede4ff",
+                        "on-surface": "#32294f",
+                        "on-primary": "#f4f1ff",
+                        "primary": "#4a40e0",
+                        "primary-dim": "#3d30d4",
+                        "tertiary": "#6a37d4",
+                        "success": "#10b981",
+                        "error": "#b41340",
+                        "outline-variant": "#b2a6d5",
+                        "background": "#faf4ff",
+                        "surface": "#faf4ff",
+                    },
+                    fontFamily: { "body": ["Inter"] },
+                },
+            },
+        }
+    </script>
     <style>
-        .dashboard-layout {
-            display: grid;
-            grid-template-columns: 240px 1fr;
+        body {
+            font-family: 'Inter', sans-serif;
+            background: radial-gradient(at 0% 0%, #faf4ff 0px, transparent 50%),
+                        radial-gradient(at 100% 0%, #e2d7ff 0px, transparent 50%),
+                        radial-gradient(at 100% 100%, #fbcfe8 0px, transparent 50%),
+                        radial-gradient(at 0% 100%, #e0e7ff 0px, transparent 50%);
+            background-attachment: fixed;
+            color: #32294f;
             min-height: 100vh;
         }
-
-        .sidebar {
-            background-color: var(--white);
-            border-right: 1px solid #e2e8f0;
-            padding: var(--space-3);
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
+        .glass-card {
+            background: rgba(255, 255, 255, 0.55);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
         }
-
-        .sidebar-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px;
-            border-radius: 8px;
-            color: var(--text-dark);
-            text-decoration: none;
-            transition: all 0.3s;
-        }
-
-        .sidebar-item:hover,
-        .sidebar-item.active {
-            background-color: #f1f5f9;
-            color: var(--primary-color);
-        }
-
-        .main-content {
-            padding: var(--space-4);
-            background-color: #f8fafc;
-        }
-
-        .upload-zone {
-            border: 2px dashed #cbd5e1;
-            border-radius: 12px;
-            padding: 40px;
-            text-align: center;
-            background: white;
-            cursor: pointer;
-            transition: border-color 0.3s;
-        }
-
-        .upload-zone:hover {
-            border-color: var(--primary-color);
-        }
-
-        .result-card {
-            display: none;
-            margin-top: 20px;
-        }
-
-        .extracted-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #f1f5f9;
-        }
-
-        .extracted-label {
-            color: var(--text-light);
-            font-weight: 500;
-        }
-
-        .extracted-value {
-            font-weight: 600;
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 
 <body>
-    <div class="dashboard-layout">
-        <aside class="sidebar">
-            <div class="logo" style="padding: 10px;">
-                <img src="logo.svg" alt="Niyam AI" height="35">
+    <div class="grid grid-cols-[240px_1fr] min-h-screen">
+        <!-- Sidebar -->
+        <aside class="bg-white/50 backdrop-blur-xl border-r border-outline-variant/15 p-5 flex flex-col gap-2">
+            <div class="px-2 mb-4 flex items-center gap-2">
+                <img src="logo.svg" alt="Niyam AI" class="h-7">
+                <span class="text-lg font-black tracking-tighter text-primary">Niyam <span class="text-success">AI</span></span>
             </div>
-            <nav style="margin-top: 20px; flex: 1;">
-                <a href="dashboard.html" class="sidebar-item">
-                    <i data-feather="home"></i> Dashboard
+            <nav class="flex-1 flex flex-col gap-1 mt-2">
+                <a href="dashboard.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-on-surface/70 hover:bg-primary/5 hover:text-primary transition-all">
+                    <span class="material-symbols-outlined text-[20px]">dashboard</span> Dashboard
                 </a>
-                <a href="ocr_demo.html" class="sidebar-item active">
-                    <i data-feather="file-text"></i> OCR Demo
+                <a href="ocr_demo.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium bg-primary/10 text-primary">
+                    <span class="material-symbols-outlined text-[20px]">document_scanner</span> OCR Demo
                 </a>
-                <a href="#" class="sidebar-item">
-                    <i data-feather="briefcase"></i> My Business
+                <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-on-surface/70 hover:bg-primary/5 hover:text-primary transition-all">
+                    <span class="material-symbols-outlined text-[20px]">business_center</span> My Business
                 </a>
             </nav>
         </aside>
 
-        <main class="main-content">
-            <h1 style="margin-bottom: 5px;">AI Document Parser</h1>
-            <p style="color: var(--text-light); margin-bottom: 30px;">Upload an invoice or certificate to extract
-                compliance data.</p>
+        <!-- Main Content -->
+        <main class="p-8">
+            <h1 class="text-2xl font-extrabold text-on-surface mb-1">AI Document Parser</h1>
+            <p class="text-on-surface-variant text-sm mb-8">Upload an invoice or certificate to extract compliance data.</p>
 
-            <div class="card">
-                <div class="upload-zone" id="uploadZone">
-                    <i data-feather="upload-cloud"
-                        style="width: 48px; height: 48px; color: var(--primary-color); margin-bottom: 15px;"></i>
-                    <h3>Drop your files here or click to upload</h3>
-                    <p style="color: var(--text-light);">Supports PDF, JPG, PNG (Max 5MB)</p>
+            <div class="glass-card rounded-2xl p-6 shadow-lg">
+                <!-- Upload Zone -->
+                <div class="border-2 border-dashed border-outline-variant/30 rounded-xl p-10 text-center cursor-pointer hover:border-primary/50 transition-colors" id="uploadZone">
+                    <span class="material-symbols-outlined text-primary text-5xl mb-4">cloud_upload</span>
+                    <h3 class="text-lg font-bold text-on-surface mb-2">Drop your files here or click to upload</h3>
+                    <p class="text-on-surface-variant text-sm">Supports PDF, JPG, PNG (Max 5MB)</p>
                     <input type="file" id="fileInput" style="display: none;">
                 </div>
 
-                <div id="processingState" style="display: none; text-align: center; padding: 40px;">
-                    <div
-                        style="width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid var(--primary-color); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;">
-                    </div>
-                    <p>AI is analyzing your document...</p>
+                <!-- Processing State -->
+                <div id="processingState" style="display: none;" class="text-center py-10">
+                    <div class="w-10 h-10 border-4 border-outline-variant/20 border-t-primary rounded-full mx-auto mb-5" style="animation: spin 0.8s linear infinite;"></div>
+                    <p class="text-on-surface-variant">AI is analyzing your document...</p>
                 </div>
 
-                <div class="result-card card" id="resultCard" style="background: #f8fafc; border: 1px solid #e2e8f0;">
-                    <div
-                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h3 id="docType">Extracted Data</h3>
-                        <span class="badge badge-success" id="complianceStatus">Verified</span>
+                <!-- Result Card -->
+                <div class="hidden mt-6 glass-card rounded-xl p-6" id="resultCard" style="display:none;">
+                    <div class="flex justify-between items-center mb-5">
+                        <h3 class="text-lg font-bold text-on-surface" id="docType">Extracted Data</h3>
+                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-success/15 text-success" id="complianceStatus">Verified</span>
                     </div>
-
                     <div id="extractedData">
-                        <!-- Data rows will be injected here -->
+                        <!-- Data rows injected by JS -->
                     </div>
                 </div>
             </div>
@@ -138,34 +113,37 @@
     </div>
 
     <style>
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
+        /* Keep extracted-row styles for JS compatibility */
+        .extracted-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(178, 166, 213, 0.15);
         }
-
+        .extracted-label {
+            color: #5f557f;
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+        .extracted-value {
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
         .badge {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 0.7rem;
             font-weight: 600;
         }
-
-        .badge-success {
-            background: #dcfce7;
-            color: #166534;
-        }
+        .badge-success { background: rgba(16,185,129,0.15); color: #166534; }
+        /* btn classes for JS retry buttons */
+        .btn { display: inline-block; padding: 8px 20px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
+        .btn-primary { background: #4a40e0; color: #f4f1ff; }
     </style>
 
     <script src="config.js"></script>
     <script src="auth.js"></script>
     <script>
-        feather.replace();
-
         const API_URL = CONFIG.API_URL;
         const uploadZone = document.getElementById('uploadZone');
         const fileInput = document.getElementById('fileInput');
@@ -176,11 +154,11 @@
         uploadZone.onclick = () => fileInput.click();
 
         // Drag and drop support
-        uploadZone.ondragover = (e) => { e.preventDefault(); uploadZone.style.borderColor = 'var(--primary-color)'; };
-        uploadZone.ondragleave = () => { uploadZone.style.borderColor = '#cbd5e1'; };
+        uploadZone.ondragover = (e) => { e.preventDefault(); uploadZone.style.borderColor = '#4a40e0'; };
+        uploadZone.ondragleave = () => { uploadZone.style.borderColor = ''; };
         uploadZone.ondrop = (e) => {
             e.preventDefault();
-            uploadZone.style.borderColor = '#cbd5e1';
+            uploadZone.style.borderColor = '';
             if (e.dataTransfer.files.length > 0) {
                 fileInput.files = e.dataTransfer.files;
                 processFile();
@@ -258,9 +236,9 @@
                 processingState.style.display = 'none';
 
                 if (error.name === 'AbortError') {
-                    showError('Request timed out — server may be cold-starting. <button onclick="processFile()" style="margin-left:8px;" class="btn btn-primary" style="padding:4px 12px;font-size:0.85rem;">Retry</button>');
+                    showError('Request timed out — server may be cold-starting. <button onclick="processFile()" class="btn btn-primary" style="margin-left:8px;padding:4px 12px;font-size:0.85rem;">Retry</button>');
                 } else {
-                    showError(escapeHtml(error.message) + ' <button onclick="resetUpload()" style="margin-left:8px;padding:4px 12px;font-size:0.85rem;cursor:pointer;border:1px solid #e2e8f0;border-radius:4px;background:white;">Try Again</button>');
+                    showError(escapeHtml(error.message) + ' <button onclick="resetUpload()" style="margin-left:8px;padding:4px 12px;font-size:0.85rem;cursor:pointer;border:1px solid #b2a6d5;border-radius:8px;background:white;">Try Again</button>');
                 }
             }
         }
@@ -269,10 +247,11 @@
             processingState.style.display = 'none';
             resultCard.style.display = 'block';
             document.getElementById('docType').innerText = 'Processing Error';
-            document.getElementById('complianceStatus').style.background = '#fee2e2';
-            document.getElementById('complianceStatus').style.color = '#991b1b';
-            document.getElementById('complianceStatus').innerText = 'Error';
-            extractedDataDiv.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-light);">' + message + '</div>';
+            const badge = document.getElementById('complianceStatus');
+            badge.style.background = 'rgba(180,19,64,0.1)';
+            badge.style.color = '#b41340';
+            badge.innerText = 'Error';
+            extractedDataDiv.innerHTML = '<div style="padding:20px;text-align:center;color:#5f557f;">' + message + '</div>';
         }
 
         function resetUpload() {
@@ -284,8 +263,8 @@
 
         function fmtINR(val) {
             const n = Number(val);
-            if (isNaN(n) || n === 0) return '₹0.00';
-            return '₹' + n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            if (isNaN(n) || n === 0) return '\u20B90.00';
+            return '\u20B9' + n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
         function displayResults(data) {
@@ -299,13 +278,13 @@
             const compliance = data.compliance || {};
             if (compliance.is_valid === true) {
                 badge.innerText = 'GST Compliant';
-                badge.style.background = '#dcfce7'; badge.style.color = '#166534';
+                badge.style.background = 'rgba(16,185,129,0.15)'; badge.style.color = '#166534';
             } else if (compliance.is_valid === false) {
                 badge.innerText = (compliance.issues || []).length + ' Issue(s)';
-                badge.style.background = '#fee2e2'; badge.style.color = '#991b1b';
+                badge.style.background = 'rgba(180,19,64,0.1)'; badge.style.color = '#b41340';
             } else {
                 badge.innerText = 'Processed';
-                badge.style.background = '#e0e7ff'; badge.style.color = '#3730a3';
+                badge.style.background = 'rgba(74,64,224,0.1)'; badge.style.color = '#4a40e0';
             }
 
             // Build data rows
@@ -337,7 +316,7 @@
             // Line items
             const items = data.line_items || [];
             if (items.length > 0) {
-                html += '<div style="margin-top:12px;padding-top:12px;border-top:2px solid #e2e8f0;">';
+                html += '<div style="margin-top:12px;padding-top:12px;border-top:2px solid rgba(178,166,213,0.2);">';
                 html += '<div class="extracted-row"><span class="extracted-label" style="font-weight:700;">LINE ITEMS (' + items.length + ')</span><span></span></div>';
                 items.slice(0, 15).forEach(item => {
                     html += '<div class="extracted-row"><span class="extracted-label" style="padding-left:12px;">' +
@@ -350,19 +329,19 @@
             // Compliance issues
             const issues = (compliance.issues || []);
             if (issues.length > 0) {
-                html += '<div style="margin-top:12px;padding-top:12px;border-top:2px solid #e2e8f0;">';
-                html += '<div class="extracted-row"><span class="extracted-label" style="font-weight:700;color:#991b1b;">COMPLIANCE ISSUES</span><span></span></div>';
+                html += '<div style="margin-top:12px;padding-top:12px;border-top:2px solid rgba(178,166,213,0.2);">';
+                html += '<div class="extracted-row"><span class="extracted-label" style="font-weight:700;color:#b41340;">COMPLIANCE ISSUES</span><span></span></div>';
                 issues.forEach(issue => {
-                    const sevColor = issue.severity === 'high' ? '#ef4444' : issue.severity === 'medium' ? '#f59e0b' : '#6b7280';
-                    html += '<div style="padding:6px 0;border-bottom:1px solid #f1f5f9;">' +
+                    const sevColor = issue.severity === 'high' ? '#b41340' : issue.severity === 'medium' ? '#f59e0b' : '#6b7280';
+                    html += '<div style="padding:6px 0;border-bottom:1px solid rgba(178,166,213,0.1);">' +
                         '<span style="font-size:0.8rem;color:' + sevColor + ';font-weight:600;">' + escapeHtml((issue.type || '').replace(/_/g, ' ')) + '</span>' +
-                        '<br><span style="font-size:0.78rem;color:var(--text-light);">' + escapeHtml(issue.message || '') + '</span></div>';
+                        '<br><span style="font-size:0.78rem;color:#5f557f;">' + escapeHtml(issue.message || '') + '</span></div>';
                 });
                 html += '</div>';
             }
 
             // Confidence row
-            html += `<div class="extracted-row" style="margin-top:15px;padding-top:15px;border-top:2px solid #e2e8f0;">
+            html += `<div class="extracted-row" style="margin-top:15px;padding-top:15px;border-top:2px solid rgba(178,166,213,0.2);">
                 <span class="extracted-label">AI CONFIDENCE</span>
                 <span class="extracted-value" style="color:${confColor};">${confidence}%</span>
             </div>`;
@@ -375,7 +354,7 @@
             </div>`;
 
             // Reset button
-            html += '<div style="margin-top:15px;text-align:center;"><button onclick="resetUpload()" style="padding:8px 20px;font-size:0.85rem;cursor:pointer;border:1px solid #e2e8f0;border-radius:6px;background:white;">Upload Another Invoice</button></div>';
+            html += '<div style="margin-top:15px;text-align:center;"><button onclick="resetUpload()" class="px-5 py-2 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition-all cursor-pointer">Upload Another Invoice</button></div>';
 
             extractedDataDiv.innerHTML = html;
         }

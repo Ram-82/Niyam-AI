@@ -77,7 +77,7 @@ async def get_current_user_with_business(
             detail="Invalid token: no user identity",
         )
 
-    # Resolve business_id from user record
+    # Resolve business_id (and email_verified) from user record
     from app.config import settings
 
     if settings.ENVIRONMENT != "production":
@@ -88,7 +88,13 @@ async def get_current_user_with_business(
         from app.database import get_db_client
         db = get_db_client()
         try:
-            resp = db.table("users").select("business_id").eq("id", user_id).single().execute()
+            resp = (
+                db.table("users")
+                .select("business_id,email_verified")
+                .eq("id", user_id)
+                .single()
+                .execute()
+            )
             user = resp.data
         except Exception:
             user = None
@@ -97,6 +103,13 @@ async def get_current_user_with_business(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No business linked to this account",
+        )
+
+    # Block unverified users from accessing protected endpoints
+    if not user.get("email_verified", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email not verified. Please verify your email before accessing this resource.",
         )
 
     return CurrentUser(user_id=user_id, business_id=user["business_id"])

@@ -90,3 +90,6 @@ class VerificationStore:
 
 # Singleton instance
 verification_store = VerificationStore()
+
+# Separate store for password reset codes (same mechanics, isolated namespace)
+password_reset_store = VerificationStore()

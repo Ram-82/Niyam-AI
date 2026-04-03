@@ -217,6 +217,14 @@ class MockDB:
                     break
         self._read_modify_write(self.subscriptions_file, _update)
 
+    def update_user_password(self, email: str, hashed_password: str):
+        def _update(users):
+            for u in users:
+                if u.get("email", "").lower() == email.lower():
+                    u["hashed_password"] = hashed_password
+                    break
+        self._read_modify_write(self.users_file, _update)
+
     def update_user_plan(self, user_id: str, plan: str):
         def _update(users):
             for u in users:

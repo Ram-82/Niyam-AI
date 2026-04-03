@@ -179,6 +179,36 @@ class EmailService:
             """,
         )
 
+    def send_password_reset_email(self, user_email: str, code: str) -> Optional[str]:
+        """Send the 6-digit password reset code to the user."""
+        reset_url = f"{settings.FRONTEND_URL}/forgot-password.html?email={user_email}"
+        return self._send(
+            to=user_email,
+            subject="Reset your Niyam AI password",
+            html=f"""
+            <div style="font-family:sans-serif; max-width:480px; margin:0 auto;">
+                <h2 style="color:#1e293b;">Reset Your Password</h2>
+                <p>Use this code to reset your Niyam AI password:</p>
+                <div style="font-size:32px; font-weight:700; letter-spacing:8px;
+                            text-align:center; padding:20px; background:#f1f5f9;
+                            border-radius:8px; margin:16px 0;">
+                    {code}
+                </div>
+                <p style="color:#64748b; font-size:14px;">
+                    This code expires in 10 minutes.
+                    <a href="{reset_url}" style="color:#4a40e0;">Click here to open the reset page.</a>
+                </p>
+                <p style="color:#64748b; font-size:14px;">
+                    If you didn't request a password reset, you can safely ignore this email.
+                </p>
+                <hr style="border:none; border-top:1px solid #e2e8f0; margin:24px 0;">
+                <p style="color:#94a3b8; font-size:12px;">
+                    Niyam AI &mdash; GST/TDS/ROC compliance for Indian MSMEs
+                </p>
+            </div>
+            """,
+        )
+
     def send_plan_downgrade_email(self, user_email: str) -> Optional[str]:
         """Notify user their subscription expired / was cancelled."""
         dashboard_url = f"{settings.FRONTEND_URL}/dashboard.html"

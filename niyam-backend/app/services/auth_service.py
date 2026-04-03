@@ -390,6 +390,15 @@ class AuthService:
                 {"email_verified": True}
             ).eq("email", email).execute()
 
+    def update_user_password(self, email: str, new_hashed: str):
+        """Update a user's hashed password."""
+        if self.use_mock:
+            self.mock_db.update_user_password(email, new_hashed)
+        else:
+            self.db.table("users").update(
+                {"hashed_password": new_hashed}
+            ).eq("email", email).execute()
+
     def check_user_exists(self, email: str) -> bool:
         """Check if a user with the given email exists."""
         if self.use_mock:

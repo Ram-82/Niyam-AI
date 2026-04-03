@@ -22,6 +22,7 @@ from fastapi import APIRouter, UploadFile, File, Request, HTTPException, status
 
 from app.config import settings
 from app.services.invoice_processor import InvoiceProcessor
+from app.services.storage import storage_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["Invoice Processing"])
@@ -82,7 +83,8 @@ def _get_business_id(db, is_mock: bool, user_id: str) -> Optional[str]:
 
 def _save_document_record(db, is_mock: bool, doc_id: str, business_id: str,
                            user_id: str, filename: str, file_size: int,
-                           content_type: str, now: str) -> None:
+                           content_type: str, now: str,
+                           storage_key: Optional[str] = None) -> None:
     """Persist a document record to the DB."""
     from app.models.document import DocumentType, DocumentStatus
     doc_record = {
@@ -90,7 +92,8 @@ def _save_document_record(db, is_mock: bool, doc_id: str, business_id: str,
         "business_id": business_id,
         "uploaded_by": user_id,
         "filename": filename,
-        "file_path": None,          # file is temp — not kept on disk
+        "storage_key": storage_key,
+        "file_path": storage_key,   # backwards compat for download endpoint
         "file_size": file_size,
         "mime_type": content_type,
         "document_type": DocumentType.PURCHASE_INVOICE.value,
@@ -232,9 +235,20 @@ async def process_invoice(
                 if business_id:
                     invoice_id = str(uuid.uuid4())
                     now = datetime.now(timezone.utc).isoformat()
+
+                    # Upload to persistent storage so the file is downloadable
+                    sk = None
+                    try:
+                        sk = storage_service.build_storage_key(business_id, original_filename)
+                        storage_service.upload(sk, content, content_type)
+                    except Exception as e:
+                        logger.warning(f"process-invoice: storage upload failed (non-fatal): {e}")
+                        sk = None
+
                     _save_document_record(
                         db, is_mock, doc_id, business_id,
                         user_id, original_filename, file_size, content_type, now,
+                        storage_key=sk,
                     )
                     _save_invoice_record(
                         db, is_mock, invoice_id, doc_id,

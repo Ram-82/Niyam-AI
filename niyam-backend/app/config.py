@@ -62,6 +62,7 @@ class Settings:
     RAZORPAY_KEY_ID: str = os.getenv("RAZORPAY_KEY_ID", "").strip()
     RAZORPAY_KEY_SECRET: str = os.getenv("RAZORPAY_KEY_SECRET", "").strip()
     RAZORPAY_WEBHOOK_SECRET: str = os.getenv("RAZORPAY_WEBHOOK_SECRET", "").strip()
+    RAZORPAY_PLAN_ID: str = os.getenv("RAZORPAY_PLAN_ID", "").strip()  # Razorpay subscription plan ID
 
     # Plan pricing (paise). 99900 = ₹999
     PRO_PLAN_AMOUNT_PAISE: int = int(os.getenv("PRO_PLAN_AMOUNT_PAISE", "99900"))

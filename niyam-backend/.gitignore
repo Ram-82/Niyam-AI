@@ -1,0 +1,13 @@
+# Environment — never commit these
+.env
+.env.*
+*.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Uploads / temp
+uploads/
+data/

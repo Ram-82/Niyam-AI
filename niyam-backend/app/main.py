@@ -35,30 +35,35 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down Niyam AI Compliance OS API...")
 
 
+# Disable interactive docs in production — they expose the full API surface.
+_docs_url = None if settings.ENVIRONMENT == "production" else "/api/docs"
+_redoc_url = None if settings.ENVIRONMENT == "production" else "/api/redoc"
+_openapi_url = None if settings.ENVIRONMENT == "production" else "/api/openapi.json"
+
 # Create FastAPI app
 app = FastAPI(
     title="Niyam AI Compliance OS API",
     description="Backend API for Indian MSME Compliance Management",
     version="1.0.0",
-    docs_url="/api/docs",
-    redoc_url="/api/redoc",
-    openapi_url="/api/openapi.json",
+    docs_url=_docs_url,
+    redoc_url=_redoc_url,
+    openapi_url=_openapi_url,
     lifespan=lifespan,
 )
 
-# Middleware stack (order matters — outermost first)
-# CORS: allow all origins for MVP. allow_credentials=False is required
-# when using wildcard "*" origin (per CORS spec). Auth endpoints that
-# need credentials should use explicit origin checks.
-app.add_middleware(
+# Middleware stack — Starlette wraps in LIFO order (last added = outermost = first to run).
+# Correct request flow: CORS → RateLimit → RequestID → route handler
+# CORS must be outermost so that browser preflight (OPTIONS) requests receive
+# CORS headers even when they are rejected by rate limiting.
+app.add_middleware(RequestIDMiddleware)   # innermost — runs last on request
+app.add_middleware(RateLimitMiddleware)   # middle
+app.add_middleware(                       # outermost — runs first on request
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_credentials=settings.ALLOWED_ORIGINS != ["*"],  # credentials require explicit origin
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
 )
-app.add_middleware(RateLimitMiddleware)
-app.add_middleware(RequestIDMiddleware)
 
 # Standardized error handlers
 install_error_handlers(app)

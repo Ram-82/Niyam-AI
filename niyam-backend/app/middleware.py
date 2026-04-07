@@ -35,7 +35,7 @@ class _RateBucket:
 
 class RateLimiter:
     """
-    Simple in-memory rate limiter.
+    Simple in-memory rate limiter with TTL-based bucket eviction.
 
     Usage:
         limiter = RateLimiter()
@@ -43,25 +43,46 @@ class RateLimiter:
         limiter.add_rule("/api/demo/run", max_requests=30, window_seconds=60)
     """
 
+    # Evict buckets that have been idle for longer than this multiplier × their window.
+    _EVICT_MULTIPLIER = 3
+    # Only run eviction every N checks to avoid overhead on every request.
+    _EVICT_EVERY = 500
+
     def __init__(self):
         # route_prefix -> (max_requests, window_seconds)
         self._rules: Dict[str, Tuple[int, int]] = {}
         # (ip, route_prefix) -> _RateBucket
         self._buckets: Dict[Tuple[str, str], _RateBucket] = defaultdict(_RateBucket)
+        self._check_count = 0
 
     def add_rule(self, route_prefix: str, max_requests: int, window_seconds: int):
         self._rules[route_prefix] = (max_requests, window_seconds)
+
+    def _evict_stale(self, now: float):
+        """Remove buckets that have been idle well past their window."""
+        # Find the longest window across all rules so we can compute a safe TTL.
+        max_window = max((w for _, w in self._rules.values()), default=60)
+        ttl = max_window * self._EVICT_MULTIPLIER
+        stale = [k for k, b in self._buckets.items() if now - b.window_start > ttl]
+        for k in stale:
+            del self._buckets[k]
+        if stale:
+            logger.debug(f"RateLimiter: evicted {len(stale)} stale buckets ({len(self._buckets)} remaining)")
 
     def check(self, ip: str, path: str) -> Tuple[bool, str]:
         """
         Returns (allowed, rule_matched).
         Resets window when expired. Returns (True, "") if no rule matches.
         """
+        now = time.time()
+        self._check_count += 1
+        if self._check_count % self._EVICT_EVERY == 0:
+            self._evict_stale(now)
+
         for prefix, (max_req, window) in self._rules.items():
             if path.startswith(prefix):
                 key = (ip, prefix)
                 bucket = self._buckets[key]
-                now = time.time()
 
                 # Reset window if expired
                 if now - bucket.window_start >= window:
@@ -79,9 +100,9 @@ class RateLimiter:
 
     def check_custom(self, ip: str, path: str, max_requests: int, window_seconds: int) -> bool:
         """Check against a custom limit (separate from registered rules)."""
+        now = time.time()
         key = (ip, path)
         bucket = self._buckets[key]
-        now = time.time()
         if now - bucket.window_start >= window_seconds:
             bucket.hits = 0
             bucket.window_start = now

@@ -25,10 +25,15 @@ class Settings:
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours (was 7 days — reduced for security)
 
     # ---- CORS ----
-    # In MVP: allow all origins. When credentials are needed (auth endpoints),
-    # the specific origin must be listed. For public endpoints like process-invoice,
-    # wildcard works fine.
-    ALLOWED_ORIGINS: list = ["*"]
+    # Comma-separated list of allowed origins, e.g.:
+    #   ALLOWED_ORIGINS=https://niyam.ai,https://app.niyam.ai
+    # Defaults to wildcard ("*") in development only; production should always set this.
+    _allowed_origins_raw: str = os.getenv("ALLOWED_ORIGINS", "").strip()
+    ALLOWED_ORIGINS: list = (
+        [o.strip() for o in _allowed_origins_raw.split(",") if o.strip()]
+        if _allowed_origins_raw
+        else ["*"]
+    )
 
     # ---- File Upload ----
     MAX_UPLOAD_SIZE: int = 15 * 1024 * 1024  # 15MB
@@ -81,12 +86,24 @@ class Settings:
             else:
                 self.JWT_SECRET_KEY = secrets.token_urlsafe(32)
                 logger.warning("JWT_SECRET_KEY not set — generated ephemeral dev secret.")
+        elif len(self.JWT_SECRET_KEY) < 32:
+            if self.ENVIRONMENT == "production":
+                errors.append("JWT_SECRET_KEY must be at least 32 characters in production")
+            else:
+                logger.warning(f"JWT_SECRET_KEY is weak ({len(self.JWT_SECRET_KEY)} chars) — use at least 32 random chars.")
 
         if self.ENVIRONMENT == "production":
             if not self.SUPABASE_URL:
                 errors.append("SUPABASE_URL is required in production")
             if not self.SUPABASE_KEY:
                 errors.append("SUPABASE_KEY is required in production")
+            if self.ALLOWED_ORIGINS == ["*"]:
+                errors.append(
+                    "ALLOWED_ORIGINS must be set to explicit origin(s) in production — "
+                    "wildcard '*' is not permitted. Set ALLOWED_ORIGINS=https://yourdomain.com"
+                )
+            if self.RAZORPAY_KEY_ID.startswith("rzp_test_"):
+                logger.warning("RAZORPAY_KEY_ID looks like a TEST key — ensure live keys are used in production.")
 
         if errors:
             for err in errors:

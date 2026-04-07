@@ -169,9 +169,14 @@
                     throw new Error(data.detail || 'Verification failed');
                 }
 
-                showSuccess('Email verified! Redirecting to login...');
                 localStorage.removeItem('niyam_verify_email');
-                setTimeout(() => { window.location.href = 'login.html'; }, 1500);
+                // If the user already has an access token (stored at signup), go straight to
+                // the dashboard — no need to log in again.
+                const hasToken = !!localStorage.getItem('niyam_access_token');
+                showSuccess('Email verified! Redirecting...');
+                setTimeout(() => {
+                    window.location.href = hasToken ? 'dashboard.html' : 'login.html';
+                }, 1500);
 
             } catch (error) {
                 showError(error.message);

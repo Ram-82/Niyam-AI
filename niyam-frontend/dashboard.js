@@ -173,15 +173,24 @@ function populateUpcomingEvents(events) {
         return;
     }
 
-    container.innerHTML = upcoming.map(evt => {
+    container.innerHTML = upcoming.map((evt, idx) => {
         const dateStr = new Date(evt.start + 'T00:00:00').toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' });
-        const desc = (evt.extendedProps && evt.extendedProps.description) || evt.title;
-        return `<div class="event-card" style="margin-bottom:8px; border-left:3px solid ${evt.color || '#6b7280'}; padding:8px 12px; cursor:pointer; border-radius:6px; background:#f8fafc;"
-            onclick="showEventDetails('${escapeHtml(evt.title)}', '${escapeHtml(evt.start)}', '${escapeHtml(desc)}')">
+        // Use data-idx instead of inlining values in onclick — avoids JS-context injection
+        // (escapeHtml encodes ' → &#39; which the browser decodes back to ' before JS runs)
+        return `<div class="event-card" style="margin-bottom:8px; border-left:3px solid ${escapeHtml(evt.color || '#6b7280')}; padding:8px 12px; cursor:pointer; border-radius:6px; background:#f8fafc;"
+            data-event-idx="${idx}">
             <p style="font-size:0.75rem; color:var(--text-light); margin-bottom:3px;">${escapeHtml(dateStr)}</p>
             <p style="font-weight:600; font-size:0.85rem;">${escapeHtml(evt.title)}</p>
         </div>`;
     }).join('');
+
+    // Attach click handlers via addEventListener (safe — no HTML serialisation of event data)
+    container.querySelectorAll('.event-card[data-event-idx]').forEach(card => {
+        const evt = upcoming[parseInt(card.dataset.eventIdx, 10)];
+        if (!evt) return;
+        const desc = (evt.extendedProps && evt.extendedProps.description) || evt.title;
+        card.addEventListener('click', () => showEventDetails(evt.title, evt.start, desc));
+    });
 }
 
 function showEventDetails(title, date, description) {
@@ -1121,10 +1130,10 @@ function updateDataTable(period) {
 
     body.innerHTML = data.labels.map((label, i) => `
         <tr>
-            <td style="padding: 6px; border: 1px solid #e2e8f0;">${label}</td>
-            <td style="padding: 6px; border: 1px solid #e2e8f0;">₹${data.taxLiability[i].toLocaleString()}</td>
-            <td style="padding: 6px; border: 1px solid #e2e8f0;">₹${data.cashFlow[i].toLocaleString()}</td>
-            <td style="padding: 6px; border: 1px solid #e2e8f0;">₹${data.itcAvailable[i].toLocaleString()}</td>
+            <td style="padding: 6px; border: 1px solid #e2e8f0;">${escapeHtml(String(label))}</td>
+            <td style="padding: 6px; border: 1px solid #e2e8f0;">₹${Number(data.taxLiability[i] || 0).toLocaleString()}</td>
+            <td style="padding: 6px; border: 1px solid #e2e8f0;">₹${Number(data.cashFlow[i] || 0).toLocaleString()}</td>
+            <td style="padding: 6px; border: 1px solid #e2e8f0;">₹${Number(data.itcAvailable[i] || 0).toLocaleString()}</td>
         </tr>
     `).join('');
 }
@@ -1652,7 +1661,8 @@ function updateDeadlinesTable(topActions, timeline) {
 
     if (deadlineItems.length === 0) return; // Keep static HTML if no data
 
-    tbody.innerHTML = deadlineItems.slice(0, 10).map(item => {
+    const slice = deadlineItems.slice(0, 10);
+    tbody.innerHTML = slice.map((item, idx) => {
         const severity = (item.severity || 'info').toLowerCase();
         let statusClass = 'badge-upcoming';
         let statusText = 'Upcoming';
@@ -1670,19 +1680,27 @@ function updateDeadlinesTable(topActions, timeline) {
             statusText = 'On Track';
         }
 
-        const category = (item.category || 'GST').toUpperCase();
-        const dueDate = item.due_date || 'TBD';
+        const category = escapeHtml((item.category || 'GST').toUpperCase());
+        const dueDate = escapeHtml(item.due_date || 'TBD');
         const impact = item.impact ? ` (₹${item.impact.toLocaleString('en-IN')})` : '';
 
+        // Use data-idx instead of onclick string interpolation to avoid JS-context injection
         return `
             <tr ${rowClass} data-status="${statusText}">
                 <td style="font-weight: 600;">${category}${impact}</td>
                 <td>${dueDate}</td>
                 <td><span class="badge ${statusClass}">${statusText}</span></td>
-                <td><button class="btn-action" onclick="showToast('${escapeHtml((item.action_required || item.title || '').replace(/'/g, ""))}')">View</button></td>
+                <td><button class="btn-action" data-dl-idx="${idx}">View</button></td>
             </tr>
         `;
     }).join('');
+
+    // Attach click handlers safely — no API data serialised into onclick attributes
+    tbody.querySelectorAll('button[data-dl-idx]').forEach(btn => {
+        const item = slice[parseInt(btn.dataset.dlIdx, 10)];
+        if (!item) return;
+        btn.addEventListener('click', () => showToast(item.action_required || item.title || 'View deadline'));
+    });
 }
 
 function renderHealthChart(data) {

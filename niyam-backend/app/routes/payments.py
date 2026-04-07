@@ -61,8 +61,16 @@ def _verify_webhook_signature(body: bytes, signature: str) -> bool:
 # POST /api/payments/create-subscription
 # ------------------------------------------------------------------
 
+VALID_PLANS = {"pro", "starter", "growth", "ca_solo", "ca_firm", "ca_enterprise"}
+
+
 class CreateSubscriptionRequest(BaseModel):
     plan: str = "pro"
+
+    def validate_plan(self) -> "CreateSubscriptionRequest":
+        if self.plan not in VALID_PLANS:
+            raise ValueError(f"Invalid plan '{self.plan}'. Must be one of: {sorted(VALID_PLANS)}")
+        return self
 
 
 @router.post("/create-subscription", response_model=dict)
@@ -77,6 +85,14 @@ async def create_subscription(
     In dev: returns a mock subscription for testing.
     """
     user_id = _get_user_id(credentials)
+
+    # Validate plan name before hitting the DB or Razorpay
+    if body.plan not in VALID_PLANS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid plan '{body.plan}'. Must be one of: {sorted(VALID_PLANS)}",
+        )
+
     db, is_mock = _get_db()
 
     # Look up user
@@ -198,7 +214,7 @@ async def razorpay_webhook(request: Request):
 
     db, is_mock = _get_db()
 
-    if event in ("subscription.activated", "subscription.completed"):
+    if event in ("subscription.activated", "subscription.completed", "subscription.renewed"):
         _handle_subscription_activated(payload, db, is_mock)
     elif event in ("subscription.halted", "subscription.cancelled"):
         _handle_subscription_halted(payload, db, is_mock)
@@ -211,7 +227,7 @@ async def razorpay_webhook(request: Request):
 
 
 def _handle_subscription_activated(payload: dict, db, is_mock: bool):
-    """Activate subscription and upgrade user to pro."""
+    """Activate/renew subscription and upgrade user to pro."""
     from app.services.email_service import email_service
 
     sub_entity = (
@@ -219,12 +235,35 @@ def _handle_subscription_activated(payload: dict, db, is_mock: bool):
         .get("subscription", {})
         .get("entity", {})
     )
+    payment_entity = (
+        payload.get("payload", {})
+        .get("payment", {})
+        .get("entity", {})
+    )
     rz_sub_id = sub_entity.get("id")
     customer_id = sub_entity.get("customer_id")
     end_at = sub_entity.get("end_at")
+    rz_payment_id = payment_entity.get("id")  # may be absent on activation events
 
     if not rz_sub_id:
         logger.warning("Webhook activated: missing subscription id")
+        return
+
+    # Idempotency: skip if subscription is already active with the same expiry
+    existing_sub = None
+    if is_mock:
+        existing_sub = db.get_subscription_by_razorpay_id(rz_sub_id)
+    else:
+        try:
+            resp = db.table("subscriptions").select("*").eq("razorpay_subscription_id", rz_sub_id).single().execute()
+            existing_sub = resp.data
+        except Exception:
+            existing_sub = None
+
+    expires_at = datetime.fromtimestamp(end_at, tz=timezone.utc).isoformat() if end_at else None
+
+    if existing_sub and existing_sub.get("status") == "active" and existing_sub.get("expires_at") == expires_at:
+        logger.info(f"Webhook activated: duplicate event for {rz_sub_id} — skipping")
         return
 
     # Find user via razorpay_customer_id
@@ -237,18 +276,24 @@ def _handle_subscription_activated(payload: dict, db, is_mock: bool):
         return
 
     user_id = user["id"]
-    expires_at = datetime.fromtimestamp(end_at, tz=timezone.utc).isoformat() if end_at else None
     now = datetime.now(timezone.utc).isoformat()
+    is_renewal = existing_sub and existing_sub.get("status") == "active"
 
-    # Update subscription status
+    # Update subscription status and store payment_id
+    update_fields = {
+        "status": "active",
+        "expires_at": expires_at,
+        "updated_at": now,
+    }
+    if rz_payment_id:
+        update_fields["razorpay_payment_id"] = rz_payment_id
+
     if is_mock:
         subs = db._read_file(db.subscriptions_file)
         found = False
         for s in subs:
             if s.get("razorpay_subscription_id") == rz_sub_id:
-                s["status"] = "active"
-                s["expires_at"] = expires_at
-                s["updated_at"] = now
+                s.update(update_fields)
                 found = True
                 break
         if found:
@@ -258,6 +303,7 @@ def _handle_subscription_activated(payload: dict, db, is_mock: bool):
                 "id": str(uuid.uuid4()),
                 "user_id": user_id,
                 "razorpay_subscription_id": rz_sub_id,
+                "razorpay_payment_id": rz_payment_id,
                 "plan": "pro",
                 "amount_paise": settings.PRO_PLAN_AMOUNT_PAISE,
                 "status": "active",
@@ -267,13 +313,13 @@ def _handle_subscription_activated(payload: dict, db, is_mock: bool):
             })
         db.update_user_plan(user_id, "pro")
     else:
-        db.table("subscriptions").update({
-            "status": "active", "expires_at": expires_at, "updated_at": now,
-        }).eq("razorpay_subscription_id", rz_sub_id).execute()
+        db.table("subscriptions").update(update_fields).eq("razorpay_subscription_id", rz_sub_id).execute()
         db.table("users").update({"plan": "pro"}).eq("id", user_id).execute()
 
-    email_service.send_plan_upgrade_email(user.get("email", ""), "pro")
-    logger.info(f"Subscription activated: user={user_id[:8]} plan=pro")
+    # Only send upgrade email on first activation, not on renewals
+    if not is_renewal:
+        email_service.send_plan_upgrade_email(user.get("email", ""), "pro")
+    logger.info(f"Subscription {'renewed' if is_renewal else 'activated'}: user={user_id[:8]} plan=pro expires={expires_at}")
 
 
 def _handle_subscription_halted(payload: dict, db, is_mock: bool):

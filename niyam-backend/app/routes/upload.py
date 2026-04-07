@@ -28,6 +28,7 @@ from app.services.ocr_service import OCRService
 from app.services.data_parser import DataParser
 from app.services.normalization import normalize_invoice
 from app.services.storage import storage_service
+from app.utils.file_validation import verify_magic_bytes, sanitize_filename
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["Upload & Extract"])
@@ -93,6 +94,9 @@ async def upload_document(
     content = await file.read()
     file_size = len(content)
 
+    # Verify actual file content matches declared MIME type (prevents spoofing)
+    verify_magic_bytes(content, content_type)
+
     # Validate size
     if file_size > settings.MAX_UPLOAD_SIZE:
         raise HTTPException(
@@ -105,7 +109,7 @@ async def upload_document(
 
     doc_id = str(uuid.uuid4())
     ext = ALLOWED_MIME[content_type]
-    filename = file.filename or f"document{ext}"
+    filename = sanitize_filename(file.filename or f"document{ext}")
 
     # Mask user_id in log (show only first 8 chars)
     uid_masked = (user_id or "")[:8] + "****"
@@ -115,10 +119,13 @@ async def upload_document(
     db, is_mock = _get_db()
     if is_mock:
         user = db.get_user_by_id(user_id)
-        business_id = user["business_id"] if user else "unknown"
+        business_id = user["business_id"] if user else None
     else:
         user_resp = db.table("users").select("business_id").eq("id", user_id).single().execute()
-        business_id = user_resp.data.get("business_id", "unknown") if user_resp.data else "unknown"
+        business_id = user_resp.data.get("business_id") if user_resp.data else None
+
+    if not business_id:
+        raise HTTPException(status_code=403, detail="No business account associated with this user")
 
     # Persist file via StorageService (Supabase Storage in prod, local disk in dev)
     storage_key = storage_service.build_storage_key(business_id, filename)
@@ -218,7 +225,7 @@ async def download_document(
         logger.error(f"Download failed for doc={document_id}: {e}")
         raise HTTPException(status_code=404, detail="Document file not found in storage")
 
-    filename = doc.get("filename", "document")
+    filename = sanitize_filename(doc.get("filename", "document"))
     mime_type = doc.get("mime_type", "application/octet-stream")
 
     return Response(

@@ -23,6 +23,7 @@ from fastapi import APIRouter, UploadFile, File, Request, HTTPException, status
 from app.config import settings
 from app.services.invoice_processor import InvoiceProcessor
 from app.services.storage import storage_service
+from app.utils.file_validation import verify_magic_bytes, sanitize_filename
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["Invoice Processing"])
@@ -188,10 +189,13 @@ async def process_invoice(
             detail=f"File too large ({file_size // (1024*1024)}MB). Max: {MAX_FILE_SIZE // (1024*1024)}MB",
         )
 
+    # Verify actual file content matches declared MIME type (prevents spoofing)
+    verify_magic_bytes(content, content_type)
+
     # Save temporarily
     doc_id = str(uuid.uuid4())
     ext = ALLOWED_MIME[content_type]
-    original_filename = file.filename or f"document{ext}"
+    original_filename = sanitize_filename(file.filename or f"document{ext}")
     safe_filename = f"{doc_id}{ext}"
     file_path = UPLOAD_DIR / safe_filename
 
@@ -291,7 +295,7 @@ async def process_invoice(
         return {
             "status": "failed",
             "reason": "PROCESSING_ERROR",
-            "detail": str(e),
+            "detail": "An internal error occurred while processing the invoice.",
         }
     finally:
         # Clean up temp file

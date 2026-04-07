@@ -98,6 +98,7 @@ rate_limiter.add_rule("/api/upload", max_requests=20, window_seconds=60)
 rate_limiter.add_rule("/api/extract", max_requests=20, window_seconds=60)
 rate_limiter.add_rule("/api/itc-match", max_requests=15, window_seconds=60)
 rate_limiter.add_rule("/api/process-invoice", max_requests=10, window_seconds=60)
+rate_limiter.add_rule("/api/ocr", max_requests=5, window_seconds=60)  # public endpoint — strict limit
 rate_limiter.add_rule("/api/compliance-check", max_requests=20, window_seconds=60)
 rate_limiter.add_rule("/api/export", max_requests=10, window_seconds=60)
 
@@ -144,12 +145,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     """
 
     async def dispatch(self, request: Request, call_next):
-        # Prefer X-Forwarded-For (first hop) when behind a reverse proxy
-        forwarded = request.headers.get("x-forwarded-for")
-        if forwarded:
-            ip = forwarded.split(",")[0].strip()
-        else:
-            ip = request.client.host if request.client else "0.0.0.0"
+        # Use the direct connection IP.  When behind a reverse proxy that
+        # appends to X-Forwarded-For, the rightmost entry is the one the proxy
+        # itself added and is therefore trustworthy.  Taking the *first* entry
+        # (client-supplied) is spoofable and must NOT be used for security
+        # decisions such as rate limiting.
+        ip = request.client.host if request.client else "0.0.0.0"
 
         path = request.url.path
 

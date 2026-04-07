@@ -17,6 +17,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 
 from app.config import settings
 from app.services.ocr_service import OCRService
+from app.utils.file_validation import verify_magic_bytes
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/ocr", tags=["OCR"])
@@ -54,6 +55,9 @@ async def extract_text(
         raise HTTPException(status_code=400, detail="Empty file uploaded")
     if len(content) > 10 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="File too large. Max: 10MB")
+
+    # Verify actual file content matches declared MIME type (prevents spoofing)
+    verify_magic_bytes(content, content_type)
 
     doc_id = str(uuid.uuid4())
     ext = ALLOWED_MIME[content_type]
@@ -93,7 +97,7 @@ async def extract_text(
         raise
     except Exception as e:
         logger.error(f"OCR extraction failed: {e}", exc_info=True)
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": "OCR processing failed. Please try again."}
     finally:
         try:
             if file_path.exists():

@@ -387,15 +387,21 @@ class OCRService:
         method = "none"
         confidence = 0
 
+        MAX_PDF_PAGES = 50  # Guard against decompression-bomb / enormous PDFs
+
         # Strategy 1: pdfplumber (native PDF text + structure)
         if self.pdfplumber_available:
             try:
                 import pdfplumber
                 with pdfplumber.open(file_path) as pdf:
                     page_count = len(pdf.pages)
+                    if page_count > MAX_PDF_PAGES:
+                        logger.warning(
+                            f"PDF has {page_count} pages — capping at {MAX_PDF_PAGES} to limit memory usage."
+                        )
                     all_text_parts = []
 
-                    for page in pdf.pages:
+                    for page in pdf.pages[:MAX_PDF_PAGES]:
                         # Extract text
                         page_text = page.extract_text() or ""
                         all_text_parts.append(page_text)
@@ -564,7 +570,8 @@ class OCRService:
         from pdf2image import convert_from_path
         from PIL import Image as PILImage
 
-        images = convert_from_path(file_path, dpi=300)
+        MAX_PDF_PAGES = 50  # Keep in sync with _extract_from_pdf
+        images = convert_from_path(file_path, dpi=300, last_page=MAX_PDF_PAGES)
         pages_text = []
         all_blocks = []
         total_confidence = 0

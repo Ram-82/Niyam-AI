@@ -129,7 +129,7 @@
             panel.innerHTML = `
                 <div class="card" style="text-align:center; padding:40px;">
                     <p style="color:var(--error); font-weight:600; margin-bottom:16px;">Extraction Failed</p>
-                    <p style="color:var(--text-light); margin-bottom:20px;">${e.message}</p>
+                    <p style="color:var(--text-light); margin-bottom:20px;">${escapeHtml(e.message)}</p>
                     <button class="btn btn-outline" onclick="cfRestart()">Try Again</button>
                 </div>`;
         }
